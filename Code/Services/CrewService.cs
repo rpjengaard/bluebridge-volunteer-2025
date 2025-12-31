@@ -95,17 +95,18 @@ public class CrewService : ICrewService
             }
         }
 
-        var description = content.GetValue<string>("description");
-        if (!string.IsNullOrEmpty(description))
-        {
-            description = System.Text.RegularExpressions.Regex.Replace(description, "<[^>]*>", "");
-        }
-
+        string? description = null;
         string? url = null;
+
+        // Get published content to access properly converted property values
         if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
         {
             var publishedContent = umbracoContext.Content?.GetById(content.Key);
-            url = publishedContent?.Url();
+            if (publishedContent != null)
+            {
+                url = publishedContent.Url();
+                description = GetRteDescription(publishedContent);
+            }
         }
 
         var detail = new CrewDetailData
@@ -144,19 +145,18 @@ public class CrewService : ICrewService
     {
         if (content.ContentType.Alias == CrewContentTypeAlias)
         {
-            var description = content.GetValue<string>("description");
-            if (!string.IsNullOrEmpty(description))
-            {
-                description = System.Text.RegularExpressions.Regex.Replace(description, "<[^>]*>", "");
-                if (description.Length > 150)
-                    description = description[..150] + "...";
-            }
-
+            string? description = null;
             string? url = null;
+
+            // Get published content to access properly converted property values
             if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
             {
                 var publishedContent = umbracoContext.Content?.GetById(content.Key);
-                url = publishedContent?.Url();
+                if (publishedContent != null)
+                {
+                    url = publishedContent.Url();
+                    description = GetRteDescription(publishedContent, 150);
+                }
             }
 
             crews.Add(new CrewListItem
@@ -175,6 +175,30 @@ public class CrewService : ICrewService
         {
             FindCrewsRecursive(child, crews);
         }
+    }
+
+    /// <summary>
+    /// Gets plain text description from RTE property, properly handling the IHtmlEncodedString type
+    /// </summary>
+    private static string? GetRteDescription(Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent publishedContent, int? maxLength = null)
+    {
+        var descriptionValue = publishedContent.Value<Umbraco.Cms.Core.Strings.IHtmlEncodedString>("description");
+        if (descriptionValue == null)
+            return null;
+
+        var htmlContent = descriptionValue.ToHtmlString();
+        if (string.IsNullOrEmpty(htmlContent))
+            return null;
+
+        // Strip HTML tags for plain text preview
+        var description = System.Text.RegularExpressions.Regex.Replace(htmlContent, "<[^>]*>", "");
+        // Trim whitespace and normalize spaces
+        description = System.Text.RegularExpressions.Regex.Replace(description, @"\s+", " ").Trim();
+
+        if (maxLength.HasValue && description.Length > maxLength.Value)
+            description = description[..maxLength.Value] + "...";
+
+        return description;
     }
 
     private List<(int memberId, List<int> crewIds)> GetMemberCrewAssignments()
@@ -282,19 +306,18 @@ public class CrewService : ICrewService
                         var content = _contentService.GetById(contentGuid);
                         if (content != null && content.ContentType.Alias == CrewContentTypeAlias)
                         {
-                            var description = content.GetValue<string>("description");
-                            if (!string.IsNullOrEmpty(description))
-                            {
-                                description = System.Text.RegularExpressions.Regex.Replace(description, "<[^>]*>", "");
-                                if (description.Length > 150)
-                                    description = description[..150] + "...";
-                            }
-
+                            string? description = null;
                             string? url = null;
+
+                            // Get published content to access properly converted property values
                             if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
                             {
                                 var publishedContent = umbracoContext.Content?.GetById(content.Key);
-                                url = publishedContent?.Url();
+                                if (publishedContent != null)
+                                {
+                                    url = publishedContent.Url();
+                                    description = GetRteDescription(publishedContent, 150);
+                                }
                             }
 
                             crews.Add(new CrewListItem

@@ -106,40 +106,7 @@ else if (dashboard == null)
 }
 else
 {
-    <!-- Navigation -->
-    <nav class="bg-blue-bridge shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="/" class="flex items-center text-white font-bold">
-                        BLUE BRIDGE <span class="ml-2 font-light text-xs tracking-widest uppercase">Portal</span>
-                    </a>
-                </div>
-                <div class="hidden md:flex items-center space-x-8">
-                    <a href="/dashboard" class="text-white font-semibold border-b-2 border-white pb-1">Min Side</a>
-                    <a href="/crews" class="text-white/80 hover:text-white transition-colors">Crews</a>
-                    <a href="/schedule" class="text-white/80 hover:text-white transition-colors">Vagtplan</a>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span class="text-white/80 text-sm hidden sm:block">@dashboard.Profile.FullName</span>
-                    <form method="post" action="/umbraco/surface/MemberAuthSurface/HandleLogout" class="inline">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="text-white/80 hover:text-white text-sm font-medium transition-colors">
-                            Log ud
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-        <!-- Mobile menu -->
-        <div class="md:hidden border-t border-white/20 px-4 py-3">
-            <div class="flex space-x-4">
-                <a href="/dashboard" class="text-white font-semibold text-sm">Min Side</a>
-                <a href="/crews" class="text-white/80 hover:text-white text-sm">Crews</a>
-                <a href="/schedule" class="text-white/80 hover:text-white text-sm">Vagtplan</a>
-            </div>
-        </div>
-    </nav>
+    @await Html.PartialAsync("Partials/_Navigation")
 
     <!-- Main Content -->
     <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">

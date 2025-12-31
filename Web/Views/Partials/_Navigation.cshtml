@@ -1,0 +1,84 @@
+@using Umbraco.Cms.Core.Security
+@using Umbraco.Cms.Core.Services
+@inject IMemberManager MemberManager
+@inject IMemberService MemberService
+@{
+    var currentMember = await MemberManager.GetCurrentMemberAsync();
+    var currentPath = Context.Request.Path.Value?.ToLowerInvariant() ?? "";
+
+    // Determine active page
+    bool isDashboard = currentPath.Contains("/dashboard") || currentPath.Contains("/min-side");
+    bool isCrews = currentPath.Contains("/frivillig/crews/") || currentPath.Contains("/crew");
+    bool isSchedule = currentPath.Contains("/frivillig/vagtplan/") || currentPath.Contains("/vagtplan");
+
+    // Get member name if logged in
+    string? memberName = null;
+    if (currentMember != null)
+    {
+        var member = MemberService.GetByEmail(currentMember.Email!);
+        if (member != null)
+        {
+            var firstName = member.GetValue<string>("firstName");
+            var lastName = member.GetValue<string>("lastName");
+            if (!string.IsNullOrEmpty(firstName) || !string.IsNullOrEmpty(lastName))
+            {
+                memberName = $"{firstName} {lastName}".Trim();
+            }
+        }
+
+        if (string.IsNullOrEmpty(memberName))
+        {
+            memberName = currentMember.UserName;
+        }
+    }
+}
+
+<nav class="bg-blue-bridge shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+            <div class="flex items-center">
+                <a href="/" class="flex items-center text-white font-bold">
+                    BLUE BRIDGE <span class="ml-2 font-light text-xs tracking-widest uppercase">Portal</span>
+                </a>
+            </div>
+            @if (currentMember != null)
+            {
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="/" class="@(isDashboard ? "text-white font-semibold border-b-2 border-white pb-1" : "text-white/80 hover:text-white transition-colors")">Min Side</a>
+                    <a href="/frivillig/crews/" class="@(isCrews ? "text-white font-semibold border-b-2 border-white pb-1" : "text-white/80 hover:text-white transition-colors")">Crews</a>
+                    <a href="/frivillig/vagtplan" class="@(isSchedule ? "text-white font-semibold border-b-2 border-white pb-1" : "text-white/80 hover:text-white transition-colors")">Vagtplan</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    @if (!string.IsNullOrEmpty(memberName))
+                    {
+                        <span class="text-white/80 text-sm hidden sm:block">@memberName</span>
+                    }
+                    <form method="post" action="/umbraco/surface/MemberAuthSurface/HandleLogout" class="inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="text-white/80 hover:text-white text-sm font-medium transition-colors">
+                            Log ud
+                        </button>
+                    </form>
+                </div>
+            }
+            else
+            {
+                <div class="flex items-center space-x-4">
+                    <a href="/login" class="text-white/80 hover:text-white text-sm font-medium transition-colors">Log ind</a>
+                    <a href="/signup" class="bg-accent-yellow text-blue-bridge px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider hover:opacity-90">Tilmeld</a>
+                </div>
+            }
+        </div>
+    </div>
+    @if (currentMember != null)
+    {
+        <!-- Mobile menu -->
+        <div class="md:hidden border-t border-white/20 px-4 py-3">
+            <div class="flex space-x-4">
+                <a href="/dashboard" class="@(isDashboard ? "text-white font-semibold" : "text-white/80 hover:text-white") text-sm">Min Side</a>
+                <a href="/crews" class="@(isCrews ? "text-white font-semibold" : "text-white/80 hover:text-white") text-sm">Crews</a>
+                <a href="/schedule" class="@(isSchedule ? "text-white font-semibold" : "text-white/80 hover:text-white") text-sm">Vagtplan</a>
+            </div>
+        </div>
+    }
+</nav>

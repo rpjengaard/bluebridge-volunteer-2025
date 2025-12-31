@@ -121,20 +121,33 @@ public class DashboardService : IDashboardService
 
     private void AddCrewData(List<CrewData> crews, IContent content)
     {
-        var description = content.GetValue<string>("description");
-        if (!string.IsNullOrEmpty(description))
-        {
-            description = System.Text.RegularExpressions.Regex.Replace(description, "<[^>]*>", "");
-            if (description.Length > 150)
-                description = description[..150] + "...";
-        }
-
-        // Get URL from published content if available
+        string? description = null;
         string? url = null;
+
+        // Get published content to access properly converted property values
         if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
         {
             var publishedContent = umbracoContext.Content?.GetById(content.Key);
-            url = publishedContent?.Url();
+            if (publishedContent != null)
+            {
+                url = publishedContent.Url();
+
+                // Get description from published content - RTE returns IHtmlEncodedString
+                var descriptionValue = publishedContent.Value<Umbraco.Cms.Core.Strings.IHtmlEncodedString>("description");
+                if (descriptionValue != null)
+                {
+                    var htmlContent = descriptionValue.ToHtmlString();
+                    if (!string.IsNullOrEmpty(htmlContent))
+                    {
+                        // Strip HTML tags for plain text preview
+                        description = System.Text.RegularExpressions.Regex.Replace(htmlContent, "<[^>]*>", "");
+                        // Trim whitespace and normalize spaces
+                        description = System.Text.RegularExpressions.Regex.Replace(description, @"\s+", " ").Trim();
+                        if (description.Length > 150)
+                            description = description[..150] + "...";
+                    }
+                }
+            }
         }
 
         crews.Add(new CrewData
