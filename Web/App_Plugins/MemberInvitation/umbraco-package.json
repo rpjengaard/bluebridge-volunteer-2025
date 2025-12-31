@@ -1,0 +1,25 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "MemberInvitation",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "dashboard",
+      "alias": "My.MemberInvitation.Dashboard",
+      "name": "Member Invitation",
+      "element": "/App_Plugins/MemberInvitation/member-invitation-dashboard.js",
+      "elementName": "member-invitation-dashboard",
+      "weight": 100,
+      "meta": {
+        "label": "Invitations",
+        "pathname": "member-invitations"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Members"
+        }
+      ]
+    }
+  ]
+}

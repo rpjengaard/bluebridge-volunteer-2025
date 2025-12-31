@@ -1,0 +1,11 @@
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="da" class="h-full bg-slate-50">
+<pre>Is logged in (master): @User.Identity?.IsAuthenticated</pre>
+
+@RenderBody()
+
+</html>

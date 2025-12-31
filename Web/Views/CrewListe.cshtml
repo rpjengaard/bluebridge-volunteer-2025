@@ -1,0 +1,318 @@
+@using Umbraco.Cms.Web.Common.PublishedModels
+@using Umbraco.Cms.Core.Security
+@using Umbraco.Cms.Core.Services
+@using Code.Services
+@using Web.ViewModels
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BbvCrewList>
+@inject IMemberManager MemberManager
+@inject IMemberService MemberService
+@inject ICrewService CrewService
+@{
+    Layout = null;
+
+    var currentMember = await MemberManager.GetCurrentMemberAsync();
+    CrewsPageViewModel? viewModel = null;
+    string memberName = string.Empty;
+
+    if (currentMember != null)
+    {
+        // Check if member is in admin group
+        var member = MemberService.GetByEmail(currentMember.Email!);
+        var isAdmin = false;
+        if (member != null)
+        {
+            var roles = MemberService.GetAllRoles(member.Id);
+            isAdmin = roles.Contains("admin");
+        }
+        var data = await CrewService.GetCrewsForMemberAsync(currentMember.Email!, isAdmin);
+
+        memberName = currentMember.Name ?? currentMember.Email ?? "Bruger";
+
+        viewModel = new CrewsPageViewModel
+        {
+            MemberName = memberName,
+            IsAdmin = isAdmin,
+            Crews = data.Crews.Select(c => new CrewListItemViewModel
+            {
+                Id = c.Id,
+                Key = c.Key,
+                Name = c.Name,
+                Description = c.Description,
+                AgeLimit = c.AgeLimit,
+                Url = c.Url,
+                MemberCount = c.MemberCount,
+                IsMemberAssigned = c.IsMemberAssigned
+            }).ToList()
+        };
+    }
+}
+<!DOCTYPE html>
+<html lang="da" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crews - Blue Bridge Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Montserrat', sans-serif; }
+        h1, h2, h3 { font-family: 'Playfair Display', serif; }
+        .bg-blue-bridge { background-color: #23297A; }
+        .text-blue-bridge { color: #23297A; }
+        .bg-accent-yellow { background-color: #FFF000; }
+        .border-blue-bridge { border-color: #23297A; }
+    </style>
+</head>
+<body class="h-full">
+
+@if (currentMember == null)
+{
+    <!-- Not logged in -->
+    <div class="min-h-screen flex items-center justify-center bg-slate-50">
+        <div class="text-center">
+            <div class="h-12 w-auto bg-blue-bridge flex items-center justify-center text-white font-bold p-2 rounded mx-auto max-w-xs mb-8">
+                BLUE BRIDGE <span class="ml-2 font-light text-xs tracking-widest uppercase">Portal</span>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Du skal være logget ind</h2>
+            <p class="text-gray-600 mb-6">Log ind for at se dine crews</p>
+            <a href="/login" class="inline-block bg-accent-yellow text-blue-bridge px-6 py-3 rounded-md font-bold uppercase tracking-wider hover:opacity-90">
+                Log ind
+            </a>
+        </div>
+    </div>
+}
+else if (viewModel == null)
+{
+    <!-- Error loading data -->
+    <div class="min-h-screen flex items-center justify-center bg-slate-50">
+        <div class="text-center">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Der opstod en fejl</h2>
+            <p class="text-gray-600 mb-6">Kunne ikke hente crew data. Prøv igen senere.</p>
+            <a href="/" class="text-blue-bridge hover:opacity-80 font-semibold">Gå til forsiden</a>
+        </div>
+    </div>
+}
+else
+{
+    <!-- Navigation -->
+    <nav class="bg-blue-bridge shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="flex items-center text-white font-bold">
+                        BLUE BRIDGE <span class="ml-2 font-light text-xs tracking-widest uppercase">Portal</span>
+                    </a>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="/dashboard" class="text-white/80 hover:text-white transition-colors">Min Side</a>
+                    <a href="/crews" class="text-white font-semibold border-b-2 border-white pb-1">Crews</a>
+                    <a href="/schedule" class="text-white/80 hover:text-white transition-colors">Vagtplan</a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-white/80 text-sm hidden sm:block">@viewModel.MemberName</span>
+                    @if (viewModel.IsAdmin)
+                    {
+                        <span class="bg-accent-yellow text-blue-bridge text-xs font-bold px-2 py-1 rounded">ADMIN</span>
+                    }
+                    <form method="post" action="/umbraco/surface/MemberAuthSurface/HandleLogout" class="inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="text-white/80 hover:text-white text-sm font-medium transition-colors">
+                            Log ud
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <!-- Mobile menu -->
+        <div class="md:hidden border-t border-white/20 px-4 py-3">
+            <div class="flex space-x-4">
+                <a href="/dashboard" class="text-white/80 hover:text-white text-sm">Min Side</a>
+                <a href="/crews" class="text-white font-semibold text-sm">Crews</a>
+                <a href="/schedule" class="text-white/80 hover:text-white text-sm">Vagtplan</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">
+                        @if (viewModel.IsAdmin)
+                        {
+                            <span>Alle Crews</span>
+                        }
+                        else
+                        {
+                            <span>Mine Crews</span>
+                        }
+                    </h1>
+                    <p class="mt-2 text-gray-600">
+                        @if (viewModel.IsAdmin)
+                        {
+                            <span>Administrer alle crews og frivillige for Blue Bridge Festival 2026.</span>
+                        }
+                        else
+                        {
+                            <span>Se de crews du er tildelt for Blue Bridge Festival 2026.</span>
+                        }
+                    </p>
+                </div>
+                @if (viewModel.IsAdmin)
+                {
+                    <div class="flex items-center space-x-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+                        <svg class="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                        </svg>
+                        <span class="text-sm font-medium text-amber-800">Administrator visning</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Stats (Admin only) -->
+        @if (viewModel.IsAdmin)
+        {
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white shadow rounded-lg p-4 text-center">
+                    <div class="text-3xl font-bold text-blue-bridge">@viewModel.Crews.Count</div>
+                    <div class="text-sm text-gray-600">Crews i alt</div>
+                </div>
+                <div class="bg-white shadow rounded-lg p-4 text-center">
+                    <div class="text-3xl font-bold text-green-600">@viewModel.Crews.Sum(c => c.MemberCount)</div>
+                    <div class="text-sm text-gray-600">Frivillige tildelt</div>
+                </div>
+                <div class="bg-white shadow rounded-lg p-4 text-center">
+                    <div class="text-3xl font-bold text-amber-600">@viewModel.Crews.Count(c => c.MemberCount == 0)</div>
+                    <div class="text-sm text-gray-600">Crews uden frivillige</div>
+                </div>
+                <div class="bg-white shadow rounded-lg p-4 text-center">
+                    <div class="text-3xl font-bold text-blue-bridge">@(viewModel.Crews.Count > 0 ? (viewModel.Crews.Sum(c => c.MemberCount) / (double)viewModel.Crews.Count).ToString("0.#") : "0")</div>
+                    <div class="text-sm text-gray-600">Gns. pr. crew</div>
+                </div>
+            </div>
+        }
+
+        <!-- Crews Grid -->
+        @if (viewModel.Crews.Any())
+        {
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                @foreach (var crew in viewModel.Crews)
+                {
+                    <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                        <div class="bg-blue-bridge px-6 py-4">
+                            <h2 class="text-xl font-bold text-white">@crew.Name</h2>
+                            @if (crew.AgeLimit.HasValue && crew.AgeLimit.Value > 0)
+                            {
+                                <span class="inline-block mt-1 bg-white/20 text-white text-xs px-2 py-1 rounded">
+                                    @crew.AgeLimit+ år
+                                </span>
+                            }
+                        </div>
+                        <div class="p-6">
+                            @if (!string.IsNullOrEmpty(crew.Description))
+                            {
+                                <p class="text-gray-600 text-sm mb-4">@crew.Description</p>
+                            }
+                            else
+                            {
+                                <p class="text-gray-400 text-sm italic mb-4">Ingen beskrivelse</p>
+                            }
+
+                            @if (viewModel.IsAdmin)
+                            {
+                                <!-- Admin view: Show member count and manage link -->
+                                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                                    <div class="flex items-center text-gray-600">
+                                        <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                                        </svg>
+                                        <span class="text-sm font-medium">
+                                            @crew.MemberCount @(crew.MemberCount == 1 ? "frivillig" : "frivillige")
+                                        </span>
+                                    </div>
+                                    <a href="/crews/@crew.Id" class="text-blue-bridge hover:opacity-80 text-sm font-semibold">
+                                        Administrer &rarr;
+                                    </a>
+                                </div>
+
+                                @if (crew.MemberCount == 0)
+                                {
+                                    <div class="mt-3 bg-amber-50 text-amber-800 text-xs px-3 py-2 rounded flex items-center">
+                                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                                        </svg>
+                                        Ingen frivillige tildelt endnu
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <!-- Regular member view -->
+                                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                                    <span class="inline-flex items-center text-green-700 text-sm font-medium">
+                                        <svg class="h-5 w-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                        </svg>
+                                        Du er tildelt
+                                    </span>
+                                    @if (!string.IsNullOrEmpty(crew.Url))
+                                    {
+                                        <a href="@crew.Url" class="text-blue-bridge hover:opacity-80 text-sm font-semibold">
+                                            Se mere &rarr;
+                                        </a>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <!-- No crews -->
+            <div class="bg-white shadow rounded-lg p-12 text-center">
+                <svg class="mx-auto h-16 w-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                </svg>
+                <h3 class="mt-6 text-xl font-semibold text-gray-900">Ingen crews endnu</h3>
+                @if (viewModel.IsAdmin)
+                {
+                    <p class="mt-2 text-gray-600">Der er ingen crews oprettet i systemet endnu.</p>
+                    <a href="/umbraco" class="mt-4 inline-block text-blue-bridge hover:opacity-80 font-semibold">
+                        Opret crews i Umbraco &rarr;
+                    </a>
+                }
+                else
+                {
+                    <p class="mt-2 text-gray-600">Du er ikke blevet tildelt et crew endnu. Vi vender tilbage snarest.</p>
+                    <a href="/dashboard" class="mt-4 inline-block text-blue-bridge hover:opacity-80 font-semibold">
+                        Tilbage til Min Side &rarr;
+                    </a>
+                }
+            </div>
+        }
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-100 border-t border-slate-200 mt-12">
+        <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="text-sm text-gray-500">
+                    &copy; @DateTime.Now.Year Blue Bridge Festival. Alle rettigheder forbeholdes.
+                </div>
+                <div class="mt-4 md:mt-0 flex space-x-6">
+                    <a href="/contact" class="text-sm text-gray-500 hover:text-gray-900">Kontakt</a>
+                    <a href="/privacy" class="text-sm text-gray-500 hover:text-gray-900">Privatlivspolitik</a>
+                    <a href="/help" class="text-sm text-gray-500 hover:text-gray-900">Hjælp</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+}
+
+</body>
+</html>

@@ -1,0 +1,13 @@
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage
+@{
+    Layout = "~/Views/Shared/_MasterLayout.cshtml";
+
+    // Check if user is authenticated
+    if (!User.Identity?.IsAuthenticated ?? true)
+    {
+        var returnUrl = Uri.EscapeDataString(Context.Request.Path + Context.Request.QueryString);
+        Context.Response.Redirect($"/login?returnUrl={returnUrl}");
+        return;
+    }
+}
+@RenderBody()

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(dotnet --version:*)",
+      "Bash(dotnet build:*)",
+      "Bash(timeout 15 dotnet run:*)",
+      "Bash(Remove-Item -Path \"C:\\Work\\Private Projects\\bluebridge-voluntier-umbraco-version\\Blue Bridge Voluntier\\Code\\Class1.cs\" -Force)",
+      "WebSearch",
+      "WebFetch(domain:docs.umbraco.com)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

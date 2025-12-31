@@ -1,0 +1,25 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "MemberImporter",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "dashboard",
+      "alias": "My.MemberImporter.Dashboard",
+      "name": "Member CSV Importer",
+      "element": "/App_Plugins/MemberImporter/member-importer-dashboard.js",
+      "elementName": "member-importer-dashboard",
+      "weight": 90,
+      "meta": {
+        "label": "CSV Importer",
+        "pathname": "member-csv-importer"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Members"
+        }
+      ]
+    }
+  ]
+}
