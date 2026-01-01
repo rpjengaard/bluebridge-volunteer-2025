@@ -1,0 +1,25 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "MemberImpersonation",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "dashboard",
+      "alias": "My.MemberImpersonation.Dashboard",
+      "name": "Member Impersonation",
+      "element": "/App_Plugins/MemberImpersonation/member-impersonation-dashboard.js",
+      "elementName": "member-impersonation-dashboard",
+      "weight": 80,
+      "meta": {
+        "label": "Impersonation",
+        "pathname": "member-impersonation"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Members"
+        }
+      ]
+    }
+  ]
+}

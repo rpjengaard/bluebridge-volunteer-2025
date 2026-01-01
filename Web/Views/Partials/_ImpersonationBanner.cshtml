@@ -1,0 +1,34 @@
+@using Code.Services
+@inject IMemberImpersonationService ImpersonationService
+@{
+    var isImpersonating = ImpersonationService.IsImpersonating();
+    var impersonatedEmail = ImpersonationService.GetImpersonatedMemberEmail();
+    var adminEmail = ImpersonationService.GetOriginalAdminEmail();
+}
+
+@if (isImpersonating)
+{
+    <div class="impersonation-banner" style="background-color: #ff6b6b; color: white; padding: 12px 0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                </svg>
+                <div>
+                    <div style="font-weight: 600; font-size: 14px;">
+                        Impersonation Mode Active
+                    </div>
+                    <div style="font-size: 12px; opacity: 0.9;">
+                        Admin <strong>@adminEmail</strong> viewing as <strong>@impersonatedEmail</strong>
+                    </div>
+                </div>
+            </div>
+            <form method="post" action="/umbraco/surface/ImpersonationSurface/StopImpersonation" style="margin: 0;">
+                @Html.AntiForgeryToken()
+                <button type="submit" style="background-color: white; color: #ff6b6b; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                    Exit Impersonation
+                </button>
+            </form>
+        </div>
+    </div>
+}
