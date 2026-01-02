@@ -9,7 +9,10 @@
       "WebSearch",
       "WebFetch(domain:docs.umbraco.com)",
       "Bash(git init:*)",
-      "Bash(git remote add:*)"
+      "Bash(git remote add:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix RTE property rendering and extract navigation partial\n\n- Fix Rich Text Editor properties displaying raw JSON instead of HTML\n- Use IPublishedContent.Value<IHtmlEncodedString> for proper RTE conversion\n- Add GetRteDescription helper method in CrewService for consistent handling\n- Extract navigation into reusable partial view (_Navigation.cshtml)\n- Update Dashboard and CrewListe views to use navigation partial\n- Navigation partial auto-detects active page and shows member name\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
