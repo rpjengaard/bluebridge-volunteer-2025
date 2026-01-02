@@ -158,80 +158,98 @@ else
             </div>
         }
 
-        <!-- Crews Grid -->
+        <!-- Crews List -->
         @if (viewModel.Crews.Any())
         {
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                @foreach (var crew in viewModel.Crews)
-                {
-                    <div class="bg-white shadow rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                        <div class="bg-blue-bridge px-6 py-4">
-                            <h2 class="text-xl font-bold text-white">@crew.Name</h2>
-                            @if (crew.AgeLimit.HasValue && crew.AgeLimit.Value > 0)
-                            {
-                                <span class="inline-block mt-1 bg-white/20 text-white text-xs px-2 py-1 rounded">
-                                    @crew.AgeLimit+ år
-                                </span>
-                            }
-                        </div>
-                        <div class="p-6">
-                            @if (!string.IsNullOrEmpty(crew.Description))
-                            {
-                                <p class="text-gray-600 text-sm mb-4">@crew.Description</p>
-                            }
-                            else
-                            {
-                                <p class="text-gray-400 text-sm italic mb-4">Ingen beskrivelse</p>
-                            }
-
+            <div class="bg-white shadow rounded-lg overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Crew</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beskrivelse</th>
                             @if (viewModel.IsAdmin)
                             {
-                                <!-- Admin view: Show member count and manage link -->
-                                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                                    <div class="flex items-center text-gray-600">
-                                        <svg class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                                        </svg>
-                                        <span class="text-sm font-medium">
-                                            @crew.MemberCount @(crew.MemberCount == 1 ? "frivillig" : "frivillige")
-                                        </span>
-                                    </div>
-                                    <a href="/crews/@crew.Id" class="text-blue-bridge hover:opacity-80 text-sm font-semibold">
-                                        Administrer &rarr;
-                                    </a>
-                                </div>
-
-                                @if (crew.MemberCount == 0)
-                                {
-                                    <div class="mt-3 bg-amber-50 text-amber-800 text-xs px-3 py-2 rounded flex items-center">
-                                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-                                        </svg>
-                                        Ingen frivillige tildelt endnu
-                                    </div>
-                                }
+                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frivillige</th>
                             }
-                            else
-                            {
-                                <!-- Regular member view -->
-                                <div class="flex items-center justify-between pt-4 border-t border-gray-100">
-                                    <span class="inline-flex items-center text-green-700 text-sm font-medium">
-                                        <svg class="h-5 w-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                        </svg>
-                                        Du er tildelt
-                                    </span>
-                                    @if (!string.IsNullOrEmpty(crew.Url))
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Handling</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach (var crew in viewModel.Crews.OrderBy(c => c.Name))
+                        {
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="h-10 w-10 rounded-lg bg-blue-bridge flex items-center justify-center text-white text-sm font-bold mr-3">
+                                            @(crew.Name.Length > 0 ? crew.Name[0].ToString().ToUpper() : "?")
+                                        </div>
+                                        <div>
+                                            <div class="font-medium text-gray-900">@crew.Name</div>
+                                            @if (crew.AgeLimit.HasValue && crew.AgeLimit.Value > 0)
+                                            {
+                                                <span class="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">@crew.AgeLimit+ år</span>
+                                            }
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    @if (!string.IsNullOrEmpty(crew.Description))
                                     {
-                                        <a href="@crew.Url" class="text-blue-bridge hover:opacity-80 text-sm font-semibold">
-                                            Se mere &rarr;
+                                        <p class="text-sm text-gray-600 max-w-md truncate">@crew.Description</p>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-sm text-gray-400 italic">Ingen beskrivelse</p>
+                                    }
+                                </td>
+                                @if (viewModel.IsAdmin)
+                                {
+                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                        <div class="flex items-center justify-center">
+                                            @if (crew.MemberCount == 0)
+                                            {
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                                    0
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                    @crew.MemberCount
+                                                </span>
+                                            }
+                                        </div>
+                                    </td>
+                                }
+                                <td class="px-6 py-4 whitespace-nowrap text-right">
+                                    @if (viewModel.IsAdmin)
+                                    {
+                                        <a href="@crew.Url" class="inline-flex items-center px-3 py-1.5 border border-blue-bridge text-blue-bridge text-sm font-medium rounded-md hover:bg-blue-bridge hover:text-white transition-colors">
+                                            Administrer
                                         </a>
                                     }
-                                </div>
-                            }
-                        </div>
-                    </div>
-                }
+                                    else
+                                    {
+                                        <div class="flex items-center justify-end gap-3">
+                                            <span class="inline-flex items-center text-green-700 text-xs font-medium">
+                                                <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                                                </svg>
+                                                Tildelt
+                                            </span>
+                                            @if (!string.IsNullOrEmpty(crew.Url))
+                                            {
+                                                <a href="@crew.Url" class="text-blue-bridge hover:underline text-sm font-medium">
+                                                    Se mere &rarr;
+                                                </a>
+                                            }
+                                        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         }
         else
