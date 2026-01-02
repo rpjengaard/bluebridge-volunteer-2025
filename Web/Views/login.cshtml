@@ -21,7 +21,8 @@
         h1, h2 { font-family: 'Playfair Display', serif; }
         .bg-blue-bridge { background-color: #23297A; }
         .text-blue-bridge { color: #23297A; }
-        .bg-accent-yellow { background-color: #FFF000; }
+        .btn-login { background-color: #EE746D; }
+        .btn-login:focus, .btn-login:focus-visible { background-color: #3EC58D !important; outline: none; }
     </style>
 </head>
 <body class="h-full">
@@ -106,7 +107,7 @@
 
                         <div>
                             <button type="submit"
-                                    class="flex w-full justify-center rounded-md bg-accent-yellow px-3 py-2.5 text-sm font-bold leading-6 text-blue-bridge shadow-sm hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-yellow-400 uppercase tracking-wider">
+                                    class="btn-login flex w-full justify-center rounded-md px-3 py-2.5 text-sm font-bold leading-6 text-white shadow-sm hover:opacity-90 uppercase tracking-wider transition-colors">
                                 Log ind
                             </button>
                         </div>
@@ -114,7 +115,7 @@
 
                     <p class="mt-10 text-center text-sm text-gray-500">
                         Ikke frivillig endnu?
-                        <a href="/signup" class="font-semibold leading-6 text-blue-bridge hover:opacity-80">Tilmeld dig som frivillig</a>
+                        <a href="/tilmeld" class="font-semibold leading-6 text-blue-bridge hover:opacity-80">Tilmeld dig som frivillig</a>
                     </p>
                 }
             </div>
@@ -124,7 +125,7 @@
     <div class="relative hidden w-0 flex-1 lg:block">
         <div class="absolute inset-0 bg-blue-bridge opacity-40 mix-blend-multiply z-10"></div>
         <img class="absolute inset-0 h-full w-full object-cover"
-             src="https://images.unsplash.com/photo-1459749411177-042180ce673c?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80"
+             src="https://www.bluebridge.dk/media/5pzf13k1/blue-bridge-2024-19.jpg?rmode=pad&width=1920&v=1daf46ecef20b80"
              alt="Festival stemning">
 
         <div class="absolute inset-0 z-20 flex items-center justify-center p-12 text-white">
