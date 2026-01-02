@@ -8,19 +8,27 @@ namespace Code.Services;
 public class CrewService : ICrewService
 {
     private readonly IMemberService _memberService;
+    private readonly IMemberGroupService _memberGroupService;
     private readonly IContentService _contentService;
     private readonly IUmbracoContextAccessor _umbracoContextAccessor;
     private readonly ILogger<CrewService> _logger;
 
     private const string CrewContentTypeAlias = "bbvCrewPage";
 
+    // Member Group GUIDs
+    private static readonly Guid AdminGroupKey = Guid.Parse("99e1edbb-8181-421d-a74b-e66a2f1e1148");
+    private static readonly Guid SchedulerGroupKey = Guid.Parse("e6eef645-b13b-4edb-880b-7b3cdf5b6816"); // Vagtplanlæggere
+    private static readonly Guid VolunteerGroupKey = Guid.Parse("dd21e01b-ff9e-4e0f-b821-476f793b865f"); // Frivillige
+
     public CrewService(
         IMemberService memberService,
+        IMemberGroupService memberGroupService,
         IContentService contentService,
         IUmbracoContextAccessor umbracoContextAccessor,
         ILogger<CrewService> logger)
     {
         _memberService = memberService;
+        _memberGroupService = memberGroupService;
         _contentService = contentService;
         _umbracoContextAccessor = umbracoContextAccessor;
         _logger = logger;
@@ -69,7 +77,54 @@ public class CrewService : ICrewService
         return Task.FromResult(result);
     }
 
-    public Task<CrewDetailData?> GetCrewDetailAsync(int crewId, string memberEmail, bool isAdmin)
+    public Task<CrewViewMode> GetMemberCrewViewModeAsync(string memberEmail, int crewId)
+    {
+        var member = _memberService.GetByEmail(memberEmail);
+        if (member == null)
+        {
+            return Task.FromResult(CrewViewMode.Volunteer);
+        }
+
+        // Get member's group assignments
+        var memberGroups = _memberService.GetAllRoles(member.Id);
+
+        // Get group names for comparison
+        var adminGroup = _memberGroupService.GetById(AdminGroupKey);
+        var schedulerGroup = _memberGroupService.GetById(SchedulerGroupKey);
+
+        // Check if member is in Admin group
+        if (adminGroup != null && memberGroups.Contains(adminGroup.Name))
+        {
+            return Task.FromResult(CrewViewMode.Admin);
+        }
+
+        // Check if member is in Scheduler (Vagtplanlæggere) group
+        if (schedulerGroup != null && memberGroups.Contains(schedulerGroup.Name))
+        {
+            return Task.FromResult(CrewViewMode.Scheduler);
+        }
+
+        // Also check if member is assigned as scheduler/supervisor for this specific crew
+        var content = _contentService.GetById(crewId);
+        if (content != null)
+        {
+            var schedulerUdi = content.GetValue<string>("scheduleSupervisor");
+            if (!string.IsNullOrEmpty(schedulerUdi) && IsMemberInUdiList(member.Key, schedulerUdi))
+            {
+                return Task.FromResult(CrewViewMode.Scheduler);
+            }
+
+            var supervisorsUdi = content.GetValue<string>("supervisors");
+            if (!string.IsNullOrEmpty(supervisorsUdi) && IsMemberInUdiList(member.Key, supervisorsUdi))
+            {
+                return Task.FromResult(CrewViewMode.Scheduler);
+            }
+        }
+
+        return Task.FromResult(CrewViewMode.Volunteer);
+    }
+
+    public Task<CrewDetailData?> GetCrewDetailAsync(int crewId, string memberEmail, CrewViewMode viewMode)
     {
         var content = _contentService.GetById(crewId);
         if (content == null || content.ContentType.Alias != CrewContentTypeAlias)
@@ -77,8 +132,8 @@ public class CrewService : ICrewService
             return Task.FromResult<CrewDetailData?>(null);
         }
 
-        // If not admin, verify member is assigned to this crew
-        if (!isAdmin)
+        // If volunteer, verify member is assigned to this crew
+        if (viewMode == CrewViewMode.Volunteer)
         {
             var member = _memberService.GetByEmail(memberEmail);
             if (member == null)
@@ -96,7 +151,9 @@ public class CrewService : ICrewService
         }
 
         string? description = null;
+        string? descriptionHtml = null;
         string? url = null;
+        int? ageLimit = null;
 
         // Get published content to access properly converted property values
         if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
@@ -106,8 +163,16 @@ public class CrewService : ICrewService
             {
                 url = publishedContent.Url();
                 description = GetRteDescription(publishedContent);
+                ageLimit = publishedContent.Value<int?>("ageLimit");
+
+                // Also get HTML version for full display
+                var descriptionValue = publishedContent.Value<Umbraco.Cms.Core.Strings.IHtmlEncodedString>("description");
+                descriptionHtml = descriptionValue?.ToHtmlString();
             }
         }
+
+        // Fallback to IContent if published content not available
+        ageLimit ??= content.GetValue<int?>("ageLimit");
 
         var detail = new CrewDetailData
         {
@@ -115,17 +180,152 @@ public class CrewService : ICrewService
             Key = content.Key,
             Name = content.Name ?? $"Crew {content.Id}",
             Description = description,
-            AgeLimit = content.GetValue<int?>("ageLimit"),
-            Url = url
+            DescriptionHtml = descriptionHtml,
+            AgeLimit = ageLimit,
+            Url = url,
+            ViewMode = viewMode
         };
 
-        // Get members assigned to this crew (admin only shows full list)
-        if (isAdmin)
+        // Get supervisors for all view modes (volunteers need contact info)
+        detail.ScheduleSupervisor = GetSupervisorFromUdi(content.GetValue<string>("scheduleSupervisor"));
+        detail.Supervisors = GetSupervisorsFromUdi(content.GetValue<string>("supervisors"));
+
+        // Get members assigned to this crew (admin and scheduler only)
+        if (viewMode == CrewViewMode.Admin || viewMode == CrewViewMode.Scheduler)
         {
             detail.Members = GetCrewMembers(crewId);
+            detail.WishlistMembers = GetWishlistMembersNotAssigned(crewId);
         }
 
         return Task.FromResult<CrewDetailData?>(detail);
+    }
+
+    private bool IsMemberInUdiList(Guid memberKey, string udiString)
+    {
+        if (string.IsNullOrWhiteSpace(udiString))
+            return false;
+
+        var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var udiPart in udiParts)
+        {
+            var trimmed = udiPart.Trim();
+            if (trimmed.StartsWith("umb://member/", StringComparison.OrdinalIgnoreCase))
+            {
+                var guidPart = trimmed["umb://member/".Length..];
+                if (Guid.TryParse(guidPart, out var guid) && guid == memberKey)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private SupervisorInfo? GetSupervisorFromUdi(string? udiString)
+    {
+        if (string.IsNullOrWhiteSpace(udiString))
+            return null;
+
+        var supervisors = GetSupervisorsFromUdi(udiString);
+        return supervisors.FirstOrDefault();
+    }
+
+    private List<SupervisorInfo> GetSupervisorsFromUdi(string? udiString)
+    {
+        var supervisors = new List<SupervisorInfo>();
+        if (string.IsNullOrWhiteSpace(udiString))
+            return supervisors;
+
+        var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var udiPart in udiParts)
+        {
+            var trimmed = udiPart.Trim();
+            try
+            {
+                if (trimmed.StartsWith("umb://member/", StringComparison.OrdinalIgnoreCase))
+                {
+                    var guidPart = trimmed["umb://member/".Length..];
+                    if (Guid.TryParse(guidPart, out var memberGuid))
+                    {
+                        var member = _memberService.GetByKey(memberGuid);
+                        if (member != null)
+                        {
+                            var firstName = member.GetValue<string>("firstName") ?? string.Empty;
+                            var lastName = member.GetValue<string>("lastName") ?? string.Empty;
+                            var fullName = $"{firstName} {lastName}".Trim();
+                            if (string.IsNullOrEmpty(fullName))
+                                fullName = member.Name ?? member.Email ?? "Unknown";
+
+                            supervisors.Add(new SupervisorInfo
+                            {
+                                MemberId = member.Id,
+                                FullName = fullName,
+                                Email = member.Email ?? string.Empty,
+                                Phone = member.GetValue<string>("phone")
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse member UDI: {Udi}", trimmed);
+            }
+        }
+
+        return supervisors;
+    }
+
+    private List<CrewMemberInfo> GetWishlistMembersNotAssigned(int crewId)
+    {
+        var wishlistMembers = new List<CrewMemberInfo>();
+        var allMembers = _memberService.GetAllMembers();
+
+        foreach (var member in allMembers)
+        {
+            // Skip admin members
+            if (IsMemberInAdminGroup(member.Id))
+                continue;
+
+            // Check if crew is on their wishlist
+            var wishlistValue = member.GetValue<string>("crewWishes");
+            var wishlistIds = ParseCrewIds(wishlistValue);
+
+            if (!wishlistIds.Contains(crewId))
+                continue;
+
+            // Check if they're already assigned to any crew
+            var assignedCrewsValue = member.GetValue<string>("crews");
+            var assignedCrewIds = ParseCrewIds(assignedCrewsValue);
+
+            if (assignedCrewIds.Any())
+                continue; // Skip if already assigned to any crew
+
+            var firstName = member.GetValue<string>("firstName") ?? string.Empty;
+            var lastName = member.GetValue<string>("lastName") ?? string.Empty;
+            var fullName = $"{firstName} {lastName}".Trim();
+            if (string.IsNullOrEmpty(fullName))
+                fullName = member.Name ?? member.Email ?? "Unknown";
+
+            wishlistMembers.Add(new CrewMemberInfo
+            {
+                MemberId = member.Id,
+                MemberKey = member.Key,
+                FullName = fullName,
+                Email = member.Email ?? string.Empty,
+                Phone = member.GetValue<string>("phone"),
+                HasAccepted2026 = member.GetValue<bool>("accept2026")
+            });
+        }
+
+        return wishlistMembers.OrderBy(m => m.FullName).ToList();
+    }
+
+    private bool IsMemberInAdminGroup(int memberId)
+    {
+        var memberGroups = _memberService.GetAllRoles(memberId);
+        var adminGroup = _memberGroupService.GetById(AdminGroupKey);
+        return adminGroup != null && memberGroups.Contains(adminGroup.Name);
     }
 
     private List<CrewListItem> GetAllCrews()
@@ -226,6 +426,10 @@ public class CrewService : ICrewService
 
         foreach (var member in allMembers)
         {
+            // Skip admin members
+            if (IsMemberInAdminGroup(member.Id))
+                continue;
+
             var crewsValue = member.GetValue<string>("crews");
             var crewIds = ParseCrewIds(crewsValue);
 

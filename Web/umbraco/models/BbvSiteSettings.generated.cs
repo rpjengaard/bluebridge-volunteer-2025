@@ -50,6 +50,22 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		// properties
 
 		///<summary>
+		/// signup mail text
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("signupMailText")]
+		public virtual string SignupMailText => this.Value<string>(_publishedValueFallback, "signupMailText");
+
+		///<summary>
+		/// Billetlink Frivillig: Linket til at kunne købe én frivillig billet og børn
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("singleTicketUrl")]
+		public virtual string SingleTicketUrl => this.Value<string>(_publishedValueFallback, "singleTicketUrl");
+
+		///<summary>
 		/// Site navn
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]

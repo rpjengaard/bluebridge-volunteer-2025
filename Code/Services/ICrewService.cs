@@ -3,7 +3,15 @@ namespace Code.Services;
 public interface ICrewService
 {
     Task<CrewsPageData> GetCrewsForMemberAsync(string memberEmail, bool isAdmin);
-    Task<CrewDetailData?> GetCrewDetailAsync(int crewId, string memberEmail, bool isAdmin);
+    Task<CrewDetailData?> GetCrewDetailAsync(int crewId, string memberEmail, CrewViewMode viewMode);
+    Task<CrewViewMode> GetMemberCrewViewModeAsync(string memberEmail, int crewId);
+}
+
+public enum CrewViewMode
+{
+    Volunteer,
+    Scheduler,
+    Admin
 }
 
 public class CrewsPageData
@@ -30,9 +38,12 @@ public class CrewDetailData
     public Guid Key { get; set; }
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public string? DescriptionHtml { get; set; }
     public int? AgeLimit { get; set; }
     public string? Url { get; set; }
+    public CrewViewMode ViewMode { get; set; }
     public List<CrewMemberInfo> Members { get; set; } = new();
+    public List<CrewMemberInfo> WishlistMembers { get; set; } = new();
     public SupervisorInfo? ScheduleSupervisor { get; set; }
     public List<SupervisorInfo> Supervisors { get; set; } = new();
 }
