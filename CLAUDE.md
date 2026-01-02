@@ -147,3 +147,42 @@ The importer expects a CSV file with the following columns:
 2. Select the "Member CSV Importer" dashboard
 3. Upload a CSV file matching the expected format
 4. Review the import results
+
+### Member Impersonation Dashboard
+
+A custom dashboard that allows admin users to impersonate volunteer members on the frontend for support purposes.
+
+**Location:** Web/App_Plugins/MemberImpersonation/
+**Controllers:**
+- Web/Controllers/MemberImpersonationController.cs (Backoffice API)
+- Web/Controllers/ImpersonationSurfaceController.cs (Frontend)
+**Service:** Code/Services/MemberImpersonationService.cs
+
+**Features:**
+- Search and select a member to impersonate
+- Start impersonation session with a single click
+- View frontend as the selected member
+- Clear impersonation banner displayed when active
+- Easy exit back to admin session
+
+**How it works:**
+1. Admin searches for a member by name or email in the backoffice dashboard
+2. Admin clicks "Start Impersonation" to log in as that member
+3. Admin can open the frontend in a new tab to see the member's view
+4. A red warning banner appears at the top of all frontend pages during impersonation
+5. Admin clicks "Exit Impersonation" to return to their admin session
+
+**Security:**
+- Impersonation state is stored in server-side sessions (60-minute timeout)
+- Only accessible from the Umbraco backoffice Members section
+- Requires backoffice authentication
+- Session is automatically cleared when exiting impersonation
+
+**To use:**
+1. Navigate to Members section in Umbraco backoffice
+2. Select the "Impersonation" dashboard
+3. Search for a member by name or email
+4. Click on a member to select them
+5. Click "Start Impersonation"
+6. Click "Open Frontend in New Tab" to view as that member
+7. Click "Exit Impersonation" in the red banner when done
