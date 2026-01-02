@@ -26,7 +26,10 @@ public class MemberImpersonationController : ManagementApiControllerBase
     [HttpGet("members")]
     public IActionResult GetMembers([FromQuery] string? search = null)
     {
-        var members = _memberService.GetAll(0, 100, out long totalRecords);
+        var members = _memberService.GetAll(0, 1000, out long totalRecords);
+
+        // only show accepted members
+        members = members.Where(m => m.GetValue<bool>("accept2026") == true).ToList();
 
         var filteredMembers = members
             .Where(m => string.IsNullOrEmpty(search) ||
