@@ -224,12 +224,12 @@ else
                                             {
                                                 <tr class="hover:bg-gray-50">
                                                     <td class="px-4 py-4 whitespace-nowrap">
-                                                        <div class="flex items-center">
+                                                        <a href="/member?key=@member.MemberKey" class="flex items-center hover:opacity-80">
                                                             <div class="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center text-green-700 text-sm font-bold mr-3">
                                                                 @(member.FullName.Length > 0 ? member.FullName[0].ToString().ToUpper() : "?")
                                                             </div>
-                                                            <span class="font-medium text-gray-900">@member.FullName</span>
-                                                        </div>
+                                                            <span class="font-medium text-blue-bridge hover:underline">@member.FullName</span>
+                                                        </a>
                                                     </td>
                                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                                                         <a href="mailto:@member.Email" class="hover:text-blue-bridge">@member.Email</a>
@@ -313,12 +313,12 @@ else
                                             {
                                                 <tr class="hover:bg-gray-50">
                                                     <td class="px-4 py-4 whitespace-nowrap">
-                                                        <div class="flex items-center">
+                                                        <a href="/member?key=@member.MemberKey" class="flex items-center hover:opacity-80">
                                                             <div class="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 text-sm font-bold mr-3">
                                                                 @(member.FullName.Length > 0 ? member.FullName[0].ToString().ToUpper() : "?")
                                                             </div>
-                                                            <span class="font-medium text-gray-900">@member.FullName</span>
-                                                        </div>
+                                                            <span class="font-medium text-blue-bridge hover:underline">@member.FullName</span>
+                                                        </a>
                                                     </td>
                                                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                                                         <a href="mailto:@member.Email" class="hover:text-blue-bridge">@member.Email</a>

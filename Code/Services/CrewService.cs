@@ -124,6 +124,74 @@ public class CrewService : ICrewService
         return Task.FromResult(CrewViewMode.Volunteer);
     }
 
+    public Task<MemberDetailData?> GetMemberByKeyAsync(Guid memberKey, string requestingMemberEmail)
+    {
+        // Check if requesting member has permission (must be admin or scheduler)
+        var requestingMember = _memberService.GetByEmail(requestingMemberEmail);
+        if (requestingMember == null)
+        {
+            return Task.FromResult<MemberDetailData?>(null);
+        }
+
+        // Get requesting member's groups
+        var requestingMemberGroups = _memberService.GetAllRoles(requestingMember.Id);
+        var adminGroup = _memberGroupService.GetById(AdminGroupKey);
+        var schedulerGroup = _memberGroupService.GetById(SchedulerGroupKey);
+
+        var isAdmin = adminGroup != null && requestingMemberGroups.Contains(adminGroup.Name);
+        var isScheduler = schedulerGroup != null && requestingMemberGroups.Contains(schedulerGroup.Name);
+
+        if (!isAdmin && !isScheduler)
+        {
+            _logger.LogWarning("Member {Email} attempted to view member details without permission", requestingMemberEmail);
+            return Task.FromResult<MemberDetailData?>(null);
+        }
+
+        // Get the member by key
+        var member = _memberService.GetByKey(memberKey);
+        if (member == null)
+        {
+            return Task.FromResult<MemberDetailData?>(null);
+        }
+
+        var firstName = member.GetValue<string>("firstName") ?? string.Empty;
+        var lastName = member.GetValue<string>("lastName") ?? string.Empty;
+        var fullName = $"{firstName} {lastName}".Trim();
+        if (string.IsNullOrEmpty(fullName))
+            fullName = member.Name ?? member.Email ?? "Unknown";
+
+        var birthdate = member.GetValue<DateTime?>("birthdate");
+        var acceptedDate = member.GetValue<DateTime?>("acceptedDate");
+        var invitationSentDate = member.GetValue<DateTime?>("invitationSentDate");
+
+        var detail = new MemberDetailData
+        {
+            MemberId = member.Id,
+            MemberKey = member.Key,
+            FirstName = firstName,
+            LastName = lastName,
+            FullName = fullName,
+            Email = member.Email ?? string.Empty,
+            Phone = member.GetValue<string>("phone"),
+            Birthdate = birthdate == DateTime.MinValue ? null : birthdate,
+            TidligereArbejdssteder = member.GetValue<string>("tidligereArbejdssteder"),
+            Accept2026 = member.GetValue<bool>("accept2026"),
+            AcceptedDate = acceptedDate == DateTime.MinValue ? null : acceptedDate,
+            InvitationSentDate = invitationSentDate == DateTime.MinValue ? null : invitationSentDate,
+            MemberGroups = _memberService.GetAllRoles(member.Id).ToList()
+        };
+
+        // Get assigned crews
+        var assignedCrewsValue = member.GetValue<string>("crews");
+        detail.AssignedCrews = ParseCrewReferences(assignedCrewsValue);
+
+        // Get crew wishes
+        var crewWishesValue = member.GetValue<string>("crewWishes");
+        detail.CrewWishes = ParseCrewReferences(crewWishesValue);
+
+        return Task.FromResult<MemberDetailData?>(detail);
+    }
+
     public Task<CrewDetailData?> GetCrewDetailAsync(int crewId, string memberEmail, CrewViewMode viewMode)
     {
         var content = _contentService.GetById(crewId);

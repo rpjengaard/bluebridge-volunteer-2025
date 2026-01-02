@@ -1,0 +1,362 @@
+@using Umbraco.Cms.Core.Security
+@using Code.Services
+@inject IMemberManager MemberManager
+@inject ICrewService CrewService
+@{
+    Layout = null;
+
+    // Get member key from query string
+    var memberKeyString = Context.Request.Query["key"].ToString();
+    Guid.TryParse(memberKeyString, out var memberKey);
+
+    var currentMember = await MemberManager.GetCurrentMemberAsync();
+    MemberDetailData? memberData = null;
+
+    if (currentMember != null && memberKey != Guid.Empty)
+    {
+        memberData = await CrewService.GetMemberByKeyAsync(memberKey, currentMember.Email!);
+    }
+
+    var crewSuccess = TempData["CrewSuccess"] as string;
+    var crewError = TempData["CrewError"] as string;
+}
+<!DOCTYPE html>
+<html lang="da" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@(memberData?.FullName ?? "Medlem") - Blue Bridge Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Montserrat', sans-serif; }
+        h1, h2, h3 { font-family: 'Playfair Display', serif; }
+        .bg-blue-bridge { background-color: #23297A; }
+        .text-blue-bridge { color: #23297A; }
+        .bg-accent-yellow { background-color: #FFF000; }
+        .border-blue-bridge { border-color: #23297A; }
+    </style>
+</head>
+<body class="h-full">
+    @if (currentMember == null)
+    {
+        <div class="min-h-screen flex items-center justify-center">
+            <div class="bg-white shadow rounded-lg p-8 max-w-md text-center">
+                <h1 class="text-2xl font-bold text-gray-900 mb-4">Ikke logget ind</h1>
+                <p class="text-gray-600 mb-6">Du skal være logget ind for at se denne side.</p>
+                <a href="/login" class="inline-flex items-center px-4 py-2 bg-blue-bridge text-white rounded-md hover:opacity-90">
+                    Log ind
+                </a>
+            </div>
+        </div>
+    }
+    else if (memberData == null)
+    {
+        <div class="min-h-screen flex items-center justify-center">
+            <div class="bg-white shadow rounded-lg p-8 max-w-md text-center">
+                <h1 class="text-2xl font-bold text-gray-900 mb-4">Ingen adgang</h1>
+                <p class="text-gray-600 mb-6">Du har ikke adgang til at se denne medlemsprofil, eller medlemmet blev ikke fundet.</p>
+                <a href="/dashboard" class="inline-flex items-center px-4 py-2 bg-blue-bridge text-white rounded-md hover:opacity-90">
+                    Tilbage til dashboard
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="min-h-screen">
+            <!-- Header -->
+            <header class="bg-blue-bridge text-white shadow-lg">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4">
+                            <a href="/dashboard" class="text-white/70 hover:text-white">
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                                </svg>
+                            </a>
+                            <div>
+                                <h1 class="text-2xl font-bold">@memberData.FullName</h1>
+                                <p class="text-white/70 text-sm">Medlemsprofil</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            @foreach (var group in memberData.MemberGroups)
+                            {
+                                var groupColor = group.ToLower() switch
+                                {
+                                    "admin" => "bg-red-500",
+                                    "vagtplanlæggere" => "bg-purple-500",
+                                    _ => "bg-green-500"
+                                };
+                                <span class="@groupColor text-white text-xs px-3 py-1 rounded-full">@group</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Success/Error Messages -->
+            @if (!string.IsNullOrEmpty(crewSuccess))
+            {
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+                    <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+                        @crewSuccess
+                    </div>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(crewError))
+            {
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+                    <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                        @crewError
+                    </div>
+                </div>
+            }
+
+            <!-- Main Content -->
+            <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Personal Information -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <div class="bg-white shadow rounded-lg overflow-hidden">
+                            <div class="bg-blue-bridge px-6 py-4">
+                                <h2 class="text-xl font-bold text-white">Personlige oplysninger</h2>
+                            </div>
+                            <div class="p-6">
+                                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Fornavn</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">@(string.IsNullOrEmpty(memberData.FirstName) ? "-" : memberData.FirstName)</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Efternavn</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">@(string.IsNullOrEmpty(memberData.LastName) ? "-" : memberData.LastName)</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Email</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">
+                                            <a href="mailto:@memberData.Email" class="text-blue-bridge hover:underline">@memberData.Email</a>
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Telefon</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">
+                                            @if (!string.IsNullOrEmpty(memberData.Phone))
+                                            {
+                                                <a href="tel:@memberData.Phone" class="text-blue-bridge hover:underline">@memberData.Phone</a>
+                                            }
+                                            else
+                                            {
+                                                <span>-</span>
+                                            }
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Alder</dt>
+                                        <dd class="mt-1 text-sm text-gray-900">
+                                            @if (memberData.Birthdate.HasValue)
+                                            {
+                                                var today = DateTime.Today;
+                                                var age = today.Year - memberData.Birthdate.Value.Year;
+                                                if (memberData.Birthdate.Value.Date > today.AddYears(-age)) age--;
+                                                @age <span class="text-gray-500">år (@memberData.Birthdate.Value.ToString("dd.MM.yyyy"))</span>
+                                            }
+                                            else
+                                            {
+                                                <span>-</span>
+                                            }
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="text-sm font-medium text-gray-500">Medlem ID</dt>
+                                        <dd class="mt-1 text-sm text-gray-500 font-mono">@memberData.MemberKey.ToString("D")</dd>
+                                    </div>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <!-- Previous Workplaces -->
+                        @if (!string.IsNullOrEmpty(memberData.TidligereArbejdssteder))
+                        {
+                            <div class="bg-white shadow rounded-lg overflow-hidden">
+                                <div class="bg-gray-700 px-6 py-4">
+                                    <h2 class="text-xl font-bold text-white">Tidligere arbejdssteder</h2>
+                                </div>
+                                <div class="p-6">
+                                    <p class="text-sm text-gray-700 whitespace-pre-wrap">@memberData.TidligereArbejdssteder</p>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Assigned Crews -->
+                        <div class="bg-white shadow rounded-lg overflow-hidden">
+                            <div class="bg-green-600 px-6 py-4 flex items-center justify-between">
+                                <h2 class="text-xl font-bold text-white">Tildelte crews</h2>
+                                <span class="bg-white/20 text-white text-sm px-3 py-1 rounded-full">
+                                    @memberData.AssignedCrews.Count @(memberData.AssignedCrews.Count == 1 ? "crew" : "crews")
+                                </span>
+                            </div>
+                            <div class="p-6">
+                                @if (memberData.AssignedCrews.Any())
+                                {
+                                    <ul class="divide-y divide-gray-200">
+                                        @foreach (var crew in memberData.AssignedCrews)
+                                        {
+                                            <li class="py-3 flex items-center justify-between">
+                                                <div>
+                                                    <a href="@crew.Url" class="font-medium text-blue-bridge hover:underline">@crew.Name</a>
+                                                    @if (!string.IsNullOrEmpty(crew.Description))
+                                                    {
+                                                        <p class="text-sm text-gray-500">@crew.Description</p>
+                                                    }
+                                                </div>
+                                                @if (crew.AgeLimit.HasValue && crew.AgeLimit.Value > 0)
+                                                {
+                                                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">@crew.AgeLimit+ år</span>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                }
+                                else
+                                {
+                                    <p class="text-sm text-gray-500">Ingen crews tildelt.</p>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Crew Wishes -->
+                        @if (memberData.CrewWishes.Any())
+                        {
+                            <div class="bg-white shadow rounded-lg overflow-hidden">
+                                <div class="bg-amber-500 px-6 py-4 flex items-center justify-between">
+                                    <h2 class="text-xl font-bold text-white">Crew ønsker</h2>
+                                    <span class="bg-white/20 text-white text-sm px-3 py-1 rounded-full">
+                                        @memberData.CrewWishes.Count @(memberData.CrewWishes.Count == 1 ? "ønske" : "ønsker")
+                                    </span>
+                                </div>
+                                <div class="p-6">
+                                    <ul class="divide-y divide-gray-200">
+                                        @foreach (var crew in memberData.CrewWishes)
+                                        {
+                                            <li class="py-3 flex items-center justify-between">
+                                                <div>
+                                                    <a href="@crew.Url" class="font-medium text-blue-bridge hover:underline">@crew.Name</a>
+                                                    @if (!string.IsNullOrEmpty(crew.Description))
+                                                    {
+                                                        <p class="text-sm text-gray-500">@crew.Description</p>
+                                                    }
+                                                </div>
+                                                @if (crew.AgeLimit.HasValue && crew.AgeLimit.Value > 0)
+                                                {
+                                                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">@crew.AgeLimit+ år</span>
+                                                }
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="space-y-6">
+                        <!-- Status Card -->
+                        <div class="bg-white shadow rounded-lg overflow-hidden">
+                            <div class="bg-blue-bridge px-6 py-4">
+                                <h2 class="text-xl font-bold text-white">Status</h2>
+                            </div>
+                            <div class="p-6 space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500">2026 Status</span>
+                                    @if (memberData.Accept2026)
+                                    {
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Bekræftet
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                            Ikke bekræftet
+                                        </span>
+                                    }
+                                </div>
+                                @if (memberData.AcceptedDate.HasValue)
+                                {
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-500">Accepteret dato</span>
+                                        <span class="text-sm text-gray-900">@memberData.AcceptedDate.Value.ToString("dd/MM/yyyy")</span>
+                                    </div>
+                                }
+                                @if (memberData.InvitationSentDate.HasValue)
+                                {
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-sm text-gray-500">Invitation sendt</span>
+                                        <span class="text-sm text-gray-900">@memberData.InvitationSentDate.Value.ToString("dd/MM/yyyy")</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Member Groups -->
+                        <div class="bg-white shadow rounded-lg overflow-hidden">
+                            <div class="bg-gray-700 px-6 py-4">
+                                <h2 class="text-xl font-bold text-white">Medlemsgrupper</h2>
+                            </div>
+                            <div class="p-6">
+                                @if (memberData.MemberGroups.Any())
+                                {
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach (var group in memberData.MemberGroups)
+                                        {
+                                            var groupColor = group.ToLower() switch
+                                            {
+                                                "admin" => "bg-red-100 text-red-800",
+                                                "vagtplanlæggere" => "bg-purple-100 text-purple-800",
+                                                _ => "bg-blue-100 text-blue-800"
+                                            };
+                                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium @groupColor">
+                                                @group
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <p class="text-sm text-gray-500">Ingen grupper tildelt.</p>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="bg-white shadow rounded-lg overflow-hidden">
+                            <div class="bg-gray-700 px-6 py-4">
+                                <h2 class="text-xl font-bold text-white">Handlinger</h2>
+                            </div>
+                            <div class="p-6 space-y-3">
+                                <a href="mailto:@memberData.Email" class="w-full inline-flex items-center justify-center px-4 py-2 border border-blue-bridge text-blue-bridge rounded-md hover:bg-blue-bridge hover:text-white transition-colors">
+                                    <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                    </svg>
+                                    Send email
+                                </a>
+                                @if (!string.IsNullOrEmpty(memberData.Phone))
+                                {
+                                    <a href="tel:@memberData.Phone" class="w-full inline-flex items-center justify-center px-4 py-2 border border-green-600 text-green-600 rounded-md hover:bg-green-600 hover:text-white transition-colors">
+                                        <svg class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                                        </svg>
+                                        Ring op
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    }
+</body>
+</html>

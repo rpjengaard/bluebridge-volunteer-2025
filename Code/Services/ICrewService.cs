@@ -5,6 +5,7 @@ public interface ICrewService
     Task<CrewsPageData> GetCrewsForMemberAsync(string memberEmail, bool isAdmin);
     Task<CrewDetailData?> GetCrewDetailAsync(int crewId, string memberEmail, CrewViewMode viewMode);
     Task<CrewViewMode> GetMemberCrewViewModeAsync(string memberEmail, int crewId);
+    Task<MemberDetailData?> GetMemberByKeyAsync(Guid memberKey, string requestingMemberEmail);
 }
 
 public enum CrewViewMode
@@ -64,4 +65,23 @@ public class SupervisorInfo
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? Phone { get; set; }
+}
+
+public class MemberDetailData
+{
+    public int MemberId { get; set; }
+    public Guid MemberKey { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public DateTime? Birthdate { get; set; }
+    public string? TidligereArbejdssteder { get; set; }
+    public bool Accept2026 { get; set; }
+    public DateTime? AcceptedDate { get; set; }
+    public DateTime? InvitationSentDate { get; set; }
+    public List<CrewListItem> AssignedCrews { get; set; } = new();
+    public List<CrewListItem> CrewWishes { get; set; } = new();
+    public List<string> MemberGroups { get; set; } = new();
 }
