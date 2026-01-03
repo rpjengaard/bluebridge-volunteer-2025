@@ -91,7 +91,7 @@
                         <div>
                             <label for="zipcode" class="block text-sm font-medium leading-6 text-gray-900">Postnummer <span class="text-gray-400 font-normal">(valgfrit)</span></label>
                             <div class="mt-2">
-                                <input id="zipcode" name="Zipcode" type="text" autocomplete="postal-code" maxlength="10"
+                                <input id="zipcode" name="Zipcode" type="text" autocomplete="postal-code" maxlength="4" pattern="\d{4}" placeholder="0000"
                                        class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                             </div>
                         </div>

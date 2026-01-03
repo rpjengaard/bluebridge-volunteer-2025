@@ -27,7 +27,8 @@ public class SignupViewModel
     [Display(Name = "Fødselsdato")]
     public DateTime? Birthdate { get; set; }
 
-    [StringLength(10, ErrorMessage = "Postnummer må max være 10 tegn")]
+    [StringLength(4, MinimumLength = 4, ErrorMessage = "Postnummer skal være præcis 4 cifre")]
+    [RegularExpression(@"^\d{4}$", ErrorMessage = "Postnummer skal være 4 cifre")]
     [Display(Name = "Postnummer")]
     public string? Zipcode { get; set; }
 
