@@ -99,7 +99,9 @@ public class MemberAuthSurfaceController : SurfaceController
             model.FirstName,
             model.LastName,
             model.Phone,
-            model.Birthdate);
+            model.Birthdate,
+            model.Zipcode,
+            model.CrewWishes);
 
         if (!result.Succeeded)
         {

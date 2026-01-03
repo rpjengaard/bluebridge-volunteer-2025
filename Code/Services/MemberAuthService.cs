@@ -10,17 +10,20 @@ public class MemberAuthService : IMemberAuthService
     private readonly IMemberManager _memberManager;
     private readonly IMemberSignInManager _memberSignInManager;
     private readonly IMemberService _memberService;
+    private readonly IContentService _contentService;
     private readonly ILogger<MemberAuthService> _logger;
 
     public MemberAuthService(
         IMemberManager memberManager,
         IMemberSignInManager memberSignInManager,
         IMemberService memberService,
+        IContentService contentService,
         ILogger<MemberAuthService> logger)
     {
         _memberManager = memberManager;
         _memberSignInManager = memberSignInManager;
         _memberService = memberService;
+        _contentService = contentService;
         _logger = logger;
     }
 
@@ -66,7 +69,9 @@ public class MemberAuthService : IMemberAuthService
         string firstName,
         string lastName,
         string? phone,
-        DateTime? birthdate)
+        DateTime? birthdate,
+        string? zipcode,
+        List<int>? crewWishes)
     {
         var memberName = $"{firstName} {lastName}";
 
@@ -98,6 +103,28 @@ public class MemberAuthService : IMemberAuthService
 
             if (birthdate.HasValue)
                 member.SetValue("birthdate", birthdate.Value);
+
+            if (!string.IsNullOrEmpty(zipcode))
+                member.SetValue("zipcode", zipcode);
+
+            if (crewWishes != null && crewWishes.Count > 0)
+            {
+                // Convert crew IDs to UDI format for Umbraco content picker
+                var crewUdis = new List<string>();
+                foreach (var crewId in crewWishes)
+                {
+                    var content = _contentService.GetById(crewId);
+                    if (content != null)
+                    {
+                        crewUdis.Add($"umb://document/{content.Key:N}");
+                    }
+                }
+
+                if (crewUdis.Count > 0)
+                {
+                    member.SetValue("crewWishes", string.Join(",", crewUdis));
+                }
+            }
 
             _memberService.Save(member);
         }
