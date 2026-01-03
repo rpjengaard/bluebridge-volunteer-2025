@@ -10,7 +10,7 @@ public interface IMemberAuthService
 {
     Task<LoginResult> LoginAsync(string email, string password, bool rememberMe);
     Task LogoutAsync();
-    Task<SignupResult> SignupAsync(string email, string password, string firstName, string lastName, string? phone, DateTime? birthdate);
+    Task<SignupResult> SignupAsync(string email, string password, string firstName, string lastName, string? phone, DateTime? birthdate, string? zipcode, List<int>? crewWishes);
     Task<bool> MemberExistsAsync(string email);
     Task<string?> GeneratePasswordResetTokenAsync(string email);
     Task<PasswordResetResult> ResetPasswordAsync(string email, string token, string newPassword);

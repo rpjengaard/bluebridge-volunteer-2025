@@ -27,6 +27,13 @@ public class SignupViewModel
     [Display(Name = "Fødselsdato")]
     public DateTime? Birthdate { get; set; }
 
+    [StringLength(10, ErrorMessage = "Postnummer må max være 10 tegn")]
+    [Display(Name = "Postnummer")]
+    public string? Zipcode { get; set; }
+
+    [Display(Name = "Crew ønsker")]
+    public List<int>? CrewWishes { get; set; }
+
     [Required(ErrorMessage = "Adgangskode er påkrævet")]
     [StringLength(100, MinimumLength = 10, ErrorMessage = "Adgangskode skal være mindst 10 tegn")]
     [DataType(DataType.Password)]
