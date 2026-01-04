@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Services;
@@ -261,8 +262,12 @@ public class CrewService : ICrewService
         // Get members assigned to this crew (admin and scheduler only)
         if (viewMode == CrewViewMode.Admin || viewMode == CrewViewMode.Scheduler)
         {
-            detail.Members = GetCrewMembers(crewId);
-            detail.WishlistMembers = GetWishlistMembersNotAssigned(crewId);
+            // Share caching across both method calls for better performance
+            var adminMemberIds = GetAdminMemberIds();   //TODO: This is to slow. Could we cache it on startup?
+            var crewGuidToIdCache = new Dictionary<Guid, int>();
+
+            detail.Members = GetCrewMembers(crewId, adminMemberIds, crewGuidToIdCache);
+            detail.WishlistMembers = GetWishlistMembersNotAssigned(crewId, adminMemberIds, crewGuidToIdCache);
         }
 
         return Task.FromResult<CrewDetailData?>(detail);
@@ -344,27 +349,29 @@ public class CrewService : ICrewService
         return supervisors;
     }
 
-    private List<CrewMemberInfo> GetWishlistMembersNotAssigned(int crewId)
+    private List<CrewMemberInfo> GetWishlistMembersNotAssigned(int crewId, HashSet<int> adminMemberIds, Dictionary<Guid, int> crewGuidToIdCache)
     {
         var wishlistMembers = new List<CrewMemberInfo>();
         var allMembers = _memberService.GetAllMembers();
 
+        Stopwatch sw = Stopwatch.StartNew();
+
         foreach (var member in allMembers)
         {
-            // Skip admin members
-            if (IsMemberInAdminGroup(member.Id))
+            // Skip admin members using cached set
+            if (adminMemberIds.Contains(member.Id))
                 continue;
 
             // Check if crew is on their wishlist
             var wishlistValue = member.GetValue<string>("crewWishes");
-            var wishlistIds = ParseCrewIds(wishlistValue);
+            var wishlistIds = ParseCrewIdsWithCache(wishlistValue, crewGuidToIdCache);
 
             if (!wishlistIds.Contains(crewId))
                 continue;
 
             // Check if they're already assigned to any crew
             var assignedCrewsValue = member.GetValue<string>("crews");
-            var assignedCrewIds = ParseCrewIds(assignedCrewsValue);
+            var assignedCrewIds = ParseCrewIdsWithCache(assignedCrewsValue, crewGuidToIdCache);
 
             if (assignedCrewIds.Any())
                 continue; // Skip if already assigned to any crew
@@ -386,6 +393,9 @@ public class CrewService : ICrewService
             });
         }
 
+        sw.Stop();
+        _logger.LogInformation("GetWishlistMembersNotAssigned for crewId {CrewId} took {ElapsedMilliseconds} ms and found {MemberCount} members", crewId, sw.ElapsedMilliseconds, wishlistMembers.Count);
+
         return wishlistMembers.OrderBy(m => m.FullName).ToList();
     }
 
@@ -394,6 +404,77 @@ public class CrewService : ICrewService
         var memberGroups = _memberService.GetAllRoles(memberId);
         var adminGroup = _memberGroupService.GetById(AdminGroupKey);
         return adminGroup != null && memberGroups.Contains(adminGroup.Name);
+    }
+
+    /// <summary>
+    /// Gets all admin member IDs in a single operation to avoid repeated database queries
+    /// </summary>
+    private HashSet<int> GetAdminMemberIds()
+    {
+        var adminMemberIds = new HashSet<int>();
+        var adminGroup = _memberGroupService.GetById(AdminGroupKey);
+
+        if (adminGroup == null)
+            return adminMemberIds;
+
+        var allMembers = _memberService.GetAllMembers();
+        foreach (var member in allMembers)
+        {
+            var memberGroups = _memberService.GetAllRoles(member.Id);
+            if (memberGroups.Contains(adminGroup.Name))
+            {
+                adminMemberIds.Add(member.Id);
+            }
+        }
+
+        return adminMemberIds;
+    }
+
+    /// <summary>
+    /// Parses crew IDs with caching to minimize repeated _contentService.GetById calls
+    /// </summary>
+    private List<int> ParseCrewIdsWithCache(string? udiString, Dictionary<Guid, int> cache)
+    {
+        var ids = new List<int>();
+        if (string.IsNullOrWhiteSpace(udiString))
+            return ids;
+
+        var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var udiPart in udiParts)
+        {
+            var trimmed = udiPart.Trim();
+            try
+            {
+                if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
+                {
+                    var guidPart = trimmed["umb://document/".Length..];
+                    if (Guid.TryParse(guidPart, out var contentGuid))
+                    {
+                        // Check cache first
+                        if (cache.TryGetValue(contentGuid, out var cachedId))
+                        {
+                            ids.Add(cachedId);
+                        }
+                        else
+                        {
+                            // Not in cache, fetch from content service
+                            var content = _contentService.GetById(contentGuid);
+                            if (content != null)
+                            {
+                                cache[contentGuid] = content.Id;
+                                ids.Add(content.Id);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to parse UDI: {Udi}", trimmed);
+            }
+        }
+
+        return ids;
     }
 
     private List<CrewListItem> GetAllCrews()
@@ -487,19 +568,21 @@ public class CrewService : ICrewService
         return assignments;
     }
 
-    private List<CrewMemberInfo> GetCrewMembers(int crewId)
+    private List<CrewMemberInfo> GetCrewMembers(int crewId, HashSet<int> adminMemberIds, Dictionary<Guid, int> crewGuidToIdCache)
     {
         var members = new List<CrewMemberInfo>();
         var allMembers = _memberService.GetAllMembers();
 
+        Stopwatch sw = Stopwatch.StartNew();
+
         foreach (var member in allMembers)
         {
-            // Skip admin members
-            if (IsMemberInAdminGroup(member.Id))
+            // Skip admin members using cached set
+            if (adminMemberIds.Contains(member.Id))
                 continue;
 
             var crewsValue = member.GetValue<string>("crews");
-            var crewIds = ParseCrewIds(crewsValue);
+            var crewIds = ParseCrewIdsWithCache(crewsValue, crewGuidToIdCache);
 
             if (crewIds.Contains(crewId))
             {
@@ -520,6 +603,10 @@ public class CrewService : ICrewService
                 });
             }
         }
+
+        sw.Stop();
+        _logger.LogInformation("GetCrewMembers for crewId {CrewId} took {ElapsedMilliseconds} ms and found {MemberCount} members", crewId, sw.ElapsedMilliseconds, members.Count);
+
 
         return members.OrderBy(m => m.FullName).ToList();
     }
