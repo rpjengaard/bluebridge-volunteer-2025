@@ -132,5 +132,13 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
 		[ImplementPropertyType("tidligereArbejdssteder")]
 		public virtual string TidligereArbejdssteder => this.Value<string>(_publishedValueFallback, "tidligereArbejdssteder");
+
+		///<summary>
+		/// Postnummer
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("zipcode")]
+		public virtual string Zipcode => this.Value<string>(_publishedValueFallback, "zipcode");
 	}
 }
