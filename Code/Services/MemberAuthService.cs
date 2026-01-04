@@ -110,15 +110,12 @@ public class MemberAuthService : IMemberAuthService
             if (crewWishes != null && crewWishes.Count > 0)
             {
                 // Convert crew IDs to UDI format for Umbraco content picker
-                var crewUdis = new List<string>();
-                foreach (var crewId in crewWishes)
-                {
-                    var content = _contentService.GetById(crewId);
-                    if (content != null)
-                    {
-                        crewUdis.Add($"umb://document/{content.Key:N}");
-                    }
-                }
+                // Use batch lookup to avoid N+1 query pattern
+                var contents = _contentService.GetByIds(crewWishes);
+                var crewUdis = contents
+                    .Where(c => c != null)
+                    .Select(c => $"umb://document/{c.Key:N}")
+                    .ToList();
 
                 if (crewUdis.Count > 0)
                 {
