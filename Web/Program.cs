@@ -17,6 +17,7 @@ builder.Services.AddScoped<IInvitationService, InvitationService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ICrewService, CrewService>();
 builder.Services.AddScoped<IMemberImpersonationService, MemberImpersonationService>();
+builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 
 builder.CreateUmbracoBuilder()
     .AddBackOffice()

@@ -27,6 +27,14 @@ public class SignupViewModel
     [Display(Name = "Fødselsdato")]
     public DateTime? Birthdate { get; set; }
 
+    [StringLength(4, MinimumLength = 4, ErrorMessage = "Postnummer skal være præcis 4 cifre")]
+    [RegularExpression(@"^\d{4}$", ErrorMessage = "Postnummer skal være 4 cifre")]
+    [Display(Name = "Postnummer")]
+    public string? Zipcode { get; set; }
+
+    [Display(Name = "Crew ønsker")]
+    public List<int>? CrewWishes { get; set; }
+
     [Required(ErrorMessage = "Adgangskode er påkrævet")]
     [StringLength(100, MinimumLength = 10, ErrorMessage = "Adgangskode skal være mindst 10 tegn")]
     [DataType(DataType.Password)]

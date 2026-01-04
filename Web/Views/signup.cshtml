@@ -1,10 +1,16 @@
 @using Umbraco.Cms.Web.Common.PublishedModels;
 @using Web.ViewModels;
+@using Code.Services;
 @inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BbvSignUp>
+@inject ICrewService CrewService
 @{
     Layout = "~/Views/Shared/_MasterLayout.cshtml";
     var model = new SignupViewModel();
     var signupError = TempData["SignupError"] as string;
+
+    // Get all available crews for the multi-select
+    var crewsData = await CrewService.GetCrewsForMemberAsync("", true);
+    var availableCrews = crewsData.Crews.OrderBy(c => c.Name).ToList();
 }
 <!DOCTYPE html>
 <html lang="da" class="h-full bg-slate-50">
@@ -83,11 +89,52 @@
                             </div>
                         </div>
                         <div>
-                            <label for="birthdate" class="block text-sm font-medium leading-6 text-gray-900">Fødselsdato <span class="text-gray-400 font-normal">(valgfrit)</span></label>
+                            <label for="zipcode" class="block text-sm font-medium leading-6 text-gray-900">Postnummer <span class="text-gray-400 font-normal">(valgfrit)</span></label>
                             <div class="mt-2">
-                                <input id="birthdate" name="Birthdate" type="date" autocomplete="bday"
+                                <input id="zipcode" name="Zipcode" type="text" autocomplete="postal-code" maxlength="4" pattern="\d{4}" placeholder="0000"
                                        class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                             </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="birthdate" class="block text-sm font-medium leading-6 text-gray-900">Fødselsdato <span class="text-gray-400 font-normal">(valgfrit)</span></label>
+                        <div class="mt-2">
+                            <input id="birthdate" name="Birthdate" type="date" autocomplete="bday"
+                                   class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium leading-6 text-gray-900 mb-2">Vælg crew ønsker <span class="text-gray-400 font-normal">(valgfrit - vælg op til 3)</span></label>
+                        <div class="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 space-y-2">
+                            @if (availableCrews.Any())
+                            {
+                                @foreach (var crew in availableCrews)
+                                {
+                                    <div class="flex items-start">
+                                        <div class="flex items-center h-5">
+                                            <input id="crew_@crew.Id" name="CrewWishes" type="checkbox" value="@crew.Id"
+                                                   class="h-4 w-4 rounded border-gray-300 text-blue-800 focus:ring-blue-800">
+                                        </div>
+                                        <div class="ml-3">
+                                            <label for="crew_@crew.Id" class="font-medium text-gray-900 cursor-pointer">@crew.Name</label>
+                                            @if (!string.IsNullOrEmpty(crew.Description))
+                                            {
+                                                <p class="text-xs text-gray-500">@crew.Description</p>
+                                            }
+                                            @if (crew.AgeLimit.HasValue && crew.AgeLimit.Value > 0)
+                                            {
+                                                <span class="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded mt-1">@crew.AgeLimit+ år</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <p class="text-sm text-gray-500 italic">Der er ingen crews tilgængelige i øjeblikket.</p>
+                            }
                         </div>
                     </div>
 
