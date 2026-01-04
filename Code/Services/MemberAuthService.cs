@@ -99,6 +99,10 @@ public class MemberAuthService : IMemberAuthService
             if (birthdate.HasValue)
                 member.SetValue("birthdate", birthdate.Value);
 
+            // Set acceptance properties
+            member.SetValue("accept2026", true);
+            member.SetValue("acceptedDate", DateTime.UtcNow);
+
             _memberService.Save(member);
         }
 
