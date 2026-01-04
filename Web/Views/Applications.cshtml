@@ -270,9 +270,9 @@ else
                                         }
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right">
-                                        <a href="/frivillig/medlem/@application.MemberKey" class="inline-flex items-center px-3 py-1.5 border border-blue-bridge text-blue-bridge text-sm font-medium rounded-md hover:bg-blue-bridge hover:text-white transition-colors">
+                                        <button onclick="openMemberModal('@application.MemberKey')" class="inline-flex items-center px-3 py-1.5 border border-blue-bridge text-blue-bridge text-sm font-medium rounded-md hover:bg-blue-bridge hover:text-white transition-colors">
                                             Se profil
-                                        </a>
+                                        </button>
                                     </td>
                                 </tr>
                             }
@@ -388,6 +388,8 @@ else
             </div>
         </div>
     </footer>
+
+    @await Html.PartialAsync("Partials/_MemberModal")
 }
 
 </body>
