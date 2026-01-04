@@ -97,6 +97,8 @@ public class MemberAuthService : IMemberAuthService
         {
             member.SetValue("firstName", firstName);
             member.SetValue("lastName", lastName);
+            member.SetValue("accept2026", true);
+            member.SetValue("acceptedDate", DateTime.UtcNow);
 
             if (!string.IsNullOrEmpty(phone))
                 member.SetValue("phone", phone);
