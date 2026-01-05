@@ -1,0 +1,25 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "JobApplications",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "dashboard",
+      "alias": "My.JobApplications.Dashboard",
+      "name": "Job Applications",
+      "element": "/App_Plugins/JobApplications/job-applications-dashboard.js",
+      "elementName": "job-applications-dashboard",
+      "weight": 90,
+      "meta": {
+        "label": "Job Applications",
+        "pathname": "job-applications"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Members"
+        }
+      ]
+    }
+  ]
+}

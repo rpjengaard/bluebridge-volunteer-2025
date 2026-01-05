@@ -6,4 +6,5 @@ public interface IMemberEmailService
     Task SendWelcomeEmailAsync(string email, string firstName);
     Task SendInvitationEmailAsync(string email, string firstName, string invitationUrl);
     Task SendAcceptanceConfirmationEmailAsync(string email, string firstName, IEnumerable<string> selectedCrewNames);
+    Task<bool> SendJobApplicationAcceptedEmailAsync(string email, string memberName, string jobTitle, string crewName, string ticketLink);
 }
