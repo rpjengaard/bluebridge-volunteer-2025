@@ -1,19 +1,21 @@
+using Asp.Versioning;
 using Code.Entities;
 using Code.Services;
 using Code.Services.DTOs;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Umbraco.Cms.Web.BackOffice.Controllers;
-using Umbraco.Cms.Web.Common.Attributes;
+using Umbraco.Cms.Api.Management.Controllers;
+using Umbraco.Cms.Api.Management.Routing;
+using Umbraco.Cms.Core.Security;
 
 namespace Web.Controllers;
 
 /// <summary>
 /// Backoffice API controller for managing job applications
 /// </summary>
-[PluginController("JobApplications")]
-[Authorize(Policy = "BackOfficeAccess")]
-public class JobApplicationBackofficeController : UmbracoAuthorizedApiController
+[ApiVersion("1.0")]
+[VersionedApiBackOfficeRoute("jobapplications")]
+[ApiExplorerSettings(GroupName = "Job Applications API")]
+public class JobApplicationBackofficeController : ManagementApiControllerBase
 {
     private readonly IJobService _jobService;
     private readonly IMemberManager _memberManager;

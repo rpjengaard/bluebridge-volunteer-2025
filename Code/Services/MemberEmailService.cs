@@ -66,16 +66,9 @@ public class MemberEmailService : IMemberEmailService
     public Task<bool> SendJobApplicationAcceptedEmailAsync(string email, string memberName, string jobTitle, string crewName, string ticketLink)
     {
         _logger.LogInformation(
-            "[MOCK EMAIL] Job application accepted email to {Email}\n" +
-            "Subject: Din ansøgning til {JobTitle} hos {CrewName} er godkendt!\n" +
-            "Member: {MemberName}\n" +
-            "Job: {JobTitle}\n" +
-            "Crew: {CrewName}\n" +
-            "Ticket Link: {TicketLink}\n" +
-            "\n" +
-            "Tillykke! Din ansøgning er blevet godkendt.\n" +
-            "Klik på linket nedenfor for at købe din billet:\n" +
-            "{TicketLink}",
+            "[MOCK EMAIL] Job application accepted email to {Email}. " +
+            "Subject: Din ansøgning til {JobTitle} hos {CrewName} er godkendt! " +
+            "Member: {MemberName}, Ticket Link: {TicketLink}",
             email,
             jobTitle,
             crewName,
