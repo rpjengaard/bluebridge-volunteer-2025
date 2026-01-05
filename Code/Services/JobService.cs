@@ -658,35 +658,59 @@ public class JobService : IJobService
     private List<int> GetCrewsForSupervisor(Guid memberKey)
     {
         var supervisorCrewIds = new List<int>();
+        var rootContent = _contentService.GetRootContent();
 
-        // Get all crew pages
-        var allCrews = _contentService.GetPagedOfType(
-            contentTypeId: _contentService.GetContentType("bbvCrewPage")?.Id ?? 0,
-            pageIndex: 0,
-            pageSize: 10000,
-            out long totalRecords,
-            null,
-            Umbraco.Cms.Core.Persistence.Querying.Ordering.By("Name"));
-
-        foreach (var crew in allCrews)
+        foreach (var root in rootContent)
         {
-            // Check if this member is a supervisor or schedule supervisor
-            var supervisors = crew.GetValue<string>("supervisors");
-            var scheduleSupervisor = crew.GetValue<string>("scheduleSupervisor");
-
-            var memberUdi = $"umb://member/{memberKey:D}";
-
-            if (!string.IsNullOrEmpty(supervisors) && supervisors.Contains(memberUdi, StringComparison.OrdinalIgnoreCase))
-            {
-                supervisorCrewIds.Add(crew.Id);
-            }
-            else if (!string.IsNullOrEmpty(scheduleSupervisor) && scheduleSupervisor.Contains(memberUdi, StringComparison.OrdinalIgnoreCase))
-            {
-                supervisorCrewIds.Add(crew.Id);
-            }
+            FindSupervisorCrewsRecursive(root, memberKey, supervisorCrewIds);
         }
 
         return supervisorCrewIds;
+    }
+
+    private void FindSupervisorCrewsRecursive(Umbraco.Cms.Core.Models.IContent content, Guid memberKey, List<int> crewIds)
+    {
+        const string CrewContentTypeAlias = "bbvCrewPage";
+
+        if (content.ContentType.Alias == CrewContentTypeAlias)
+        {
+            // Check if member is supervisor or scheduleSupervisor for this crew
+            var schedulerUdi = content.GetValue<string>("scheduleSupervisor");
+            var supervisorsUdi = content.GetValue<string>("supervisors");
+
+            if (IsMemberInUdiList(memberKey, schedulerUdi) || IsMemberInUdiList(memberKey, supervisorsUdi))
+            {
+                crewIds.Add(content.Id);
+            }
+        }
+
+        // Recursively check children
+        var children = _contentService.GetPagedChildren(content.Id, 0, int.MaxValue, out _);
+        foreach (var child in children)
+        {
+            FindSupervisorCrewsRecursive(child, memberKey, crewIds);
+        }
+    }
+
+    private bool IsMemberInUdiList(Guid memberKey, string? udiString)
+    {
+        if (string.IsNullOrWhiteSpace(udiString))
+            return false;
+
+        var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var udiPart in udiParts)
+        {
+            var trimmed = udiPart.Trim();
+            if (trimmed.StartsWith("umb://member/", StringComparison.OrdinalIgnoreCase))
+            {
+                var guidPart = trimmed["umb://member/".Length..];
+                if (Guid.TryParse(guidPart, out var guid) && guid == memberKey)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     #endregion
