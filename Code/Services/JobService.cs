@@ -15,20 +15,27 @@ public class JobService : IJobService
     private readonly JobApplicationDbContext _dbContext;
     private readonly IUmbracoContextFactory _umbracoContextFactory;
     private readonly IMemberService _memberService;
-    private readonly ICrewService _crewService;
+    private readonly IMemberGroupService _memberGroupService;
+    private readonly IContentService _contentService;
     private readonly IMemberEmailService _emailService;
+
+    // Member Group GUIDs (same as ApplicationsService)
+    private static readonly Guid AdminGroupKey = Guid.Parse("99e1edbb-8181-421d-a74b-e66a2f1e1148");
+    private static readonly Guid SchedulerGroupKey = Guid.Parse("e6eef645-b13b-4edb-880b-7b3cdf5b6816");
 
     public JobService(
         JobApplicationDbContext dbContext,
         IUmbracoContextFactory umbracoContextFactory,
         IMemberService memberService,
-        ICrewService crewService,
+        IMemberGroupService memberGroupService,
+        IContentService contentService,
         IMemberEmailService emailService)
     {
         _dbContext = dbContext;
         _umbracoContextFactory = umbracoContextFactory;
         _memberService = memberService;
-        _crewService = crewService;
+        _memberGroupService = memberGroupService;
+        _contentService = contentService;
         _emailService = emailService;
     }
 
@@ -283,28 +290,25 @@ public class JobService : IJobService
 
     public async Task<ManageApplicationsData> GetApplicationsForReviewAsync(string adminEmail)
     {
-        var viewMode = await _crewService.GetMemberCrewViewModeAsync(adminEmail);
-        var isAdmin = viewMode == CrewViewMode.Admin;
-        var isScheduler = viewMode == CrewViewMode.Scheduler;
+        var member = _memberService.GetByEmail(adminEmail);
+        if (member == null)
+        {
+            return new ManageApplicationsData
+            {
+                IsAdmin = false,
+                IsScheduler = false
+            };
+        }
+
+        var isAdmin = IsAdmin(member.Id);
+        var isScheduler = IsScheduler(member.Id);
 
         List<int> managedCrewIds = new();
 
         if (isScheduler && !isAdmin)
         {
             // Get crews managed by this scheduler
-            var member = _memberService.GetByEmail(adminEmail);
-            if (member != null)
-            {
-                var crews = await _crewService.GetCrewsForMemberAsync(adminEmail);
-                foreach (var crew in crews.Crews)
-                {
-                    var crewDetail = await _crewService.GetCrewDetailAsync(crew.Key, adminEmail);
-                    if (crewDetail?.IsSupervisor == true || crewDetail?.IsScheduleSupervisor == true)
-                    {
-                        managedCrewIds.Add(crew.Id);
-                    }
-                }
-            }
+            managedCrewIds = GetCrewsForSupervisor(member.Key);
         }
 
         var query = _dbContext.JobApplications
@@ -381,17 +385,6 @@ public class JobService : IJobService
             };
         }
 
-        // Verify reviewer has permission
-        var viewMode = await _crewService.GetMemberCrewViewModeAsync(reviewerEmail);
-        if (viewMode == CrewViewMode.Volunteer)
-        {
-            return new ReviewApplicationResult
-            {
-                Success = false,
-                ErrorMessage = "You do not have permission to review applications"
-            };
-        }
-
         // Get reviewer member ID
         var reviewer = _memberService.GetByEmail(reviewerEmail);
         if (reviewer == null)
@@ -400,6 +393,19 @@ public class JobService : IJobService
             {
                 Success = false,
                 ErrorMessage = "Reviewer not found"
+            };
+        }
+
+        // Verify reviewer has permission
+        var isAdmin = IsAdmin(reviewer.Id);
+        var isScheduler = IsScheduler(reviewer.Id);
+
+        if (!isAdmin && !isScheduler)
+        {
+            return new ReviewApplicationResult
+            {
+                Success = false,
+                ErrorMessage = "You do not have permission to review applications"
             };
         }
 
@@ -501,23 +507,16 @@ public class JobService : IJobService
 
         if (!string.IsNullOrEmpty(adminEmail))
         {
-            var viewMode = await _crewService.GetMemberCrewViewModeAsync(adminEmail);
-            if (viewMode == CrewViewMode.Scheduler)
+            var member = _memberService.GetByEmail(adminEmail);
+            if (member != null)
             {
-                // Get managed crews
-                var member = _memberService.GetByEmail(adminEmail);
-                if (member != null)
+                var isAdmin = IsAdmin(member.Id);
+                var isScheduler = IsScheduler(member.Id);
+
+                if (isScheduler && !isAdmin)
                 {
-                    var crews = await _crewService.GetCrewsForMemberAsync(adminEmail);
-                    var managedCrewIds = new List<int>();
-                    foreach (var crew in crews.Crews)
-                    {
-                        var crewDetail = await _crewService.GetCrewDetailAsync(crew.Key, adminEmail);
-                        if (crewDetail?.IsSupervisor == true || crewDetail?.IsScheduleSupervisor == true)
-                        {
-                            managedCrewIds.Add(crew.Id);
-                        }
-                    }
+                    // Get managed crews for scheduler
+                    var managedCrewIds = GetCrewsForSupervisor(member.Key);
 
                     if (managedCrewIds.Any())
                     {
@@ -640,6 +639,54 @@ public class JobService : IJobService
         using var umbracoContext = _umbracoContextFactory.EnsureUmbracoContext();
         var content = umbracoContext.UmbracoContext.Content?.GetById(crewContentId);
         return content?.Url() ?? "#";
+    }
+
+    private bool IsAdmin(int memberId)
+    {
+        var memberGroups = _memberService.GetAllRoles(memberId);
+        var adminGroup = _memberGroupService.GetById(AdminGroupKey);
+        return adminGroup != null && memberGroups.Contains(adminGroup.Name);
+    }
+
+    private bool IsScheduler(int memberId)
+    {
+        var memberGroups = _memberService.GetAllRoles(memberId);
+        var schedulerGroup = _memberGroupService.GetById(SchedulerGroupKey);
+        return schedulerGroup != null && memberGroups.Contains(schedulerGroup.Name);
+    }
+
+    private List<int> GetCrewsForSupervisor(Guid memberKey)
+    {
+        var supervisorCrewIds = new List<int>();
+
+        // Get all crew pages
+        var allCrews = _contentService.GetPagedOfType(
+            contentTypeId: _contentService.GetContentType("bbvCrewPage")?.Id ?? 0,
+            pageIndex: 0,
+            pageSize: 10000,
+            out long totalRecords,
+            null,
+            Umbraco.Cms.Core.Persistence.Querying.Ordering.By("Name"));
+
+        foreach (var crew in allCrews)
+        {
+            // Check if this member is a supervisor or schedule supervisor
+            var supervisors = crew.GetValue<string>("supervisors");
+            var scheduleSupervisor = crew.GetValue<string>("scheduleSupervisor");
+
+            var memberUdi = $"umb://member/{memberKey:D}";
+
+            if (!string.IsNullOrEmpty(supervisors) && supervisors.Contains(memberUdi, StringComparison.OrdinalIgnoreCase))
+            {
+                supervisorCrewIds.Add(crew.Id);
+            }
+            else if (!string.IsNullOrEmpty(scheduleSupervisor) && scheduleSupervisor.Contains(memberUdi, StringComparison.OrdinalIgnoreCase))
+            {
+                supervisorCrewIds.Add(crew.Id);
+            }
+        }
+
+        return supervisorCrewIds;
     }
 
     #endregion
