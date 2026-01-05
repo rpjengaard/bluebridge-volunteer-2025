@@ -62,4 +62,19 @@ public class MemberEmailService : IMemberEmailService
 
         return Task.CompletedTask;
     }
+
+    public Task<bool> SendJobApplicationAcceptedEmailAsync(string email, string memberName, string jobTitle, string crewName, string ticketLink)
+    {
+        _logger.LogInformation(
+            "[MOCK EMAIL] Job application accepted email to {Email}. " +
+            "Subject: Din ansøgning til {JobTitle} hos {CrewName} er godkendt! " +
+            "Member: {MemberName}, Ticket Link: {TicketLink}",
+            email,
+            jobTitle,
+            crewName,
+            memberName,
+            ticketLink);
+
+        return Task.FromResult(true);
+    }
 }
