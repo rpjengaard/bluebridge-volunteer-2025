@@ -25,7 +25,6 @@ public class JobApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.CrewKey);
-            entity.HasIndex(e => e.CrewContentId);
             entity.HasIndex(e => e.IsActive);
 
             entity.Property(e => e.Title).IsRequired().HasMaxLength(200);

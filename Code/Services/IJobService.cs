@@ -13,7 +13,7 @@ public interface IJobService
     Task<bool> UpdateJobAsync(UpdateJobRequest request);
     Task<bool> DeleteJobAsync(int jobId);
     Task<CrewJobListItem?> GetJobByIdAsync(int jobId, string? memberEmail = null);
-    Task<List<CrewJobListItem>> GetJobsForCrewAsync(int crewContentId, string? memberEmail = null);
+    Task<List<CrewJobListItem>> GetJobsForCrewAsync(Guid crewKey, string? memberEmail = null);
 
     // Available Jobs (Public/Member)
     Task<AvailableJobsData> GetAvailableJobsAsync(string? memberEmail = null);
@@ -29,7 +29,7 @@ public interface IJobService
     Task<JobApplicationDetail?> GetApplicationDetailAsync(int applicationId);
     Task<ReviewApplicationResult> ReviewApplicationAsync(string reviewerEmail, ReviewApplicationRequest request);
     Task<List<JobApplicationDetail>> GetApplicationsForJobAsync(int jobId);
-    Task<List<JobApplicationDetail>> GetApplicationsForCrewAsync(int crewContentId);
+    Task<List<JobApplicationDetail>> GetApplicationsForCrewAsync(Guid crewKey);
 
     // Statistics
     Task<int> GetTotalAvailablePositionsAsync();

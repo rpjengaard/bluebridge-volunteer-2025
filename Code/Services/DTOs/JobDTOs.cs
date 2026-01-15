@@ -8,7 +8,6 @@ namespace Code.Services.DTOs;
 public record CrewJobListItem
 {
     public int JobId { get; init; }
-    public int CrewContentId { get; init; }
     public Guid CrewKey { get; init; }
     public string CrewName { get; init; } = string.Empty;
     public string CrewUrl { get; init; } = string.Empty;
@@ -31,7 +30,6 @@ public record JobApplicationDetail
     public int ApplicationId { get; init; }
     public int JobId { get; init; }
     public string JobTitle { get; init; } = string.Empty;
-    public int CrewContentId { get; init; }
     public Guid CrewKey { get; init; }
     public string CrewName { get; init; } = string.Empty;
     public string CrewUrl { get; init; } = string.Empty;
@@ -92,7 +90,7 @@ public record ManageApplicationsData
     public List<JobApplicationDetail> RejectedApplications { get; init; } = new();
     public bool IsAdmin { get; init; }
     public bool IsScheduler { get; init; }
-    public List<int> ManagedCrewIds { get; init; } = new();
+    public List<Guid> ManagedCrewKeys { get; init; } = new();
 }
 
 /// <summary>
@@ -121,7 +119,6 @@ public record ReviewApplicationResult
 /// </summary>
 public record CreateJobRequest
 {
-    public int CrewContentId { get; init; }
     public Guid CrewKey { get; init; }
     public string Title { get; init; } = string.Empty;
     public string? Description { get; init; }

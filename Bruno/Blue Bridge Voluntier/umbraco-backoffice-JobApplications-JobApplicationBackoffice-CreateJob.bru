@@ -1,0 +1,20 @@
+meta {
+  name: /umbraco/backoffice/JobApplications/JobApplicationBackoffice/CreateJob
+  type: http
+  seq: 2
+}
+
+post {
+  url: https://localhost:44304/api/jobs/jobs/
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "crewKey": "a06c5e8c-1749-42e0-96b9-6438e961a242",
+    "title": "Scene medhjælper",
+    "description": "<p>Du skal hjælpe med at opsætte og nedtage musikgrej fra scenerne. Derfor er det nødvendigt at du har kendskab til dette. Din vagt er på 4 timer.</p>",
+    "totalPositions": 12
+  }
+}

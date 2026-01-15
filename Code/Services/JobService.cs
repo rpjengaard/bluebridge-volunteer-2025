@@ -45,7 +45,6 @@ public class JobService : IJobService
     {
         var job = new CrewJob
         {
-            CrewContentId = request.CrewContentId,
             CrewKey = request.CrewKey,
             Title = request.Title,
             Description = request.Description,
@@ -108,11 +107,11 @@ public class JobService : IJobService
         return await MapToJobListItemAsync(job, memberEmail);
     }
 
-    public async Task<List<CrewJobListItem>> GetJobsForCrewAsync(int crewContentId, string? memberEmail = null)
+    public async Task<List<CrewJobListItem>> GetJobsForCrewAsync(Guid crewKey, string? memberEmail = null)
     {
         var jobs = await _dbContext.CrewJobs
             .Include(j => j.Applications)
-            .Where(j => j.CrewContentId == crewContentId)
+            .Where(j => j.CrewKey == crewKey)
             .OrderByDescending(j => j.CreatedDate)
             .ToListAsync();
 
@@ -303,12 +302,12 @@ public class JobService : IJobService
         var isAdmin = IsAdmin(member.Id);
         var isScheduler = IsScheduler(member.Id);
 
-        List<int> managedCrewIds = new();
+        List<Guid> managedCrewKeys = new();
 
         if (isScheduler && !isAdmin)
         {
             // Get crews managed by this scheduler
-            managedCrewIds = GetCrewsForSupervisor(member.Key);
+            managedCrewKeys = GetCrewsForSupervisor(member.Key);
         }
 
         var query = _dbContext.JobApplications
@@ -316,9 +315,9 @@ public class JobService : IJobService
             .AsQueryable();
 
         // Filter by managed crews for schedulers
-        if (!isAdmin && isScheduler && managedCrewIds.Any())
+        if (!isAdmin && isScheduler && managedCrewKeys.Any())
         {
-            query = query.Where(a => managedCrewIds.Contains(a.CrewJob.CrewContentId));
+            query = query.Where(a => managedCrewKeys.Contains(a.CrewJob.CrewKey));
         }
 
         var applications = await query
@@ -354,7 +353,7 @@ public class JobService : IJobService
             RejectedApplications = rejected,
             IsAdmin = isAdmin,
             IsScheduler = isScheduler,
-            ManagedCrewIds = managedCrewIds
+            ManagedCrewKeys = managedCrewKeys
         };
     }
 
@@ -437,7 +436,7 @@ public class JobService : IJobService
         bool emailSent = false;
         if (request.NewStatus == ApplicationStatus.Accepted)
         {
-            var crewName = await GetCrewNameAsync(application.CrewJob.CrewContentId);
+            var crewName = await GetCrewNameAsync(application.CrewJob.CrewKey);
             emailSent = await _emailService.SendJobApplicationAcceptedEmailAsync(
                 application.MemberEmail,
                 application.MemberName,
@@ -471,11 +470,11 @@ public class JobService : IJobService
         return result;
     }
 
-    public async Task<List<JobApplicationDetail>> GetApplicationsForCrewAsync(int crewContentId)
+    public async Task<List<JobApplicationDetail>> GetApplicationsForCrewAsync(Guid crewKey)
     {
         var applications = await _dbContext.JobApplications
             .Include(a => a.CrewJob)
-            .Where(a => a.CrewJob.CrewContentId == crewContentId)
+            .Where(a => a.CrewJob.CrewKey == crewKey)
             .OrderByDescending(a => a.SubmittedDate)
             .ToListAsync();
 
@@ -516,11 +515,11 @@ public class JobService : IJobService
                 if (isScheduler && !isAdmin)
                 {
                     // Get managed crews for scheduler
-                    var managedCrewIds = GetCrewsForSupervisor(member.Key);
+                    var managedCrewKeys = GetCrewsForSupervisor(member.Key);
 
-                    if (managedCrewIds.Any())
+                    if (managedCrewKeys.Any())
                     {
-                        query = query.Where(a => managedCrewIds.Contains(a.CrewJob.CrewContentId));
+                        query = query.Where(a => managedCrewKeys.Contains(a.CrewJob.CrewKey));
                     }
                 }
             }
@@ -535,8 +534,8 @@ public class JobService : IJobService
 
     private async Task<CrewJobListItem> MapToJobListItemAsync(CrewJob job, string? memberEmail)
     {
-        var crewName = await GetCrewNameAsync(job.CrewContentId);
-        var crewUrl = await GetCrewUrlAsync(job.CrewContentId);
+        var crewName = await GetCrewNameAsync(job.CrewKey);
+        var crewUrl = await GetCrewUrlAsync(job.CrewKey);
 
         JobApplication? userApplication = null;
         if (!string.IsNullOrEmpty(memberEmail))
@@ -548,7 +547,6 @@ public class JobService : IJobService
         return new CrewJobListItem
         {
             JobId = job.Id,
-            CrewContentId = job.CrewContentId,
             CrewKey = job.CrewKey,
             CrewName = crewName,
             CrewUrl = crewUrl,
@@ -566,8 +564,8 @@ public class JobService : IJobService
 
     private async Task<JobApplicationDetail> MapToApplicationDetailAsync(JobApplication application)
     {
-        var crewName = await GetCrewNameAsync(application.CrewJob.CrewContentId);
-        var crewUrl = await GetCrewUrlAsync(application.CrewJob.CrewContentId);
+        var crewName = await GetCrewNameAsync(application.CrewJob.CrewKey);
+        var crewUrl = await GetCrewUrlAsync(application.CrewJob.CrewKey);
 
         string? reviewerName = null;
         if (application.ReviewedByMemberId.HasValue)
@@ -605,7 +603,6 @@ public class JobService : IJobService
             ApplicationId = application.Id,
             JobId = application.CrewJobId,
             JobTitle = application.CrewJob.Title,
-            CrewContentId = application.CrewJob.CrewContentId,
             CrewKey = application.CrewJob.CrewKey,
             CrewName = crewName,
             CrewUrl = crewUrl,
@@ -627,18 +624,18 @@ public class JobService : IJobService
         };
     }
 
-    private async Task<string> GetCrewNameAsync(int crewContentId)
+    private Task<string> GetCrewNameAsync(Guid crewKey)
     {
         using var umbracoContext = _umbracoContextFactory.EnsureUmbracoContext();
-        var content = umbracoContext.UmbracoContext.Content?.GetById(crewContentId);
-        return content?.Name ?? "Unknown Crew";
+        var content = umbracoContext.UmbracoContext.Content?.GetById(crewKey);
+        return Task.FromResult(content?.Name ?? "Unknown Crew");
     }
 
-    private async Task<string> GetCrewUrlAsync(int crewContentId)
+    private Task<string> GetCrewUrlAsync(Guid crewKey)
     {
         using var umbracoContext = _umbracoContextFactory.EnsureUmbracoContext();
-        var content = umbracoContext.UmbracoContext.Content?.GetById(crewContentId);
-        return content?.Url() ?? "#";
+        var content = umbracoContext.UmbracoContext.Content?.GetById(crewKey);
+        return Task.FromResult(content?.Url() ?? "#");
     }
 
     private bool IsAdmin(int memberId)
@@ -655,20 +652,20 @@ public class JobService : IJobService
         return schedulerGroup != null && memberGroups.Contains(schedulerGroup.Name);
     }
 
-    private List<int> GetCrewsForSupervisor(Guid memberKey)
+    private List<Guid> GetCrewsForSupervisor(Guid memberKey)
     {
-        var supervisorCrewIds = new List<int>();
+        var supervisorCrewKeys = new List<Guid>();
         var rootContent = _contentService.GetRootContent();
 
         foreach (var root in rootContent)
         {
-            FindSupervisorCrewsRecursive(root, memberKey, supervisorCrewIds);
+            FindSupervisorCrewsRecursive(root, memberKey, supervisorCrewKeys);
         }
 
-        return supervisorCrewIds;
+        return supervisorCrewKeys;
     }
 
-    private void FindSupervisorCrewsRecursive(Umbraco.Cms.Core.Models.IContent content, Guid memberKey, List<int> crewIds)
+    private void FindSupervisorCrewsRecursive(Umbraco.Cms.Core.Models.IContent content, Guid memberKey, List<Guid> crewKeys)
     {
         const string CrewContentTypeAlias = "bbvCrewPage";
 
@@ -680,7 +677,7 @@ public class JobService : IJobService
 
             if (IsMemberInUdiList(memberKey, schedulerUdi) || IsMemberInUdiList(memberKey, supervisorsUdi))
             {
-                crewIds.Add(content.Id);
+                crewKeys.Add(content.Key);
             }
         }
 
@@ -688,7 +685,7 @@ public class JobService : IJobService
         var children = _contentService.GetPagedChildren(content.Id, 0, int.MaxValue, out _);
         foreach (var child in children)
         {
-            FindSupervisorCrewsRecursive(child, memberKey, crewIds);
+            FindSupervisorCrewsRecursive(child, memberKey, crewKeys);
         }
     }
 

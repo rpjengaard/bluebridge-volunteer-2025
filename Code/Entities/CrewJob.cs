@@ -13,12 +13,6 @@ public class CrewJob
     public int Id { get; set; }
 
     /// <summary>
-    /// The Umbraco content ID of the crew page
-    /// </summary>
-    [Required]
-    public int CrewContentId { get; set; }
-
-    /// <summary>
     /// The Umbraco content key (GUID) of the crew page
     /// </summary>
     [Required]
