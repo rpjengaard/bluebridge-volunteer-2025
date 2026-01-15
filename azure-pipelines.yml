@@ -1,0 +1,60 @@
+variables:
+- name: SolutionPath
+  value: Blue Bridge Voluntier.slnx
+  
+pr: none
+trigger:
+ branches:
+   include:
+     - main
+name: Build-$(date:yyyyMMdd)$(rev:.r)
+
+stages:
+ - stage: build
+   jobs:
+     - job: build
+       displayName: Build Solution
+       
+       pool: 
+         vmImage: windows-2022
+      
+       steps:
+       - checkout: self
+       
+       - task: DotNetCoreCLI@2
+         displayName: 'dotnet restore'
+         inputs:
+           command: restore
+           projects: $(SolutionPath)
+           packagesDirectory: $(Pipeline.Workspace)/.nuget/packages
+      
+       - task: DotNetCoreCLI@2
+         displayName: 'dotnet build'
+         inputs:
+          command: build
+          projects: $(SolutionPath)
+          arguments: '--configuration Release --no-restore'
+          
+       - task: DotNetCoreCLI@2
+         displayName: 'dotnet publish'
+         inputs:
+          command: publish
+          publishwebProjects: false
+          projects: '**/Web.csproj'
+          arguments: '--configuration Release --no-build --output $(build.artifactstagingdirectory)'
+          zipAfterPublish: false
+          
+       - task: ArchiveFiles@2
+         displayName: 'create package zip'
+         inputs:
+          rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/web'
+          includeRootFolder: false
+          archiveType: 'zip'
+          archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.DefinitionName).zip'
+          replaceExistingArchive: true
+
+       - task: PublishBuildArtifacts@1
+         displayName: 'publish artifacts'
+         inputs:
+          pathToPublish: '$(Build.ArtifactStagingDirectory)/$(Build.DefinitionName).zip'
+          artifactName: 'be'
