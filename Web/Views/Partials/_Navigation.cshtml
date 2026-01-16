@@ -14,6 +14,7 @@
         .FirstOrDefault(x => x.ContentType.Alias == "bbvSiteSettings") as BbvSiteSettings;
 
     var navigationItems = siteSettings?.Navigation?.ToList() ?? new List<IPublishedContent>();
+    var navigationNotSignedIn = siteSettings?.NavigationNotSignedIn?.ToList() ?? new List<IPublishedContent>();
 
     // Get member name and check admin/scheduler status if logged in
     string? memberName = null;
@@ -117,16 +118,25 @@
             }
             else
             {
-                <div class="flex items-center space-x-4">
-                    <a href="/login" class="text-white/80 hover:text-white text-sm font-medium transition-colors">Log ind</a>
-                    <a href="/signup" class="bg-accent-yellow text-blue-bridge px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider hover:opacity-90">Tilmeld</a>
+                <div class="hidden md:flex items-center space-x-8">
+                    @foreach (var navItem in navigationNotSignedIn)
+                    {
+                        var isActive = IsActive(navItem);
+                        var navUrl = navItem.Url();
+                        var navName = navItem.Name;
+
+                        <a href="@navUrl" class="@(isActive ? "text-white font-semibold border-b-2 border-white pb-1" : "text-white/80 hover:text-white transition-colors")">@navName</a>
+                    }
+                </div>
+                <div class="flex items-center">
+                    <a href="/login" class="bg-accent-yellow text-blue-bridge px-4 py-2 rounded-md text-sm font-bold uppercase tracking-wider hover:opacity-90">Log ind</a>
                 </div>
             }
         </div>
     </div>
     @if (currentMember != null && navigationItems.Any())
     {
-        <!-- Mobile menu -->
+        <!-- Mobile menu (logged in) -->
         <div class="md:hidden border-t border-white/20 px-4 py-3">
             <div class="flex flex-wrap gap-4">
                 @foreach (var navItem in navigationItems)
@@ -144,6 +154,22 @@
                     {
                         continue; // Skip applications link for non-admin/scheduler users
                     }
+
+                    <a href="@navUrl" class="@(isActive ? "text-white font-semibold" : "text-white/80 hover:text-white") text-sm">@navName</a>
+                }
+            </div>
+        </div>
+    }
+    else if (currentMember == null && navigationNotSignedIn.Any())
+    {
+        <!-- Mobile menu (not logged in) -->
+        <div class="md:hidden border-t border-white/20 px-4 py-3">
+            <div class="flex flex-wrap gap-4">
+                @foreach (var navItem in navigationNotSignedIn)
+                {
+                    var isActive = IsActive(navItem);
+                    var navUrl = navItem.Url();
+                    var navName = navItem.Name;
 
                     <a href="@navUrl" class="@(isActive ? "text-white font-semibold" : "text-white/80 hover:text-white") text-sm">@navName</a>
                 }
