@@ -1,5 +1,6 @@
 using Code.Services;
 using Microsoft.AspNetCore.Mvc;
+using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.Logging;
 using Umbraco.Cms.Core.Routing;
@@ -7,6 +8,7 @@ using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Web;
 using Umbraco.Cms.Infrastructure.Persistence;
 using Umbraco.Cms.Web.Website.Controllers;
+using Umbraco.Extensions;
 using Web.ViewModels;
 
 namespace Web.Controllers;
@@ -15,6 +17,7 @@ public class MemberAuthSurfaceController : SurfaceController
 {
     private readonly IMemberAuthService _authService;
     private readonly IMemberEmailService _emailService;
+    private readonly IPublishedContentQuery _publishedContentQuery;
 
     public MemberAuthSurfaceController(
         IUmbracoContextAccessor umbracoContextAccessor,
@@ -24,11 +27,13 @@ public class MemberAuthSurfaceController : SurfaceController
         IProfilingLogger profilingLogger,
         IPublishedUrlProvider publishedUrlProvider,
         IMemberAuthService authService,
-        IMemberEmailService emailService)
+        IMemberEmailService emailService,
+        IPublishedContentQuery publishedContentQuery)
         : base(umbracoContextAccessor, databaseFactory, services, appCaches, profilingLogger, publishedUrlProvider)
     {
         _authService = authService;
         _emailService = emailService;
+        _publishedContentQuery = publishedContentQuery;
     }
 
     #region Login
@@ -207,8 +212,20 @@ public class MemberAuthSurfaceController : SurfaceController
 
     private string? GetDashboardUrl()
     {
-        // Return dashboard URL - can be customized based on content structure
-        // For now, redirect to home page and let the user navigate
+        // Get the login frontpage URL from site settings (using published content cache)
+        var siteSettings = _publishedContentQuery.ContentAtRoot()
+            .FirstOrDefault(x => x.ContentType.Alias == "bbvSiteSettings");
+
+        if (siteSettings != null)
+        {
+            var loginFrontpage = siteSettings.Value<Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>("loginFrontpage");
+            if (loginFrontpage != null)
+            {
+                return loginFrontpage.Url();
+            }
+        }
+
+        // Fallback to dashboard
         return "/dashboard";
     }
 }

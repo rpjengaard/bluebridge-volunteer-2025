@@ -6,7 +6,7 @@ public interface IInvitationService
     Task<InvitationSendResult> SendInvitationAsync(int memberId, string baseUrl);
     Task<BulkInvitationResult> SendBulkInvitationsAsync(string baseUrl);
     Task<MemberInvitationInfo?> GetMemberByTokenAsync(string token);
-    Task<AcceptInvitationResult> AcceptInvitationAsync(string token, IEnumerable<int> crewIds, DateTime birthdate, string password);
+    Task<AcceptInvitationResult> AcceptInvitationAsync(string token, IEnumerable<int> crewIds, DateTime birthdate, string password, string portalUrl);
     Task<IEnumerable<MemberInvitationStatus>> GetInvitationStatusesAsync();
     Task<IEnumerable<CrewInfo>> GetAvailableCrewsAsync();
 }

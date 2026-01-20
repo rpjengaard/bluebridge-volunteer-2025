@@ -10,6 +10,9 @@ builder.Services.AddSession(options =>
     options.Cookie.IsEssential = true;
 });
 
+// Configure email settings
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+
 // Register custom services
 builder.Services.AddScoped<IMemberEmailService, MemberEmailService>();
 builder.Services.AddScoped<IMemberAuthService, MemberAuthService>();

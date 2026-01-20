@@ -105,11 +105,13 @@ public class InvitationSurfaceController : SurfaceController
             return RedirectToAction("AcceptInvitation", new { token = model.Token });
         }
 
+        var portalUrl = $"{Request.Scheme}://{Request.Host}";
         var result = await _invitationService.AcceptInvitationAsync(
             model.Token,
             model.SelectedCrewIds,
             model.Birthdate.Value,
-            model.Password);
+            model.Password,
+            portalUrl);
 
         if (!result.Success)
         {

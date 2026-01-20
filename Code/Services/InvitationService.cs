@@ -1,8 +1,12 @@
 using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core.Models.PublishedContent;
 using Umbraco.Cms.Core.Security;
 using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Core.Strings;
+using Umbraco.Cms.Core.Web;
+using Umbraco.Extensions;
 
 namespace Code.Services;
 
@@ -13,10 +17,12 @@ public class InvitationService : IInvitationService
     private readonly IMemberManager _memberManager;
     private readonly IContentService _contentService;
     private readonly IMemberEmailService _emailService;
+    private readonly IUmbracoContextAccessor _umbracoContextAccessor;
     private readonly ILogger<InvitationService> _logger;
 
     private const string MemberGroupName = "Frivillige";
     private const string CrewContentTypeAlias = "bbvCrewPage";
+    private const string SiteSettingsAlias = "bbvSiteSettings";
 
     public InvitationService(
         IMemberService memberService,
@@ -24,6 +30,7 @@ public class InvitationService : IInvitationService
         IMemberManager memberManager,
         IContentService contentService,
         IMemberEmailService emailService,
+        IUmbracoContextAccessor umbracoContextAccessor,
         ILogger<InvitationService> logger)
     {
         _memberService = memberService;
@@ -31,6 +38,7 @@ public class InvitationService : IInvitationService
         _memberManager = memberManager;
         _contentService = contentService;
         _emailService = emailService;
+        _umbracoContextAccessor = umbracoContextAccessor;
         _logger = logger;
     }
 
@@ -77,6 +85,19 @@ public class InvitationService : IInvitationService
 
         try
         {
+            // Get email templates from site settings
+            var (subjectTemplate, bodyTemplate) = GetInvitationEmailTemplates();
+            if (string.IsNullOrEmpty(subjectTemplate) || string.IsNullOrEmpty(bodyTemplate))
+            {
+                _logger.LogWarning("Invitation email templates not configured in site settings");
+                return new InvitationSendResult
+                {
+                    Success = false,
+                    Message = "Email templates not configured in site settings",
+                    Email = member.Email
+                };
+            }
+
             // Generate or get existing token
             var existingToken = member.GetValue<string>("invitationToken");
             string token;
@@ -93,10 +114,22 @@ public class InvitationService : IInvitationService
                 token = existingToken;
             }
 
-            var firstName = member.GetValue<string>("firstName") ?? member.Name?.Split(' ').FirstOrDefault() ?? "Frivillig";
             var invitationUrl = $"{baseUrl.TrimEnd('/')}/umbraco/surface/InvitationSurface/AcceptInvitation?token={token}";
 
-            await _emailService.SendInvitationEmailAsync(member.Email!, firstName, invitationUrl);
+            // Create member data for template merging
+            var memberData = new MemberEmailData
+            {
+                Email = member.Email ?? string.Empty,
+                Username = member.Username ?? member.Email ?? string.Empty,
+                FirstName = member.GetValue<string>("firstName") ?? member.Name?.Split(' ').FirstOrDefault() ?? "Frivillig",
+                LastName = member.GetValue<string>("lastName") ?? string.Empty,
+                Phone = member.GetValue<string>("phone") ?? string.Empty,
+                Zipcode = member.GetValue<string>("zipcode") ?? string.Empty,
+                TidligereArbejdssteder = member.GetValue<string>("tidligereArbejdssteder") ?? string.Empty,
+                PortalUrl = baseUrl.TrimEnd('/')
+            };
+
+            await _emailService.SendInvitationEmailAsync(member.Email!, memberData, invitationUrl, subjectTemplate, bodyTemplate);
 
             _logger.LogInformation("Sent invitation to member {Email}", member.Email);
 
@@ -117,6 +150,91 @@ public class InvitationService : IInvitationService
                 Email = member.Email
             };
         }
+    }
+
+    private (string? subject, string? body) GetInvitationEmailTemplates()
+    {
+        if (!_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
+        {
+            _logger.LogWarning("Could not get Umbraco context for fetching email templates");
+            return (null, null);
+        }
+
+        // Find site settings content using IContentService, then get published version
+        var siteSettingsContent = FindSiteSettingsContent();
+        if (siteSettingsContent == null)
+        {
+            _logger.LogWarning("Site settings not found");
+            return (null, null);
+        }
+
+        var siteSettings = umbracoContext.Content?.GetById(siteSettingsContent.Key);
+        if (siteSettings == null)
+        {
+            _logger.LogWarning("Could not get published site settings");
+            return (null, null);
+        }
+
+        var subject = siteSettings.Value<string>("invitationEmailSubject");
+        var bodyHtml = siteSettings.Value<IHtmlEncodedString>("invitationEmailTemplate");
+
+        return (subject, bodyHtml?.ToHtmlString());
+    }
+
+    private (string? subject, string? body) GetSignupEmailTemplates()
+    {
+        if (!_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
+        {
+            _logger.LogWarning("Could not get Umbraco context for fetching signup email templates");
+            return (null, null);
+        }
+
+        var siteSettingsContent = FindSiteSettingsContent();
+        if (siteSettingsContent == null)
+        {
+            _logger.LogWarning("Site settings not found for signup email");
+            return (null, null);
+        }
+
+        var siteSettings = umbracoContext.Content?.GetById(siteSettingsContent.Key);
+        if (siteSettings == null)
+        {
+            _logger.LogWarning("Could not get published site settings for signup email");
+            return (null, null);
+        }
+
+        var subject = siteSettings.Value<string>("signedUpEmailSubject");
+        var bodyHtml = siteSettings.Value<IHtmlEncodedString>("signedUpEmailTemplate");
+
+        return (subject, bodyHtml?.ToHtmlString());
+    }
+
+    private IContent? FindSiteSettingsContent()
+    {
+        var rootContent = _contentService.GetRootContent();
+        foreach (var content in rootContent)
+        {
+            var found = FindSiteSettingsRecursive(content);
+            if (found != null)
+                return found;
+        }
+        return null;
+    }
+
+    private IContent? FindSiteSettingsRecursive(IContent content)
+    {
+        if (content.ContentType.Alias == SiteSettingsAlias)
+            return content;
+
+        var children = _contentService.GetPagedChildren(content.Id, 0, int.MaxValue, out _);
+        foreach (var child in children)
+        {
+            var found = FindSiteSettingsRecursive(child);
+            if (found != null)
+                return found;
+        }
+
+        return null;
     }
 
     public async Task<BulkInvitationResult> SendBulkInvitationsAsync(string baseUrl)
@@ -183,7 +301,7 @@ public class InvitationService : IInvitationService
         return Task.FromResult<MemberInvitationInfo?>(info);
     }
 
-    public async Task<AcceptInvitationResult> AcceptInvitationAsync(string token, IEnumerable<int> crewIds, DateTime birthdate, string password)
+    public async Task<AcceptInvitationResult> AcceptInvitationAsync(string token, IEnumerable<int> crewIds, DateTime birthdate, string password, string portalUrl)
     {
         var memberInfo = await GetMemberByTokenAsync(token);
         if (memberInfo == null)
@@ -265,12 +383,33 @@ public class InvitationService : IInvitationService
             // Add to Frivillige member group
             await EnsureMemberInGroupAsync(member);
 
-            // Send confirmation email
-            var firstName = member.GetValue<string>("firstName") ?? memberInfo.FirstName;
-            await _emailService.SendAcceptanceConfirmationEmailAsync(
-                member.Email!,
-                firstName,
-                crewNames);
+            // Send confirmation email with templates from site settings
+            var (subjectTemplate, bodyTemplate) = GetSignupEmailTemplates();
+            if (!string.IsNullOrEmpty(subjectTemplate) && !string.IsNullOrEmpty(bodyTemplate))
+            {
+                var memberData = new MemberEmailData
+                {
+                    Email = member.Email ?? string.Empty,
+                    Username = member.Username ?? member.Email ?? string.Empty,
+                    FirstName = member.GetValue<string>("firstName") ?? memberInfo.FirstName,
+                    LastName = member.GetValue<string>("lastName") ?? memberInfo.LastName,
+                    Phone = member.GetValue<string>("phone") ?? string.Empty,
+                    Zipcode = member.GetValue<string>("zipcode") ?? string.Empty,
+                    TidligereArbejdssteder = member.GetValue<string>("tidligereArbejdssteder") ?? string.Empty,
+                    PortalUrl = portalUrl.TrimEnd('/')
+                };
+
+                await _emailService.SendAcceptanceConfirmationEmailAsync(
+                    member.Email!,
+                    memberData,
+                    crewNames,
+                    subjectTemplate,
+                    bodyTemplate);
+            }
+            else
+            {
+                _logger.LogWarning("Signup email templates not configured, skipping confirmation email for {Email}", member.Email);
+            }
 
             _logger.LogInformation("Member {Email} accepted invitation for 2026 with crews: {Crews}",
                 member.Email,

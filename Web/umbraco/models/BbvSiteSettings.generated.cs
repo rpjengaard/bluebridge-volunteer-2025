@@ -50,6 +50,30 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		// properties
 
 		///<summary>
+		/// Invitation email emnefelt
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("invitationEmailSubject")]
+		public virtual string InvitationEmailSubject => this.Value<string>(_publishedValueFallback, "invitationEmailSubject");
+
+		///<summary>
+		/// Invitation email template: {{ firstName }}, {{ lastName }}, {{ invitationUrl }}  All fieldnames that are string can be merge-fields.
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("invitationEmailTemplate")]
+		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString InvitationEmailTemplate => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "invitationEmailTemplate");
+
+		///<summary>
+		/// Login forside: Siden der skal redeligeres til når en bruger logger ind.
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("loginFrontpage")]
+		public virtual global::Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent LoginFrontpage => this.Value<global::Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>(_publishedValueFallback, "loginFrontpage");
+
+		///<summary>
 		/// Navigation
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
@@ -66,7 +90,31 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual global::System.Collections.Generic.IEnumerable<global::Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent> NavigationNotSignedIn => this.Value<global::System.Collections.Generic.IEnumerable<global::Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>>(_publishedValueFallback, "navigationNotSignedIn");
 
 		///<summary>
-		/// signup mail text
+		/// Emnefelt - tak for tilmelding
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("signedUpEmailSubject")]
+		public virtual string SignedUpEmailSubject => this.Value<string>(_publishedValueFallback, "signedUpEmailSubject");
+
+		///<summary>
+		/// Tilmeldt email template: {{selectedCrews}}
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("signedUpEmailTemplate")]
+		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString SignedUpEmailTemplate => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "signedUpEmailTemplate");
+
+		///<summary>
+		/// Signup email emne
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("signupEmailEmne")]
+		public virtual string SignupEmailEmne => this.Value<string>(_publishedValueFallback, "signupEmailEmne");
+
+		///<summary>
+		/// Signup email template
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
 		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
