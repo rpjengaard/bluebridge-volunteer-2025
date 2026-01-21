@@ -1,4 +1,5 @@
 using Code.Services;
+using Microsoft.Extensions.Options;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -13,8 +14,21 @@ builder.Services.AddSession(options =>
 // Configure email settings
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
-// Register custom services
-builder.Services.AddScoped<IMemberEmailService, MemberEmailService>();
+// Register email service based on provider configuration
+builder.Services.AddScoped<IMemberEmailService>(sp =>
+{
+    var settings = sp.GetRequiredService<IOptions<EmailSettings>>().Value;
+
+    return settings.Provider?.ToLower() switch
+    {
+        "postmark" => new PostmarkEmailService(
+            sp.GetRequiredService<ILogger<PostmarkEmailService>>(),
+            sp.GetRequiredService<IOptions<EmailSettings>>()),
+        _ => new SmtpEmailService(
+            sp.GetRequiredService<ILogger<SmtpEmailService>>(),
+            sp.GetRequiredService<IOptions<EmailSettings>>())
+    };
+});
 builder.Services.AddScoped<IMemberAuthService, MemberAuthService>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
