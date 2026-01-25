@@ -54,7 +54,8 @@ public class MemberEmailService : IMemberEmailService
         var body = ProcessTemplate(bodyTemplate, memberData, invitationUrl);
         body = WrapInHtml(body);
 
-        await SendEmailAsync(email, subject, body);
+        // Use broadcast stream for invitation emails (bulk sends)
+        await SendEmailAsync(email, subject, body, useBroadcast: true);
     }
 
     public async Task SendAcceptanceConfirmationEmailAsync(string email, MemberEmailData memberData, IEnumerable<string> selectedCrewNames, string subjectTemplate, string bodyTemplate)
@@ -68,7 +69,7 @@ public class MemberEmailService : IMemberEmailService
         await SendEmailAsync(email, subject, body);
     }
 
-    private async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
+    private async Task SendEmailAsync(string toEmail, string subject, string htmlBody, bool useBroadcast = false)
     {
         try
         {
@@ -89,6 +90,13 @@ public class MemberEmailService : IMemberEmailService
                 Body = htmlBody,
                 IsBodyHtml = true
             };
+
+            // Add Postmark broadcast stream header for bulk emails
+            if (useBroadcast && !string.IsNullOrEmpty(_emailSettings.BroadcastStreamId))
+            {
+                message.Headers.Add("X-PM-Message-Stream", _emailSettings.BroadcastStreamId);
+                _logger.LogDebug("Using Postmark broadcast stream: {StreamId}", _emailSettings.BroadcastStreamId);
+            }
 
             await client.SendMailAsync(message);
 
