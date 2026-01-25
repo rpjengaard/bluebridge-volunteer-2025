@@ -7,6 +7,7 @@ export default class MemberImporterDashboardElement extends UmbElementMixin(LitE
     _selectedFile: { state: true },
     _importing: { state: true },
     _importResult: { state: true },
+    _overwriteMembers: { state: true },
   };
 
   #authContext;
@@ -16,6 +17,7 @@ export default class MemberImporterDashboardElement extends UmbElementMixin(LitE
     this._selectedFile = null;
     this._importing = false;
     this._importResult = null;
+    this._overwriteMembers = false;
 
     this.consumeContext(UMB_AUTH_CONTEXT, (authContext) => {
       this.#authContext = authContext;
@@ -27,6 +29,10 @@ export default class MemberImporterDashboardElement extends UmbElementMixin(LitE
     if (input.files && input.files[0]) {
       this._selectedFile = input.files[0];
     }
+  }
+
+  #onOverwriteChanged(event) {
+    this._overwriteMembers = event.target.checked;
   }
 
   async #onImportCsv() {
@@ -48,6 +54,7 @@ export default class MemberImporterDashboardElement extends UmbElementMixin(LitE
 
     const formData = new FormData();
     formData.append("file", this._selectedFile);
+    formData.append("overwriteExisting", this._overwriteMembers.toString());
 
     try {
       // Get the auth configuration - token is a function that returns the bearer token
@@ -107,6 +114,16 @@ export default class MemberImporterDashboardElement extends UmbElementMixin(LitE
           <div class="import-form">
             <uui-label>Select CSV File</uui-label>
             <input type="file" accept=".csv" @change="${this.#onFileSelected}" />
+
+            <div class="checkbox-group">
+              <label class="checkbox-label">
+                <input
+                  type="checkbox"
+                  ?checked="${this._overwriteMembers}"
+                  @change="${this.#onOverwriteChanged}" />
+                Overskriv members ved import
+              </label>
+            </div>
 
             <div class="btn-group">
               <uui-button
@@ -212,6 +229,24 @@ export default class MemberImporterDashboardElement extends UmbElementMixin(LitE
       margin-bottom: 20px;
       width: 100%;
       box-sizing: border-box;
+    }
+
+    .checkbox-group {
+      margin-bottom: 20px;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
     }
 
     .btn-group {

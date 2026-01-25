@@ -29,7 +29,7 @@ public class MemberImportController : ManagementApiControllerBase
     }
 
     [HttpPost("importcsv")]
-    public async Task<IActionResult> ImportCsv(IFormFile file)
+    public async Task<IActionResult> ImportCsv(IFormFile file, [FromForm] bool overwriteExisting = false)
     {
         if (file == null || file.Length == 0)
         {
@@ -102,8 +102,16 @@ public class MemberImportController : ManagementApiControllerBase
                         continue;
                     }
 
-                    await CreateOrUpdateMember(memberData);
-                    results.SuccessCount++;
+                    var importOutcome = await CreateOrUpdateMember(memberData, overwriteExisting);
+                    if (importOutcome == MemberImportOutcome.Skipped)
+                    {
+                        results.SkippedCount++;
+                        results.Errors.Add($"Line {lineNumber}: Member with email '{memberData.Email}' already exists (skipped)");
+                    }
+                    else
+                    {
+                        results.SuccessCount++;
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -125,7 +133,7 @@ public class MemberImportController : ManagementApiControllerBase
         }
     }
 
-    private async Task CreateOrUpdateMember(MemberData data)
+    private async Task<MemberImportOutcome> CreateOrUpdateMember(MemberData data, bool overwriteExisting)
     {
         if (string.IsNullOrWhiteSpace(data.Email))
         {
@@ -137,6 +145,12 @@ public class MemberImportController : ManagementApiControllerBase
 
         if (existingMemberIdentity != null)
         {
+            // If overwrite is not enabled, skip existing members
+            if (!overwriteExisting)
+            {
+                return MemberImportOutcome.Skipped;
+            }
+
             // Get the member from the service to update properties
             var existingMember = _memberService.GetByEmail(data.Email);
             if (existingMember != null)
@@ -159,6 +173,7 @@ public class MemberImportController : ManagementApiControllerBase
 
                 _memberService.Save(existingMember);
             }
+            return MemberImportOutcome.Updated;
         }
         else
         {
@@ -201,6 +216,7 @@ public class MemberImportController : ManagementApiControllerBase
 
                 _memberService.Save(member);
             }
+            return MemberImportOutcome.Created;
         }
     }
 
@@ -299,5 +315,12 @@ public class MemberImportController : ManagementApiControllerBase
         public int SkippedCount { get; set; }
         public int ErrorCount { get; set; }
         public List<string> Errors { get; set; } = new();
+    }
+
+    private enum MemberImportOutcome
+    {
+        Created,
+        Updated,
+        Skipped
     }
 }
