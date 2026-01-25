@@ -29,7 +29,7 @@ public class MemberImportController : ManagementApiControllerBase
     }
 
     [HttpPost("importcsv")]
-    public async Task<IActionResult> ImportCsv(IFormFile file, [FromForm] bool overwriteExisting = false)
+    public async Task<IActionResult> ImportCsv(IFormFile file, [FromForm] bool deleteAllMembersBeforeImport = false)
     {
         if (file == null || file.Length == 0)
         {
@@ -47,11 +47,23 @@ public class MemberImportController : ManagementApiControllerBase
             SuccessCount = 0,
             SkippedCount = 0,
             ErrorCount = 0,
+            DeletedCount = 0,
             Errors = new List<string>()
         };
 
         try
         {
+            // Delete all members before importing if requested
+            if (deleteAllMembersBeforeImport)
+            {
+                var allMembers = _memberService.GetAllMembers();
+                foreach (var member in allMembers)
+                {
+                    _memberService.Delete(member);
+                    results.DeletedCount++;
+                }
+            }
+
             using var reader = new StreamReader(file.OpenReadStream(), Encoding.UTF8);
 
             // Read header
@@ -102,7 +114,7 @@ public class MemberImportController : ManagementApiControllerBase
                         continue;
                     }
 
-                    var importOutcome = await CreateOrUpdateMember(memberData, overwriteExisting);
+                    var importOutcome = await CreateOrUpdateMember(memberData);
                     if (importOutcome == MemberImportOutcome.Skipped)
                     {
                         results.SkippedCount++;
@@ -120,10 +132,14 @@ public class MemberImportController : ManagementApiControllerBase
                 }
             }
 
+            var message = deleteAllMembersBeforeImport
+                ? $"Import completed: {results.DeletedCount} members deleted, {results.SuccessCount} successful, {results.SkippedCount} skipped, {results.ErrorCount} errors"
+                : $"Import completed: {results.SuccessCount} successful, {results.SkippedCount} skipped, {results.ErrorCount} errors";
+
             return Ok(new
             {
                 success = true,
-                message = $"Import completed: {results.SuccessCount} successful, {results.SkippedCount} skipped, {results.ErrorCount} errors",
+                message,
                 results
             });
         }
@@ -133,7 +149,7 @@ public class MemberImportController : ManagementApiControllerBase
         }
     }
 
-    private async Task<MemberImportOutcome> CreateOrUpdateMember(MemberData data, bool overwriteExisting)
+    private async Task<MemberImportOutcome> CreateOrUpdateMember(MemberData data)
     {
         if (string.IsNullOrWhiteSpace(data.Email))
         {
@@ -145,35 +161,8 @@ public class MemberImportController : ManagementApiControllerBase
 
         if (existingMemberIdentity != null)
         {
-            // If overwrite is not enabled, skip existing members
-            if (!overwriteExisting)
-            {
-                return MemberImportOutcome.Skipped;
-            }
-
-            // Get the member from the service to update properties
-            var existingMember = _memberService.GetByEmail(data.Email);
-            if (existingMember != null)
-            {
-                // Update existing member
-                if (!string.IsNullOrWhiteSpace(data.FirstName))
-                    existingMember.SetValue("firstName", data.FirstName);
-
-                if (!string.IsNullOrWhiteSpace(data.LastName))
-                    existingMember.SetValue("lastName", data.LastName);
-
-                if (!string.IsNullOrWhiteSpace(data.Phone))
-                    existingMember.SetValue("phone", data.Phone);
-
-                if (!string.IsNullOrWhiteSpace(data.TidligereArbejdssteder))
-                    existingMember.SetValue("tidligereArbejdssteder", data.TidligereArbejdssteder);
-
-                if (data.Birthdate.HasValue)
-                    existingMember.SetValue("birthdate", data.Birthdate.Value);
-
-                _memberService.Save(existingMember);
-            }
-            return MemberImportOutcome.Updated;
+            // Skip existing members
+            return MemberImportOutcome.Skipped;
         }
         else
         {
@@ -314,13 +303,13 @@ public class MemberImportController : ManagementApiControllerBase
         public int SuccessCount { get; set; }
         public int SkippedCount { get; set; }
         public int ErrorCount { get; set; }
+        public int DeletedCount { get; set; }
         public List<string> Errors { get; set; } = new();
     }
 
     private enum MemberImportOutcome
     {
         Created,
-        Updated,
         Skipped
     }
 }
