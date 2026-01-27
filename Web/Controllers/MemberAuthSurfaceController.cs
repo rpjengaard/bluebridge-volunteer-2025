@@ -97,6 +97,17 @@ public class MemberAuthSurfaceController : SurfaceController
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> HandleSignup(SignupViewModel model)
     {
+        // Check if signup is open
+        var siteSettings = _publishedContentQuery.ContentAtRoot()
+            .FirstOrDefault(x => x.ContentType.Alias == "bbvSiteSettings");
+        var signupOpen = siteSettings?.Value<bool>("signupOpen") ?? false;
+
+        if (!signupOpen)
+        {
+            TempData["LoginError"] = "Tilmelding er ikke åben i øjeblikket.";
+            return Redirect("/login");
+        }
+
         // Get the referer URL to redirect back to the signup page
         var signupUrl = GetSignupPageUrl();
 

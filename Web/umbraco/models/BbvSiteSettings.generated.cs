@@ -138,6 +138,13 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString SignupMailText => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "signupMailText");
 
 		///<summary>
+		/// Åben for frivillig tilmelding: Hvis denne ikke er tjekket af, vil der ikke være links til tilmeldings siden.
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[ImplementPropertyType("signupOpen")]
+		public virtual bool SignupOpen => this.Value<bool>(_publishedValueFallback, "signupOpen");
+
+		///<summary>
 		/// Billetlink Frivillig: Linket til at kunne købe én frivillig billet og børn
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]

@@ -7,6 +7,11 @@
     var showForgotPassword = Context.Request.Query["forgot"].ToString() == "true";
     var forgotPasswordSuccess = TempData["ForgotPasswordSuccess"] as bool? ?? false;
     var loginError = TempData["LoginError"] as string;
+
+    // Get site settings to check if signup is open
+    var siteSettings = Umbraco.ContentAtRoot()
+        .FirstOrDefault(x => x.ContentType.Alias == "bbvSiteSettings") as BbvSiteSettings;
+    var signupOpen = siteSettings?.SignupOpen ?? false;
 }
 <!DOCTYPE html>
 <html lang="da" class="h-full bg-slate-50">
@@ -113,10 +118,19 @@
                         </div>
                     </form>
 
-                    <p class="mt-10 text-center text-sm text-gray-500">
-                        Ikke frivillig endnu?
-                        <a href="/tilmeld" class="font-semibold leading-6 text-blue-bridge hover:opacity-80">Tilmeld dig som frivillig</a>
-                    </p>
+                    @if (signupOpen)
+                    {
+                        <p class="mt-10 text-center text-sm text-gray-500">
+                            Ikke frivillig endnu?
+                            <a href="/tilmeld" class="font-semibold leading-6 text-blue-bridge hover:opacity-80">Tilmeld dig som frivillig</a>
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="mt-10 text-center text-sm text-gray-500">
+                            Det er ikke åben for nye tilmeldinger pt.
+                        </p>
+                    }
                 }
             </div>
         </div>

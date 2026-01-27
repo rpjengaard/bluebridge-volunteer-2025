@@ -7,6 +7,18 @@
 @{
     Layout = "~/Views/Shared/_MasterLayout.cshtml";
 
+    // Check if signup is open
+    var siteSettings = Umbraco.ContentAtRoot()
+        .FirstOrDefault(x => x.ContentType.Alias == "bbvSiteSettings") as BbvSiteSettings;
+    var signupOpen = siteSettings?.SignupOpen ?? false;
+
+    // Redirect to login if signup is closed
+    if (!signupOpen)
+    {
+        Context.Response.Redirect("/login");
+        return;
+    }
+
     // Deserialize model from TempData if validation failed
     SignupViewModel formModel = new SignupViewModel();
     var signupModelJson = TempData["SignupModel"] as string;
