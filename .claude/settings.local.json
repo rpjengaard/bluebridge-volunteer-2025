@@ -17,7 +17,9 @@
       "Bash(dotnet add:*)",
       "WebFetch(domain:www.nuget.org)",
       "Bash(dotnet restore:*)",
-      "WebFetch(domain:postmarkapp.com)"
+      "WebFetch(domain:postmarkapp.com)",
+      "Bash(tasklist:*)",
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

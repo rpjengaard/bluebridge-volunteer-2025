@@ -50,6 +50,22 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		// properties
 
 		///<summary>
+		/// Godkendt email template: {{ firstName }}, {{ lastName }}
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("acceptedEmailTemplate")]
+		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString AcceptedEmailTemplate => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "acceptedEmailTemplate");
+
+		///<summary>
+		/// Godkendt email emne
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("acceptetEmailSubject")]
+		public virtual string AcceptetEmailSubject => this.Value<string>(_publishedValueFallback, "acceptetEmailSubject");
+
+		///<summary>
 		/// Invitation email emnefelt
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
@@ -114,12 +130,12 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual string SignupEmailEmne => this.Value<string>(_publishedValueFallback, "signupEmailEmne");
 
 		///<summary>
-		/// Signup email template
+		/// Signup email template: {{ firstName }}, {{ lastName }}, {{selectedCrews}}
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
 		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
 		[ImplementPropertyType("signupMailText")]
-		public virtual string SignupMailText => this.Value<string>(_publishedValueFallback, "signupMailText");
+		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString SignupMailText => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "signupMailText");
 
 		///<summary>
 		/// Billetlink Frivillig: Linket til at kunne købe én frivillig billet og børn
@@ -136,6 +152,22 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
 		[ImplementPropertyType("siteName")]
 		public virtual string SiteName => this.Value<string>(_publishedValueFallback, "siteName");
+
+		///<summary>
+		/// Supervisor notification emne
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("supervisorNotificationSubject")]
+		public virtual string SupervisorNotificationSubject => this.Value<string>(_publishedValueFallback, "supervisorNotificationSubject");
+
+		///<summary>
+		/// Supervisor notification template:   - {{ supervisorName }} - The supervisor's first name   - {{ crewName }} - The specific crew this supervisor is responsible for   - {{ selectedCrews }} - ALL crews the member selected (comma-separated)   - {{ firstName }}, {{ lastName }}, {{ email }}, {{ phone }}, {{ zipcode }}   - {{ portalUrl }} - Button link to the portal
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.0.2+497c31e")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("supervisorNotificationTemplate")]
+		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString SupervisorNotificationTemplate => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "supervisorNotificationTemplate");
 
 		///<summary>
 		/// Forside: Angiv hvilken side brugeren skal ramme først

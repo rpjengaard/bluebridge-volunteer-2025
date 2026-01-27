@@ -48,6 +48,30 @@ public class MemberEmailService : IMemberEmailService
         await SendEmailAsync(email, subject, body);
     }
 
+    public async Task SendSignupConfirmationEmailAsync(string email, MemberEmailData memberData, IEnumerable<string> selectedCrewNames, string subjectTemplate, string bodyTemplate)
+    {
+        memberData.SelectedCrews = string.Join(", ", selectedCrewNames);
+
+        var subject = ProcessSignupTemplate(subjectTemplate, memberData);
+        var body = ProcessSignupTemplate(bodyTemplate, memberData);
+        body = WrapInHtml(body);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
+    public async Task SendSupervisorNotificationEmailAsync(string supervisorEmail, string supervisorName, MemberEmailData memberData, string crewName, string subjectTemplate, string bodyTemplate)
+    {
+        // Set supervisor-specific fields
+        memberData.SupervisorName = supervisorName;
+        memberData.CrewName = crewName;
+
+        var subject = ProcessSupervisorTemplate(subjectTemplate, memberData);
+        var body = ProcessSupervisorTemplate(bodyTemplate, memberData);
+        body = WrapInHtml(body);
+
+        await SendEmailAsync(supervisorEmail, subject, body);
+    }
+
     public async Task SendInvitationEmailAsync(string email, MemberEmailData memberData, string invitationUrl, string subjectTemplate, string bodyTemplate)
     {
         var subject = ProcessTemplate(subjectTemplate, memberData, invitationUrl);
@@ -139,6 +163,23 @@ public class MemberEmailService : IMemberEmailService
 
         // Replace member field placeholders {{ fieldName }}
         result = ReplaceMemberPlaceholders(result, memberData);
+
+        return result;
+    }
+
+    private string ProcessSupervisorTemplate(string template, MemberEmailData memberData)
+    {
+        if (string.IsNullOrEmpty(template))
+        {
+            return template;
+        }
+
+        var result = template;
+
+        // Replace all member and supervisor field placeholders
+        result = ReplaceMemberPlaceholders(result, memberData);
+        result = ReplacePlaceholder(result, "supervisorName", memberData.SupervisorName);
+        result = ReplacePlaceholder(result, "crewName", memberData.CrewName);
 
         return result;
     }

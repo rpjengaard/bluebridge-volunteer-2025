@@ -1,11 +1,20 @@
 @using Umbraco.Cms.Web.Common.PublishedModels;
 @using Web.ViewModels;
 @using Code.Services;
+@using System.Text.Json;
 @inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BbvSignUp>
 @inject ICrewService CrewService
 @{
     Layout = "~/Views/Shared/_MasterLayout.cshtml";
-    var model = new SignupViewModel();
+
+    // Deserialize model from TempData if validation failed
+    SignupViewModel formModel = new SignupViewModel();
+    var signupModelJson = TempData["SignupModel"] as string;
+    if (!string.IsNullOrEmpty(signupModelJson))
+    {
+        formModel = System.Text.Json.JsonSerializer.Deserialize<SignupViewModel>(signupModelJson) ?? new SignupViewModel();
+    }
+
     var signupError = TempData["SignupError"] as string;
 
     // Get all available crews for the multi-select
@@ -59,14 +68,14 @@
                         <div>
                             <label for="firstName" class="block text-sm font-medium leading-6 text-gray-900">Fornavn</label>
                             <div class="mt-2">
-                                <input id="firstName" name="FirstName" type="text" autocomplete="given-name" required
+                                <input id="firstName" name="FirstName" type="text" autocomplete="given-name" required value="@formModel.FirstName"
                                        class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                             </div>
                         </div>
                         <div>
                             <label for="lastName" class="block text-sm font-medium leading-6 text-gray-900">Efternavn</label>
                             <div class="mt-2">
-                                <input id="lastName" name="LastName" type="text" autocomplete="family-name" required
+                                <input id="lastName" name="LastName" type="text" autocomplete="family-name" required value="@formModel.LastName"
                                        class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                             </div>
                         </div>
@@ -75,7 +84,7 @@
                     <div>
                         <label for="email" class="block text-sm font-medium leading-6 text-gray-900">Email adresse</label>
                         <div class="mt-2">
-                            <input id="email" name="Email" type="email" autocomplete="email" required
+                            <input id="email" name="Email" type="email" autocomplete="email" required value="@formModel.Email"
                                    class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                         </div>
                     </div>
@@ -84,14 +93,14 @@
                         <div>
                             <label for="phone" class="block text-sm font-medium leading-6 text-gray-900">Telefon <span class="text-gray-400 font-normal">(valgfrit)</span></label>
                             <div class="mt-2">
-                                <input id="phone" name="Phone" type="tel" autocomplete="tel"
+                                <input id="phone" name="Phone" type="tel" autocomplete="tel" value="@formModel.Phone"
                                        class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                             </div>
                         </div>
                         <div>
                             <label for="zipcode" class="block text-sm font-medium leading-6 text-gray-900">Postnummer <span class="text-gray-400 font-normal">(valgfrit)</span></label>
                             <div class="mt-2">
-                                <input id="zipcode" name="Zipcode" type="text" autocomplete="postal-code" maxlength="4" pattern="\d{4}" placeholder="0000"
+                                <input id="zipcode" name="Zipcode" type="text" autocomplete="postal-code" maxlength="4" pattern="\d{4}" placeholder="0000" value="@formModel.Zipcode"
                                        class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                             </div>
                         </div>
@@ -100,7 +109,7 @@
                     <div>
                         <label for="birthdate" class="block text-sm font-medium leading-6 text-gray-900">Fødselsdato <span class="text-gray-400 font-normal">(valgfrit)</span></label>
                         <div class="mt-2">
-                            <input id="birthdate" name="Birthdate" type="date" autocomplete="bday"
+                            <input id="birthdate" name="Birthdate" type="date" autocomplete="bday" value="@(formModel.Birthdate?.ToString("yyyy-MM-dd"))"
                                    class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                         </div>
                     </div>
@@ -112,9 +121,10 @@
                             {
                                 @foreach (var crew in availableCrews)
                                 {
+                                    var isChecked = formModel.CrewWishes?.Contains(crew.Id) ?? false;
                                     <div class="flex items-start">
                                         <div class="flex items-center h-5">
-                                            <input id="crew_@crew.Id" name="CrewWishes" type="checkbox" value="@crew.Id"
+                                            <input id="crew_@crew.Id" name="CrewWishes" type="checkbox" value="@crew.Id" @(isChecked ? "checked" : "")
                                                    class="h-4 w-4 rounded border-gray-300 text-blue-800 focus:ring-blue-800">
                                         </div>
                                         <div class="ml-3">
