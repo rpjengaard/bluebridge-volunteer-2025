@@ -1,4 +1,4 @@
-@using Umbraco.Cms.Web.Common.PublishedModels;
+﻿@using Umbraco.Cms.Web.Common.PublishedModels;
 @using Web.ViewModels;
 @using Code.Services;
 @using System.Text.Json;
@@ -50,18 +50,14 @@
     </style>
 </head>
 <body class="h-full">
-
+@await Html.PartialAsync("Partials/_Navigation")
 <div class="flex min-h-full">
     <div class="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24 bg-white">
         <div class="mx-auto w-full max-w-md lg:w-[28rem]">
             <div>
-                <div class="h-12 w-auto bg-blue-bridge flex items-center justify-center text-white font-bold p-2 rounded">
-                    BLUE BRIDGE <span class="ml-2 font-light text-xs tracking-widest uppercase">Portal</span>
-                </div>
-
                 <h2 class="mt-8 text-3xl font-bold tracking-tight text-gray-900">Bliv frivillig</h2>
                 <p class="mt-2 text-sm text-gray-600">
-                    Opret en konto og bliv en del af vores fantastiske frivillig-team.
+                    Opret en ansøgning og bliv en del af vores fantastiske frivillig-team.
                 </p>
             </div>
 
