@@ -20,6 +20,8 @@ public class MemberEmailData
     public string Zipcode { get; set; } = string.Empty;
     public string TidligereArbejdssteder { get; set; } = string.Empty;
     public string SelectedCrews { get; set; } = string.Empty;
+    public string MemberWish { get; set; } = string.Empty;
+    public string TimeslotWishes { get; set; } = string.Empty;
     public string PortalUrl { get; set; } = string.Empty;
 
     // For supervisor notifications

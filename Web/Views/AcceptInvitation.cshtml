@@ -31,6 +31,37 @@
             background-color: rgba(35, 41, 122, 0.05);
         }
     </style>
+    <script>
+        function updateCrewValidation() {
+            const crewCheckboxes = document.querySelectorAll('.crew-checkbox');
+            const anyChecked = Array.from(crewCheckboxes).some(cb => cb.checked);
+
+            crewCheckboxes.forEach(cb => {
+                if (anyChecked) {
+                    cb.removeAttribute('required');
+                } else {
+                    if (cb === crewCheckboxes[0]) {
+                        cb.setAttribute('required', '');
+                    }
+                }
+            });
+        }
+
+        function updateTimeslotValidation() {
+            const timeslotCheckboxes = document.querySelectorAll('.timeslot-checkbox');
+            const anyChecked = Array.from(timeslotCheckboxes).some(cb => cb.checked);
+
+            timeslotCheckboxes.forEach(cb => {
+                if (anyChecked) {
+                    cb.removeAttribute('required');
+                } else {
+                    if (cb === timeslotCheckboxes[0]) {
+                        cb.setAttribute('required', '');
+                    }
+                }
+            });
+        }
+    </script>
 </head>
 <body class="h-full">
 
@@ -144,8 +175,9 @@
                                             <input type="checkbox"
                                                    name="SelectedCrewIds"
                                                    value="@crew.Id"
-                                                   class="h-5 w-5 rounded border-gray-300 text-blue-bridge focus:ring-blue-800"
-                                                   onchange="this.closest('.crew-card').classList.toggle('selected', this.checked)">
+                                                   class="h-5 w-5 rounded border-gray-300 text-blue-bridge focus:ring-blue-800 crew-checkbox"
+                                                   @(crew == Model.AvailableCrews.First() ? "required" : "")
+                                                   onchange="this.closest('.crew-card').classList.toggle('selected', this.checked); updateCrewValidation()">
                                         </div>
                                         <div class="ml-4 flex-1">
                                             <div class="flex items-center justify-between">
@@ -164,6 +196,46 @@
                                         </div>
                                     </div>
                                 </label>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Member Wish Section -->
+                    <div class="mb-8 border-t pt-6">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Ønsker at have vagt med?</h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Skriv hvis du har ønsker om at have vagt sammen med bestemte personer.
+                        </p>
+                        <input type="text"
+                               id="memberWish"
+                               name="MemberWish"
+                               class="block w-full rounded-md border-0 py-2.5 px-3 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm"
+                               placeholder="F.eks. navn på venner eller bekendte">
+                    </div>
+
+                    <!-- Timeslot Wish Section -->
+                    <div class="mb-8 border-t pt-6">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">Ønsker til vagttidspunkt <span class="text-red-500">*</span></h3>
+                        <p class="text-sm text-gray-600 mb-4">
+                            Vælg mindst ét tidspunkt, hvor du foretrækker at have vagt.
+                        </p>
+                        <div class="space-y-3">
+                            @foreach (var timeslot in Model.AvailableTimeslots)
+                            {
+                                <div class="flex items-start">
+                                    <div class="flex items-center h-5">
+                                        <input type="checkbox"
+                                               id="timeslot_@timeslot.Value"
+                                               name="SelectedTimeslots"
+                                               value="@timeslot.Value"
+                                               class="h-4 w-4 rounded border-gray-300 text-blue-bridge focus:ring-blue-800 timeslot-checkbox"
+                                               @(timeslot == Model.AvailableTimeslots.First() ? "required" : "")
+                                               onchange="updateTimeslotValidation()">
+                                    </div>
+                                    <label for="timeslot_@timeslot.Value" class="ml-3 text-sm text-gray-700 cursor-pointer">
+                                        @timeslot.Label
+                                    </label>
+                                </div>
                             }
                         </div>
                     </div>

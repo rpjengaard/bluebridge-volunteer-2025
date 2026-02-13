@@ -26,9 +26,13 @@ public class AcceptInvitationViewModel
 
     public List<CrewSelectionItem> AvailableCrews { get; set; } = new();
 
-    [Required(ErrorMessage = "Vælg mindst ét crew-ønske.")]
-    [MinLength(1, ErrorMessage = "Vælg mindst ét crew-ønske.")]
     public List<int> SelectedCrewIds { get; set; } = new();
+
+    public string? MemberWish { get; set; }
+
+    public List<string> SelectedTimeslots { get; set; } = new();
+
+    public List<TimeslotOption> AvailableTimeslots { get; set; } = new();
 }
 
 public class CrewSelectionItem
@@ -37,4 +41,10 @@ public class CrewSelectionItem
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int? AgeLimit { get; set; }
+}
+
+public class TimeslotOption
+{
+    public string Value { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
 }

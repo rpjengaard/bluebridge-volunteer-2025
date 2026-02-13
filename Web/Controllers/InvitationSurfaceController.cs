@@ -2,6 +2,7 @@ using Code.Services;
 using Microsoft.AspNetCore.Mvc;
 using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.Logging;
+using Umbraco.Cms.Core.PropertyEditors;
 using Umbraco.Cms.Core.Routing;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Web;
@@ -14,6 +15,7 @@ namespace Web.Controllers;
 public class InvitationSurfaceController : SurfaceController
 {
     private readonly IInvitationService _invitationService;
+    private readonly IDataTypeService _dataTypeService;
 
     public InvitationSurfaceController(
         IUmbracoContextAccessor umbracoContextAccessor,
@@ -22,10 +24,12 @@ public class InvitationSurfaceController : SurfaceController
         AppCaches appCaches,
         IProfilingLogger profilingLogger,
         IPublishedUrlProvider publishedUrlProvider,
-        IInvitationService invitationService)
+        IInvitationService invitationService,
+        IDataTypeService dataTypeService)
         : base(umbracoContextAccessor, databaseFactory, services, appCaches, profilingLogger, publishedUrlProvider)
     {
         _invitationService = invitationService;
+        _dataTypeService = dataTypeService;
     }
 
     [HttpGet]
@@ -45,6 +49,8 @@ public class InvitationSurfaceController : SurfaceController
         }
 
         var crews = await _invitationService.GetAvailableCrewsAsync();
+        var timeslotOptions = await GetTimeslotOptionsAsync();
+
         var model = new AcceptInvitationViewModel
         {
             Token = token,
@@ -59,10 +65,35 @@ public class InvitationSurfaceController : SurfaceController
                 Name = c.Name,
                 Description = c.Description,
                 AgeLimit = c.AgeLimit
-            }).OrderBy(c => c.Name).ToList()
+            }).OrderBy(c => c.Name).ToList(),
+            AvailableTimeslots = timeslotOptions
         };
 
         return View("~/Views/AcceptInvitation.cshtml", model);
+    }
+
+    private async Task<List<TimeslotOption>> GetTimeslotOptionsAsync()
+    {
+        var timeslotDataTypeKey = new Guid("fbaf13a8-4036-41f2-93a3-974f678c312a");
+        var dataType = await _dataTypeService.GetAsync(timeslotDataTypeKey);
+
+        if (dataType?.ConfigurationObject is not ValueListConfiguration config)
+            return new List<TimeslotOption>();
+
+        var options = new List<TimeslotOption>();
+        if (config.Items != null)
+        {
+            foreach (var item in config.Items)
+            {
+                options.Add(new TimeslotOption
+                {
+                    Value = item,
+                    Label = item
+                });
+            }
+        }
+
+        return options;
     }
 
     [HttpPost]
@@ -78,6 +109,12 @@ public class InvitationSurfaceController : SurfaceController
         if (model.SelectedCrewIds == null || !model.SelectedCrewIds.Any())
         {
             TempData["InvitationError"] = "Vælg mindst ét crew-ønske.";
+            return RedirectToAction("AcceptInvitation", new { token = model.Token });
+        }
+
+        if (model.SelectedTimeslots == null || !model.SelectedTimeslots.Any())
+        {
+            TempData["InvitationError"] = "Vælg mindst ét vagttidspunkt.";
             return RedirectToAction("AcceptInvitation", new { token = model.Token });
         }
 
@@ -111,7 +148,9 @@ public class InvitationSurfaceController : SurfaceController
             model.SelectedCrewIds,
             model.Birthdate.Value,
             model.Password,
-            portalUrl);
+            portalUrl,
+            model.MemberWish,
+            model.SelectedTimeslots);
 
         if (!result.Success)
         {
@@ -122,6 +161,10 @@ public class InvitationSurfaceController : SurfaceController
         TempData["MemberName"] = result.MemberName;
         TempData["SelectedCrews"] = result.SelectedCrewNames != null
             ? string.Join(", ", result.SelectedCrewNames)
+            : string.Empty;
+        TempData["MemberWish"] = result.MemberWish;
+        TempData["SelectedTimeslots"] = result.SelectedTimeslots != null
+            ? string.Join(", ", result.SelectedTimeslots)
             : string.Empty;
 
         return RedirectToAction("InvitationConfirmation");

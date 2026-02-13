@@ -183,6 +183,8 @@ public class MemberAuthSurfaceController : SurfaceController
                     LastName = model.LastName,
                     Phone = model.Phone ?? string.Empty,
                     Zipcode = model.Zipcode ?? string.Empty,
+                    MemberWish = model.MemberWish ?? string.Empty,
+                    TimeslotWishes = model.SelectedTimeslots != null ? string.Join(", ", model.SelectedTimeslots) : string.Empty,
                     PortalUrl = portalUrl
                 };
 
@@ -506,6 +508,8 @@ public class MemberAuthSurfaceController : SurfaceController
                     LastName = model.LastName,
                     Phone = model.Phone ?? string.Empty,
                     Zipcode = model.Zipcode ?? string.Empty,
+                    MemberWish = model.MemberWish ?? string.Empty,
+                    TimeslotWishes = model.SelectedTimeslots != null ? string.Join(", ", model.SelectedTimeslots) : string.Empty,
                     SelectedCrews = selectedCrewsText,
                     PortalUrl = portalUrl
                 };

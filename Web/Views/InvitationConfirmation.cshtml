@@ -2,6 +2,8 @@
     Layout = null;
     var memberName = TempData["MemberName"] as string ?? "Frivillig";
     var selectedCrews = TempData["SelectedCrews"] as string;
+    var memberWish = TempData["MemberWish"] as string;
+    var selectedTimeslots = TempData["SelectedTimeslots"] as string;
 
     string year = DateTime.Now.Year.ToString();
 }
@@ -44,11 +46,32 @@
                 Vi er glade for, at du vil være frivillig igen til Blue Bridge Festival @year!
             </p>
 
-            @if (!string.IsNullOrEmpty(selectedCrews))
+            @if (!string.IsNullOrEmpty(selectedCrews) || !string.IsNullOrEmpty(memberWish) || !string.IsNullOrEmpty(selectedTimeslots))
             {
-                <div class="bg-gray-50 rounded-lg p-4 mb-6 text-left">
-                    <h3 class="font-semibold text-gray-900 mb-2">Dine crew-ønsker:</h3>
-                    <p class="text-gray-700">@selectedCrews</p>
+                <div class="bg-gray-50 rounded-lg p-4 mb-6 text-left space-y-3">
+                    @if (!string.IsNullOrEmpty(selectedCrews))
+                    {
+                        <div>
+                            <h3 class="font-semibold text-gray-900 mb-1">Dine crew-ønsker:</h3>
+                            <p class="text-gray-700">@selectedCrews</p>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(memberWish))
+                    {
+                        <div>
+                            <h3 class="font-semibold text-gray-900 mb-1">Ønsker at have vagt med:</h3>
+                            <p class="text-gray-700">@memberWish</p>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(selectedTimeslots))
+                    {
+                        <div>
+                            <h3 class="font-semibold text-gray-900 mb-1">Ønsker til vagttidspunkt:</h3>
+                            <p class="text-gray-700">@selectedTimeslots</p>
+                        </div>
+                    }
                 </div>
             }
 

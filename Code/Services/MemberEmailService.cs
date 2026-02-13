@@ -196,6 +196,8 @@ public class MemberEmailService : IMemberEmailService
         result = ReplacePlaceholder(result, "zipcode", memberData.Zipcode);
         result = ReplacePlaceholder(result, "tidligereArbejdssteder", memberData.TidligereArbejdssteder);
         result = ReplacePlaceholder(result, "selectedCrews", memberData.SelectedCrews);
+        result = ReplacePlaceholder(result, "memberWish", memberData.MemberWish);
+        result = ReplacePlaceholder(result, "timeslotWishes", memberData.TimeslotWishes);
 
         // Replace {{ portalUrl }} with a styled button linking to the login page
         if (!string.IsNullOrEmpty(memberData.PortalUrl))

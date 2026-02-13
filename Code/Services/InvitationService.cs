@@ -3,6 +3,7 @@ using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.PublishedContent;
 using Umbraco.Cms.Core.Security;
+using Umbraco.Cms.Core.Serialization;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Strings;
 using Umbraco.Cms.Core.Web;
@@ -18,6 +19,7 @@ public class InvitationService : IInvitationService
     private readonly IContentService _contentService;
     private readonly IMemberEmailService _emailService;
     private readonly IUmbracoContextAccessor _umbracoContextAccessor;
+    private readonly IJsonSerializer _jsonSerializer;
     private readonly ILogger<InvitationService> _logger;
 
     private const string MemberGroupName = "Frivillige";
@@ -31,6 +33,7 @@ public class InvitationService : IInvitationService
         IContentService contentService,
         IMemberEmailService emailService,
         IUmbracoContextAccessor umbracoContextAccessor,
+        IJsonSerializer jsonSerializer,
         ILogger<InvitationService> logger)
     {
         _memberService = memberService;
@@ -39,6 +42,7 @@ public class InvitationService : IInvitationService
         _contentService = contentService;
         _emailService = emailService;
         _umbracoContextAccessor = umbracoContextAccessor;
+        _jsonSerializer = jsonSerializer;
         _logger = logger;
     }
 
@@ -301,7 +305,7 @@ public class InvitationService : IInvitationService
         return Task.FromResult<MemberInvitationInfo?>(info);
     }
 
-    public async Task<AcceptInvitationResult> AcceptInvitationAsync(string token, IEnumerable<int> crewIds, DateTime birthdate, string password, string portalUrl)
+    public async Task<AcceptInvitationResult> AcceptInvitationAsync(string token, IEnumerable<int> crewIds, DateTime birthdate, string password, string portalUrl, string? memberWish = null, IEnumerable<string>? selectedTimeslots = null)
     {
         var memberInfo = await GetMemberByTokenAsync(token);
         if (memberInfo == null)
@@ -353,6 +357,20 @@ public class InvitationService : IInvitationService
             // Set birthdate
             member.SetValue("birthdate", birthdate);
 
+            // Set member wish
+            if (!string.IsNullOrWhiteSpace(memberWish))
+            {
+                member.SetValue("memberWish", memberWish);
+            }
+
+            // Set timeslot wishes (checkbox list requires JSON serialization)
+            if (selectedTimeslots != null && selectedTimeslots.Any())
+            {
+                var timeslotArray = selectedTimeslots.ToArray();
+                member.SetValue("timeslotWish", _jsonSerializer.Serialize(timeslotArray));
+                _logger.LogInformation("Setting timeslot wishes: {Timeslots}", string.Join(", ", timeslotArray));
+            }
+
             // Set acceptance flag and datetime
             member.SetValue("accept2026", true);
             member.SetValue("acceptedDate", DateTime.Now);
@@ -396,6 +414,8 @@ public class InvitationService : IInvitationService
                     Phone = member.GetValue<string>("phone") ?? string.Empty,
                     Zipcode = member.GetValue<string>("zipcode") ?? string.Empty,
                     TidligereArbejdssteder = member.GetValue<string>("tidligereArbejdssteder") ?? string.Empty,
+                    MemberWish = memberWish ?? string.Empty,
+                    TimeslotWishes = selectedTimeslots != null ? string.Join(", ", selectedTimeslots) : string.Empty,
                     PortalUrl = portalUrl.TrimEnd('/')
                 };
 
@@ -415,12 +435,17 @@ public class InvitationService : IInvitationService
                 member.Email,
                 string.Join(", ", crewNames));
 
+            // Send supervisor notifications for selected crews
+            await SendSupervisorNotificationsAsync(member, crewIds, portalUrl, memberWish, selectedTimeslots);
+
             return new AcceptInvitationResult
             {
                 Success = true,
                 Message = "Tak for din tilmelding!",
                 MemberName = memberInfo.FullName,
-                SelectedCrewNames = crewNames
+                SelectedCrewNames = crewNames,
+                MemberWish = memberWish,
+                SelectedTimeslots = selectedTimeslots
             };
         }
         catch (Exception ex)
@@ -489,13 +514,27 @@ public class InvitationService : IInvitationService
     {
         if (content.ContentType.Alias == CrewContentTypeAlias)
         {
-            var description = content.GetValue<string>("description");
-            // Strip HTML tags from description if present
-            if (!string.IsNullOrEmpty(description))
+            string? description = null;
+
+            // Get description from published content to properly handle RTE
+            if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
             {
-                description = System.Text.RegularExpressions.Regex.Replace(description, "<[^>]*>", "");
-                if (description.Length > 200)
-                    description = description[..200] + "...";
+                var publishedCrew = umbracoContext.Content?.GetById(content.Key);
+                if (publishedCrew != null)
+                {
+                    var rteValue = publishedCrew.Value<IHtmlEncodedString>("description");
+                    if (rteValue != null)
+                    {
+                        description = rteValue.ToHtmlString();
+                        // Strip HTML tags from description
+                        if (!string.IsNullOrEmpty(description))
+                        {
+                            description = System.Text.RegularExpressions.Regex.Replace(description, "<[^>]*>", "");
+                            if (description.Length > 200)
+                                description = description[..200] + "...";
+                        }
+                    }
+                }
             }
 
             crews.Add(new CrewInfo
@@ -538,5 +577,148 @@ public class InvitationService : IInvitationService
         }
 
         return Task.CompletedTask;
+    }
+
+    private async Task SendSupervisorNotificationsAsync(IMember member, IEnumerable<int> crewIds, string portalUrl, string? memberWish, IEnumerable<string>? selectedTimeslots)
+    {
+        // Get supervisor notification email templates
+        var (subjectTemplate, bodyTemplate) = GetSupervisorEmailTemplates();
+        if (string.IsNullOrEmpty(subjectTemplate) || string.IsNullOrEmpty(bodyTemplate))
+        {
+            _logger.LogWarning("Supervisor notification email templates not configured, skipping supervisor notifications");
+            return;
+        }
+
+        _logger.LogInformation("Starting supervisor notifications for {CrewCount} crews", crewIds.Count());
+
+        foreach (var crewId in crewIds)
+        {
+            var crewContent = _contentService.GetById(crewId);
+            if (crewContent == null)
+            {
+                _logger.LogWarning("Crew content not found for ID {CrewId}", crewId);
+                continue;
+            }
+
+            var crewName = crewContent.Name ?? $"Crew {crewId}";
+            var supervisorUdis = crewContent.GetValue<string>("scheduleSupervisor");
+
+            if (string.IsNullOrEmpty(supervisorUdis))
+            {
+                _logger.LogWarning("No scheduleSupervisor configured for crew {CrewName}", crewName);
+                continue;
+            }
+
+            // Parse UDI strings and get member keys
+            var udiList = supervisorUdis.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            _logger.LogInformation("Found {UdiCount} supervisor UDIs to process for crew {CrewName}", udiList.Length, crewName);
+
+            foreach (var udiString in udiList)
+            {
+                if (!UdiParser.TryParse(udiString.Trim(), out var udi))
+                {
+                    _logger.LogWarning("Failed to parse UDI: {UdiString}", udiString);
+                    continue;
+                }
+
+                if (udi is not GuidUdi guidUdi)
+                {
+                    _logger.LogWarning("UDI is not a GuidUdi: {UdiString}", udiString);
+                    continue;
+                }
+
+                var supervisor = _memberService.GetByKey(guidUdi.Guid);
+                if (supervisor == null)
+                {
+                    _logger.LogWarning("Supervisor member not found for GUID: {Guid}", guidUdi.Guid);
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(supervisor.Email))
+                {
+                    _logger.LogWarning("Supervisor {SupervisorName} has no email address", supervisor.Name);
+                    continue;
+                }
+
+                _logger.LogInformation("Found supervisor: {SupervisorName} ({SupervisorEmail})", supervisor.Name, supervisor.Email);
+
+                // Get all crew names for the member
+                var allCrewNames = new List<string>();
+                foreach (var cid in crewIds)
+                {
+                    var c = _contentService.GetById(cid);
+                    if (c != null)
+                    {
+                        allCrewNames.Add(c.Name ?? $"Crew {cid}");
+                    }
+                }
+
+                var memberData = new MemberEmailData
+                {
+                    Email = member.Email ?? string.Empty,
+                    Username = member.Username ?? member.Email ?? string.Empty,
+                    FirstName = member.GetValue<string>("firstName") ?? string.Empty,
+                    LastName = member.GetValue<string>("lastName") ?? string.Empty,
+                    Phone = member.GetValue<string>("phone") ?? string.Empty,
+                    Zipcode = member.GetValue<string>("zipcode") ?? string.Empty,
+                    MemberWish = memberWish ?? string.Empty,
+                    TimeslotWishes = selectedTimeslots != null ? string.Join(", ", selectedTimeslots) : string.Empty,
+                    SelectedCrews = string.Join(", ", allCrewNames),
+                    PortalUrl = portalUrl.TrimEnd('/')
+                };
+
+                var supervisorFirstName = supervisor.GetValue<string>("firstName") ?? supervisor.Name ?? "Supervisor";
+
+                try
+                {
+                    _logger.LogInformation("Sending notification to supervisor {SupervisorEmail} for crew {CrewName}",
+                        supervisor.Email, crewName);
+
+                    await _emailService.SendSupervisorNotificationEmailAsync(
+                        supervisor.Email,
+                        supervisorFirstName,
+                        memberData,
+                        crewName,
+                        subjectTemplate,
+                        bodyTemplate);
+
+                    _logger.LogInformation("Successfully sent supervisor notification to {SupervisorEmail}", supervisor.Email);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send supervisor notification to {SupervisorEmail}", supervisor.Email);
+                }
+            }
+        }
+
+        _logger.LogInformation("Completed supervisor notifications");
+    }
+
+    private (string subjectTemplate, string bodyTemplate) GetSupervisorEmailTemplates()
+    {
+        if (!_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
+        {
+            _logger.LogWarning("Could not get Umbraco context for fetching supervisor email templates");
+            return (string.Empty, string.Empty);
+        }
+
+        var siteSettingsContent = FindSiteSettingsContent();
+        if (siteSettingsContent == null)
+        {
+            _logger.LogWarning("Site settings not found for supervisor email");
+            return (string.Empty, string.Empty);
+        }
+
+        var siteSettings = umbracoContext.Content?.GetById(siteSettingsContent.Key);
+        if (siteSettings == null)
+        {
+            _logger.LogWarning("Could not get published site settings for supervisor email");
+            return (string.Empty, string.Empty);
+        }
+
+        var subject = siteSettings.Value<string>("supervisorNotificationEmailSubject") ?? string.Empty;
+        var body = siteSettings.Value<string>("supervisorNotificationEmailBody") ?? string.Empty;
+
+        return (subject, body);
     }
 }

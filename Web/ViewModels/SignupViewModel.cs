@@ -35,6 +35,12 @@ public class SignupViewModel
     [Display(Name = "Crew ønsker")]
     public List<int>? CrewWishes { get; set; }
 
+    [Display(Name = "Ønsker at have vagt med")]
+    public string? MemberWish { get; set; }
+
+    [Display(Name = "Ønsker til vagttidspunkt")]
+    public List<string>? SelectedTimeslots { get; set; }
+
     [Required(ErrorMessage = "Adgangskode er påkrævet")]
     [StringLength(100, MinimumLength = 10, ErrorMessage = "Adgangskode skal være mindst 10 tegn")]
     [DataType(DataType.Password)]
