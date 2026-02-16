@@ -253,66 +253,22 @@ public class MemberAuthSurfaceController : SurfaceController
         var token = await _authService.GeneratePasswordResetTokenAsync(model.Email);
         if (token != null)
         {
-            var resetUrl = Url.Action(
-                "ResetPassword",
-                "MemberAuthSurface",
-                new { email = model.Email, token = token },
-                Request.Scheme);
+            var encodedEmail = Uri.EscapeDataString(model.Email);
+            var encodedToken = Uri.EscapeDataString(token);
+            var resetUrl = $"{Request.Scheme}://{Request.Host}/reset-password?email={encodedEmail}&token={encodedToken}";
 
             try
             {
-                await _emailService.SendPasswordResetEmailAsync(model.Email, resetUrl!);
+                await _emailService.SendPasswordResetEmailAsync(model.Email, resetUrl);
+                _logger.LogInformation("Password reset email sent to {Email}", model.Email);
             }
-            catch
+            catch (Exception ex)
             {
-                // Don't expose email errors
+                _logger.LogError(ex, "Failed to send password reset email to {Email}", model.Email);
             }
         }
 
         return Redirect("/login?forgot=true");
-    }
-
-    [HttpGet]
-    public IActionResult ResetPassword(string email, string token)
-    {
-        var model = new ResetPasswordViewModel
-        {
-            Email = email,
-            Token = token
-        };
-
-        return View("~/Views/ResetPassword.cshtml", model);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> HandleResetPassword(ResetPasswordViewModel model)
-    {
-        if (!ModelState.IsValid)
-        {
-            return View("~/Views/ResetPassword.cshtml", model);
-        }
-
-        var result = await _authService.ResetPasswordAsync(model.Email, model.Token, model.NewPassword);
-
-        if (result.Succeeded)
-        {
-            TempData["ResetPasswordSuccess"] = true;
-            return RedirectToAction("ResetPasswordConfirmation");
-        }
-
-        foreach (var error in result.Errors)
-        {
-            ModelState.AddModelError(string.Empty, error);
-        }
-
-        return View("~/Views/ResetPassword.cshtml", model);
-    }
-
-    [HttpGet]
-    public IActionResult ResetPasswordConfirmation()
-    {
-        return View("~/Views/ResetPasswordConfirmation.cshtml");
     }
 
     #endregion
