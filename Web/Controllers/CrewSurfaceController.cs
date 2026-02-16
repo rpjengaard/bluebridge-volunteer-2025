@@ -1,5 +1,6 @@
 using Code.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.Logging;
 using Umbraco.Cms.Core.Models.ContentPublishing;
@@ -19,6 +20,9 @@ public class CrewSurfaceController : SurfaceController
     private readonly IMemberManager _memberManager;
     private readonly IMemberService _memberService;
     private readonly ICrewService _crewService;
+    private readonly ICrewMessageService _crewMessageService;
+    private readonly IMemberEmailService _memberEmailService;
+    private readonly ILogger<CrewSurfaceController> _logger;
     private readonly AppCaches _appCaches;
 
     public CrewSurfaceController(
@@ -32,7 +36,10 @@ public class CrewSurfaceController : SurfaceController
         IContentPublishingService contentPublishingService,
         IMemberManager memberManager,
         IMemberService memberService,
-        ICrewService crewService)
+        ICrewService crewService,
+        ICrewMessageService crewMessageService,
+        IMemberEmailService memberEmailService,
+        ILogger<CrewSurfaceController> logger)
         : base(umbracoContextAccessor, databaseFactory, services, appCaches, profilingLogger, publishedUrlProvider)
     {
         _contentService = contentService;
@@ -40,6 +47,9 @@ public class CrewSurfaceController : SurfaceController
         _memberManager = memberManager;
         _memberService = memberService;
         _crewService = crewService;
+        _crewMessageService = crewMessageService;
+        _memberEmailService = memberEmailService;
+        _logger = logger;
         _appCaches = appCaches;
     }
 
@@ -160,6 +170,111 @@ public class CrewSurfaceController : SurfaceController
         _memberService.Save(member);
 
         TempData["CrewSuccess"] = $"{member.Name} er nu tildelt dette crew.";
+        return Redirect(returnUrl ?? "/");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PostMessage(int crewId, string messageText, string returnUrl, bool notifyByEmail = true)
+    {
+        var currentMember = await _memberManager.GetCurrentMemberAsync();
+        if (currentMember == null)
+        {
+            TempData["CrewError"] = "Du skal være logget ind for at sende beskeder.";
+            return Redirect(returnUrl ?? "/");
+        }
+
+        var viewMode = await _crewService.GetMemberCrewViewModeAsync(currentMember.Email!, crewId);
+        if (viewMode == CrewViewMode.Volunteer)
+        {
+            TempData["CrewError"] = "Du har ikke tilladelse til at sende beskeder.";
+            return Redirect(returnUrl ?? "/");
+        }
+
+        try
+        {
+            var memberName = currentMember.Name ?? currentMember.Email ?? "Ukendt";
+            var postedMessage = await _crewMessageService.PostMessageAsync(crewId, currentMember.Email!, memberName, messageText);
+            TempData["CrewSuccess"] = "Beskeden er blevet sendt.";
+
+            if (notifyByEmail)
+            {
+                // Capture request values before the HTTP context is disposed
+                var crewUrl = $"{Request.Scheme}://{Request.Host}{returnUrl}";
+                var authorEmail = currentMember.Email!;
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var crewContent = _contentService.GetById(crewId);
+                        var crewName = crewContent?.Name ?? "Ukendt crew";
+
+                        var recipients = await _crewMessageService.GetCrewMemberRecipientsAsync(crewId);
+
+                        foreach (var recipient in recipients)
+                        {
+                            // Skip the author
+                            if (string.Equals(recipient.Email, authorEmail, StringComparison.OrdinalIgnoreCase))
+                                continue;
+
+                            try
+                            {
+                                await _memberEmailService.SendCrewMessageNotificationAsync(
+                                    recipient.Email,
+                                    recipient.FullName,
+                                    memberName,
+                                    crewName,
+                                    postedMessage.MessageHtml,
+                                    crewUrl);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex, "Failed to send crew message notification to {Email}", recipient.Email);
+                            }
+                        }
+
+                        _logger.LogInformation("Sent crew message notifications to {Count} recipients for crew {CrewId}", recipients.Count, crewId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send crew message notifications for crew {CrewId}", crewId);
+                    }
+                });
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            TempData["CrewError"] = ex.Message;
+        }
+
+        return Redirect(returnUrl ?? "/");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteMessage(int messageId, int crewId, string returnUrl)
+    {
+        var currentMember = await _memberManager.GetCurrentMemberAsync();
+        if (currentMember == null)
+        {
+            TempData["CrewError"] = "Du skal være logget ind.";
+            return Redirect(returnUrl ?? "/");
+        }
+
+        var viewMode = await _crewService.GetMemberCrewViewModeAsync(currentMember.Email!, crewId);
+        var isAdminOrScheduler = viewMode == CrewViewMode.Admin || viewMode == CrewViewMode.Scheduler;
+
+        var deleted = await _crewMessageService.DeleteMessageAsync(messageId, currentMember.Email!, isAdminOrScheduler);
+        if (deleted)
+        {
+            TempData["CrewSuccess"] = "Beskeden er blevet slettet.";
+        }
+        else
+        {
+            TempData["CrewError"] = "Kunne ikke slette beskeden.";
+        }
+
         return Redirect(returnUrl ?? "/");
     }
 }
