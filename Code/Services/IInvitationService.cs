@@ -67,4 +67,5 @@ public class CrewInfo
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int? AgeLimit { get; set; }
+    public int? MaxVoluntiers { get; set; }
 }
