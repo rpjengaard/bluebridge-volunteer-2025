@@ -42,24 +42,7 @@ public class AddCrewMessageTableMigration : MigrationBase
 
     protected override void Migrate()
     {
-        if (!TableExists("BbvCrewMessage"))
-        {
-            Create.Table("BbvCrewMessage")
-                .WithColumn("Id").AsInt32().NotNullable().PrimaryKey().Identity()
-                .WithColumn("CrewId").AsInt32().NotNullable()
-                .WithColumn("AuthorEmail").AsString(255).NotNullable()
-                .WithColumn("AuthorName").AsString(255).NotNullable()
-                .WithColumn("MessageText").AsString(4000).NotNullable()
-                .WithColumn("CreatedUtc").AsDateTime().NotNullable()
-                .Do();
-
-            Create.Index("IX_BbvCrewMessage_CrewId_CreatedUtc")
-                .OnTable("BbvCrewMessage")
-                .OnColumn("CrewId").Ascending()
-                .OnColumn("CreatedUtc").Descending()
-                .WithOptions().NonClustered()
-                .Do();
-        }
+        // No-op: superseded by migration 002/003 which use raw SQL (compatible with Azure SQL)
     }
 }
 
