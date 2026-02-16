@@ -7,6 +7,7 @@
 @inject IMemberManager MemberManager
 @inject IMemberService MemberService
 @inject ICrewService CrewService
+@inject ICrewMessageService CrewMessageService
 @functions {
     string HtmlToPlainText(string? html)
     {
@@ -59,6 +60,10 @@
     var canEdit = viewMode == CrewViewMode.Admin || viewMode == CrewViewMode.Scheduler;
     var crewSuccess = TempData["CrewSuccess"] as string;
     var crewError = TempData["CrewError"] as string;
+
+    var messages = currentMember != null
+        ? await CrewMessageService.GetMessagesAsync(Model.Id)
+        : new List<CrewMessageData>();
 }
 <!DOCTYPE html>
 <html lang="da" class="h-full bg-slate-50">
@@ -68,6 +73,10 @@
     <title>@Model.Name - Blue Bridge - Frivillig</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    @if (canEdit)
+    {
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+    }
     <style>
         body { font-family: 'Montserrat', sans-serif; }
         h1, h2, h3 { font-family: 'Playfair Display', serif; }
@@ -78,6 +87,14 @@
         .prose p { margin-bottom: 1rem; }
         .prose ul { list-style: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
         .prose ol { list-style: decimal; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .message-content p { margin-bottom: 0.5rem; }
+        .message-content p:last-child { margin-bottom: 0; }
+        .message-content ul { list-style: disc; margin-left: 1.5rem; margin-bottom: 0.5rem; }
+        .message-content ol { list-style: decimal; margin-left: 1.5rem; margin-bottom: 0.5rem; }
+        .message-content a { color: #23297A; text-decoration: underline; }
+        .message-content a:hover { opacity: 0.8; }
+        .message-content strong, .message-content b { font-weight: 600; }
+        .message-content em, .message-content i { font-style: italic; }
     </style>
 </head>
 <body class="h-full">
@@ -370,14 +387,82 @@ else
                         </div>
                     }
                 }
-                else
-                {
-                    <!-- Volunteer View: Messages placeholder -->
-                    <div class="bg-white shadow rounded-lg overflow-hidden">
-                        <div class="bg-blue-bridge px-6 py-4">
-                            <h2 class="text-xl font-bold text-white">Beskeder</h2>
-                        </div>
-                        <div class="p-6">
+
+                <!-- Beskeder (visible to all roles) -->
+                <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <div class="bg-blue-bridge px-6 py-4">
+                        <h2 class="text-xl font-bold text-white">Beskeder</h2>
+                    </div>
+                    <div class="p-6">
+                        @if (canEdit)
+                        {
+                            <form method="post" action="/umbraco/surface/CrewSurface/PostMessage" class="mb-6">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="crewId" value="@Model.Id" />
+                                <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                <div class="mb-3">
+                                    <label for="messageText" class="block text-sm font-medium text-gray-700 mb-1">Ny besked</label>
+                                    <textarea name="messageText" id="messageText" rows="3" maxlength="4000"
+                                              class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2 px-3 border"
+                                              placeholder="Skriv en besked til dit crew..."></textarea>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <label class="inline-flex items-center text-sm text-gray-600 cursor-pointer">
+                                        <input type="checkbox" name="notifyByEmail" value="true" checked
+                                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500 mr-2" />
+                                        Send email-notifikation til crew-medlemmer
+                                    </label>
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-bridge hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                        <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                                        </svg>
+                                        Send besked
+                                    </button>
+                                </div>
+                            </form>
+                        }
+
+                        @if (messages.Any())
+                        {
+                            <div class="space-y-4">
+                                @foreach (var msg in messages)
+                                {
+                                    <div class="border border-gray-200 rounded-lg p-4">
+                                        <div class="flex items-start justify-between mb-2">
+                                            <div class="flex items-center">
+                                                <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-bridge text-sm font-bold mr-3">
+                                                    @(msg.AuthorName.Length > 0 ? msg.AuthorName[0].ToString().ToUpper() : "?")
+                                                </div>
+                                                <div>
+                                                    <p class="text-sm font-semibold text-gray-900">@msg.AuthorName</p>
+                                                    <p class="text-xs text-gray-500">@msg.CreatedUtc.ToLocalTime().ToString("d. MMM yyyy HH:mm")</p>
+                                                </div>
+                                            </div>
+                                            @if (canEdit || string.Equals(msg.AuthorEmail, currentMember?.Email, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <form method="post" action="/umbraco/surface/CrewSurface/DeleteMessage" class="inline"
+                                                      onsubmit="return confirm('Er du sikker på, at du vil slette denne besked?');">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="messageId" value="@msg.Id" />
+                                                    <input type="hidden" name="crewId" value="@Model.Id" />
+                                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                                    <button type="submit" class="text-gray-400 hover:text-red-500" title="Slet besked">
+                                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                                        </svg>
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                        <div class="message-content text-sm text-gray-700">
+                                            @Html.Raw(msg.MessageHtml)
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
                             <div class="text-center py-8">
                                 <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
@@ -385,9 +470,9 @@ else
                                 <h3 class="mt-4 text-sm font-semibold text-gray-900">Ingen beskeder endnu</h3>
                                 <p class="mt-1 text-sm text-gray-500">Beskeder fra din crew-ansvarlige vil blive vist her.</p>
                             </div>
-                        </div>
+                        }
                     </div>
-                }
+                </div>
             </div>
 
             <!-- Sidebar -->
@@ -595,6 +680,21 @@ else
                     }
                 }
             });
+        </script>
+
+        <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+        <script>
+            var messageTextEl = document.getElementById('messageText');
+            if (messageTextEl) {
+                new EasyMDE({
+                    element: messageTextEl,
+                    toolbar: ['bold', 'italic', 'link', 'unordered-list', '|', 'preview'],
+                    spellChecker: false,
+                    status: false,
+                    minHeight: '100px',
+                    placeholder: 'Skriv en besked til dit crew...'
+                });
+            }
         </script>
     }
 

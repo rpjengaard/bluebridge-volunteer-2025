@@ -93,6 +93,69 @@ public class MemberEmailService : IMemberEmailService
         await SendEmailAsync(email, subject, body);
     }
 
+    public async Task SendCrewMessageNotificationAsync(string toEmail, string recipientName, string authorName, string crewName, string messageHtml, string crewUrl)
+    {
+        var subject = $"Ny besked i {crewName}-crew — Blue Bridge Frivillig";
+        var body = $@"
+<html>
+<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: Arial, sans-serif;"">
+  <table width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""background-color: #f1f5f9; padding: 32px 0;"">
+    <tr>
+      <td align=""center"">
+        <table width=""600"" cellpadding=""0"" cellspacing=""0"" style=""max-width: 600px; width: 100%;"">
+          <!-- Header -->
+          <tr>
+            <td style=""background-color: #23297A; padding: 24px 32px; text-align: center;"">
+              <span style=""color: #ffffff; font-size: 22px; font-weight: bold; letter-spacing: 1px;"">BLUE BRIDGE</span>
+              <span style=""color: #EE746D; font-size: 12px; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; margin-left: 8px;"">Frivillig</span>
+            </td>
+          </tr>
+          <!-- Yellow accent bar -->
+          <tr>
+            <td style=""background-color: #EE746D; height: 4px; font-size: 0; line-height: 0;"">&nbsp;</td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style=""background-color: #ffffff; padding: 32px;"">
+              <p style=""margin: 0 0 16px; font-size: 16px; color: #1e293b;"">Hej {recipientName},</p>
+              <p style=""margin: 0 0 20px; font-size: 15px; color: #334155;""><strong>{authorName}</strong> har skrevet en ny besked i <strong>{crewName}</strong>:</p>
+              <!-- Message quote -->
+              <table width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""margin: 0 0 24px;"">
+                <tr>
+                  <td style=""border-left: 4px solid #23297A; background-color: #f8fafc; padding: 16px 20px; font-size: 14px; color: #334155; line-height: 1.6;"">
+                    {messageHtml}
+                  </td>
+                </tr>
+              </table>
+              <!-- CTA Button -->
+              <table cellpadding=""0"" cellspacing=""0"" style=""margin: 0 auto 8px;"">
+                <tr>
+                  <td align=""center"" style=""background-color: #23297A; border-radius: 6px;"">
+                    <a href=""{crewUrl}"" style=""display: inline-block; padding: 12px 28px; color: #ffffff; font-size: 15px; font-weight: bold; text-decoration: none; letter-spacing: 0.5px;"" target=""_blank"">
+                      Gå til crew-siden
+                    </a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style=""background-color: #23297A; padding: 20px 32px; text-align: center;"">
+              <p style=""margin: 0; font-size: 12px; color: #94a3b8;"">Du modtager denne email, fordi du er tilknyttet {crewName}-crew.</p>
+              <p style=""margin: 8px 0 0; font-size: 11px; color: #64748b;"">Blue Bridge Festival</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>";
+
+        await SendEmailAsync(toEmail, subject, body, useBroadcast: true);
+    }
+
     private async Task SendEmailAsync(string toEmail, string subject, string htmlBody, bool useBroadcast = false)
     {
         try
