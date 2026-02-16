@@ -29,9 +29,11 @@
 
     var signupError = TempData["SignupError"] as string;
 
-    // Get all available crews for the multi-select
+    // Get all available crews for the multi-select, filtering out full crews
     var crewsData = await CrewService.GetCrewsForMemberAsync("", true);
-    var availableCrews = crewsData.Crews.OrderBy(c => c.Name).ToList();
+    var availableCrews = crewsData.Crews
+        .Where(c => !c.MaxVoluntiers.HasValue || c.MaxVoluntiers.Value == 0 || c.WishCount < c.MaxVoluntiers.Value)
+        .OrderBy(c => c.Name).ToList();
 }
 <!DOCTYPE html>
 <html lang="da" class="h-full bg-slate-50">

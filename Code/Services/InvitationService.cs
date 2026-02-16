@@ -506,8 +506,51 @@ public class InvitationService : IInvitationService
             FindCrewsRecursive(root, crews);
         }
 
-        _logger.LogDebug("Found {Count} crews", crews.Count);
-        return Task.FromResult<IEnumerable<CrewInfo>>(crews);
+        _logger.LogDebug("Found {Count} crews before filtering", crews.Count);
+
+        // Count wish-list members per crew and filter out full crews
+        var wishCounts = GetCrewWishCounts();
+        var availableCrews = crews.Where(c =>
+            !c.MaxVoluntiers.HasValue || c.MaxVoluntiers.Value == 0 ||
+            !wishCounts.ContainsKey(c.Id) || wishCounts[c.Id] < c.MaxVoluntiers.Value
+        ).ToList();
+
+        _logger.LogDebug("Returning {Count} available crews after filtering full crews", availableCrews.Count);
+        return Task.FromResult<IEnumerable<CrewInfo>>(availableCrews);
+    }
+
+    private Dictionary<int, int> GetCrewWishCounts()
+    {
+        var wishCounts = new Dictionary<int, int>();
+        var members = _memberService.GetAllMembers();
+
+        foreach (var member in members)
+        {
+            var wishesValue = member.GetValue<string>("crewWishes");
+            if (string.IsNullOrWhiteSpace(wishesValue))
+                continue;
+
+            var udiParts = wishesValue.Split(',', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var udiPart in udiParts)
+            {
+                var trimmed = udiPart.Trim();
+                if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
+                {
+                    var guidPart = trimmed["umb://document/".Length..];
+                    if (Guid.TryParse(guidPart, out var contentGuid))
+                    {
+                        var content = _contentService.GetById(contentGuid);
+                        if (content != null)
+                        {
+                            wishCounts.TryGetValue(content.Id, out var count);
+                            wishCounts[content.Id] = count + 1;
+                        }
+                    }
+                }
+            }
+        }
+
+        return wishCounts;
     }
 
     private void FindCrewsRecursive(IContent content, List<CrewInfo> crews)
@@ -543,7 +586,8 @@ public class InvitationService : IInvitationService
                 Key = content.Key,
                 Name = content.Name ?? $"Crew {content.Id}",
                 Description = description,
-                AgeLimit = content.GetValue<int?>("ageLimit")
+                AgeLimit = content.GetValue<int?>("ageLimit"),
+                MaxVoluntiers = content.GetValue<int?>("maxVoluntiers")
             });
         }
 

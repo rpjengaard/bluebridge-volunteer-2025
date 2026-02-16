@@ -44,11 +44,13 @@ public class CrewService : ICrewService
             // Admin sees all crews with member counts
             var allCrews = GetAllCrews();
             var memberCrewAssignments = GetMemberCrewAssignments();
+            var memberWishAssignments = GetMemberWishAssignments();
 
             foreach (var crew in allCrews)
             {
                 var memberCount = memberCrewAssignments.Count(m => m.crewIds.Contains(crew.Id));
                 crew.MemberCount = memberCount;
+                crew.WishCount = memberWishAssignments.Count(m => m.crewIds.Contains(crew.Id));
                 result.Crews.Add(crew);
             }
         }
@@ -515,6 +517,7 @@ public class CrewService : ICrewService
                 Name = content.Name ?? $"Crew {content.Id}",
                 Description = description,
                 AgeLimit = content.GetValue<int?>("ageLimit"),
+                MaxVoluntiers = content.GetValue<int?>("maxVoluntiers"),
                 Url = url
             });
         }
@@ -559,6 +562,24 @@ public class CrewService : ICrewService
         {
             var crewsValue = member.GetValue<string>("crews");
             var crewIds = ParseCrewIds(crewsValue);
+            if (crewIds.Any())
+            {
+                assignments.Add((member.Id, crewIds));
+            }
+        }
+
+        return assignments;
+    }
+
+    private List<(int memberId, List<int> crewIds)> GetMemberWishAssignments()
+    {
+        var assignments = new List<(int memberId, List<int> crewIds)>();
+        var members = _memberService.GetAllMembers();
+
+        foreach (var member in members)
+        {
+            var wishesValue = member.GetValue<string>("crewWishes");
+            var crewIds = ParseCrewIds(wishesValue);
             if (crewIds.Any())
             {
                 assignments.Add((member.Id, crewIds));
