@@ -19,7 +19,9 @@
       "Bash(dotnet restore:*)",
       "WebFetch(domain:postmarkapp.com)",
       "Bash(tasklist:*)",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(xargs:*)",
+      "Bash(dotnet run:*)"
     ],
     "deny": [],
     "ask": []

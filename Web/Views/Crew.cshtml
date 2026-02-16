@@ -496,21 +496,7 @@ else
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-slate-100 border-t border-slate-200 mt-12">
-        <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="text-sm text-gray-500">
-                    &copy; @DateTime.Now.Year Blue Bridge Festival. Alle rettigheder forbeholdes.
-                </div>
-                <div class="mt-4 md:mt-0 flex space-x-6">
-                    <a href="/contact" class="text-sm text-gray-500 hover:text-gray-900">Kontakt</a>
-                    <a href="/privacy" class="text-sm text-gray-500 hover:text-gray-900">Privatlivspolitik</a>
-                    <a href="/help" class="text-sm text-gray-500 hover:text-gray-900">Hjælp</a>
-                </div>
-            </div>
-        </div>
-    </footer>
+    @await Html.PartialAsync("Partials/_Footer")
 
     @if (canEdit)
     {
