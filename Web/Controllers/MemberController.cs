@@ -57,6 +57,8 @@ public class MemberController : Controller
             Birthdate = memberData.Birthdate?.ToString("dd.MM.yyyy"),
             Age = age,
             memberData.TidligereArbejdssteder,
+            memberData.MemberWish,
+            memberData.TimeslotWish,
             memberData.Accept2026,
             AcceptedDate = memberData.AcceptedDate?.ToString("dd/MM/yyyy"),
             InvitationSentDate = memberData.InvitationSentDate?.ToString("dd/MM/yyyy"),

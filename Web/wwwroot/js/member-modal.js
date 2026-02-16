@@ -175,6 +175,39 @@
             invitationDateRow.classList.add('hidden');
         }
 
+        // Ønsker (memberWish + timeslotWish)
+        var wishesInfoSection = document.getElementById('modalWishesSection');
+        var memberWishRow = document.getElementById('modalMemberWishRow');
+        var timeslotWishRow = document.getElementById('modalTimeslotWishRow');
+        var hasMemberWish = data.memberWish && data.memberWish.trim() !== '';
+        var hasTimeslotWish = data.timeslotWish && data.timeslotWish.trim() !== '';
+
+        if (hasMemberWish || hasTimeslotWish) {
+            wishesInfoSection.classList.remove('hidden');
+            if (hasMemberWish) {
+                setTextContent('modalMemberWish', data.memberWish);
+                memberWishRow.classList.remove('hidden');
+            } else {
+                memberWishRow.classList.add('hidden');
+            }
+            if (hasTimeslotWish) {
+                // timeslotWish is stored as JSON array, try to parse and display nicely
+                var timeslotText = data.timeslotWish;
+                try {
+                    var parsed = JSON.parse(timeslotText);
+                    if (Array.isArray(parsed)) {
+                        timeslotText = parsed.join(', ');
+                    }
+                } catch (e) { /* use raw value */ }
+                setTextContent('modalTimeslotWish', timeslotText);
+                timeslotWishRow.classList.remove('hidden');
+            } else {
+                timeslotWishRow.classList.add('hidden');
+            }
+        } else {
+            wishesInfoSection.classList.add('hidden');
+        }
+
         // Crew wishes
         var wishesSection = document.getElementById('modalCrewWishesSection');
         var wishesEl = document.getElementById('modalCrewWishes');

@@ -65,16 +65,13 @@
     else
     {
         <div class="min-h-screen">
+            @await Html.PartialAsync("Partials/_Navigation")
+
             <!-- Header -->
             <header class="bg-blue-bridge text-white shadow-lg">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-4">
-                            <a href="/dashboard" class="text-white/70 hover:text-white">
-                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-                                </svg>
-                            </a>
                             <div>
                                 <h1 class="text-2xl font-bold">@memberData.FullName</h1>
                                 <p class="text-white/70 text-sm">Medlemsprofil</p>
@@ -176,19 +173,6 @@
                             </div>
                         </div>
 
-                        <!-- Previous Workplaces -->
-                        @if (!string.IsNullOrEmpty(memberData.TidligereArbejdssteder))
-                        {
-                            <div class="bg-white shadow rounded-lg overflow-hidden">
-                                <div class="bg-gray-700 px-6 py-4">
-                                    <h2 class="text-xl font-bold text-white">Tidligere arbejdssteder</h2>
-                                </div>
-                                <div class="p-6">
-                                    <p class="text-sm text-gray-700 whitespace-pre-wrap">@memberData.TidligereArbejdssteder</p>
-                                </div>
-                            </div>
-                        }
-
                         <!-- Assigned Crews -->
                         <div class="bg-white shadow rounded-lg overflow-hidden">
                             <div class="bg-green-600 px-6 py-4 flex items-center justify-between">
@@ -225,6 +209,65 @@
                                 }
                             </div>
                         </div>
+
+                        <!-- Previous Workplaces -->
+                        @if (!string.IsNullOrEmpty(memberData.TidligereArbejdssteder))
+                        {
+                            <div class="bg-white shadow rounded-lg overflow-hidden">
+                                <div class="bg-gray-700 px-6 py-4">
+                                    <h2 class="text-xl font-bold text-white">Tidligere arbejdssteder</h2>
+                                </div>
+                                <div class="p-6">
+                                    <p class="text-sm text-gray-700 whitespace-pre-wrap">@memberData.TidligereArbejdssteder</p>
+                                </div>
+                            </div>
+                        }
+
+                        <!-- Ønsker -->
+                        @{
+                            var hasMemberWish = !string.IsNullOrEmpty(memberData.MemberWish);
+                            var hasTimeslotWish = !string.IsNullOrEmpty(memberData.TimeslotWish);
+                        }
+                        @if (hasMemberWish || hasTimeslotWish)
+                        {
+                            <div class="bg-white shadow rounded-lg overflow-hidden">
+                                <div class="bg-purple-600 px-6 py-4">
+                                    <h2 class="text-xl font-bold text-white">Ønsker</h2>
+                                </div>
+                                <div class="p-6">
+                                    <dl class="space-y-4">
+                                        @if (hasMemberWish)
+                                        {
+                                            <div>
+                                                <dt class="text-sm font-medium text-gray-500">At stå med</dt>
+                                                <dd class="mt-1 text-sm text-gray-700 whitespace-pre-wrap">@memberData.MemberWish</dd>
+                                            </div>
+                                        }
+                                        @if (hasTimeslotWish)
+                                        {
+                                            <div>
+                                                <dt class="text-sm font-medium text-gray-500">Tidspunkt(er)</dt>
+                                                <dd class="mt-1 text-sm text-gray-700">
+                                                    @{
+                                                        var timeslotDisplay = memberData.TimeslotWish!;
+                                                        try
+                                                        {
+                                                            var parsed = System.Text.Json.JsonSerializer.Deserialize<string[]>(timeslotDisplay);
+                                                            if (parsed != null)
+                                                            {
+                                                                timeslotDisplay = string.Join(", ", parsed);
+                                                            }
+                                                        }
+                                                        catch { /* use raw value */ }
+                                                    }
+                                                    @timeslotDisplay
+                                                </dd>
+                                            </div>
+                                        }
+                                    </dl>
+                                </div>
+                            </div>
+                        }
 
                         <!-- Crew Wishes -->
                         @if (memberData.CrewWishes.Any())

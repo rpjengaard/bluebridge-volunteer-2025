@@ -99,16 +99,31 @@
                                     <p id="modalWorkplaces" class="text-sm text-gray-700 whitespace-pre-wrap"></p>
                                 </div>
 
-                                <!-- Crew Wishes -->
-                                <div id="modalCrewWishesSection" class="bg-amber-50 rounded-lg p-4 hidden">
-                                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Crew ønsker</h3>
-                                    <div id="modalCrewWishes" class="flex flex-wrap gap-2"></div>
-                                </div>
-
                                 <!-- Assigned Crews -->
                                 <div id="modalAssignedCrewsSection" class="bg-green-50 rounded-lg p-4 hidden">
                                     <h3 class="text-lg font-semibold text-gray-900 mb-3">Tildelte crews</h3>
                                     <div id="modalAssignedCrews" class="space-y-2"></div>
+                                </div>
+
+                                <!-- Ønsker (memberWish + timeslotWish) -->
+                                <div id="modalWishesSection" class="bg-purple-50 rounded-lg p-4 hidden">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Ønsker</h3>
+                                    <dl class="space-y-3">
+                                        <div id="modalMemberWishRow" class="hidden">
+                                            <dt class="text-sm font-medium text-gray-500">At stå med</dt>
+                                            <dd id="modalMemberWish" class="mt-1 text-sm text-gray-700 whitespace-pre-wrap"></dd>
+                                        </div>
+                                        <div id="modalTimeslotWishRow" class="hidden">
+                                            <dt class="text-sm font-medium text-gray-500">Tidspunkt(er)</dt>
+                                            <dd id="modalTimeslotWish" class="mt-1 text-sm text-gray-700"></dd>
+                                        </div>
+                                    </dl>
+                                </div>
+
+                                <!-- Crew Wishes -->
+                                <div id="modalCrewWishesSection" class="bg-amber-50 rounded-lg p-4 hidden">
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Crew ønsker</h3>
+                                    <div id="modalCrewWishes" class="flex flex-wrap gap-2"></div>
                                 </div>
                             </div>
 

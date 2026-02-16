@@ -188,6 +188,10 @@ else
             </div>
         }
 
+        <div class="bg-amber-100 text-amber-800 rounded-lg p-4 mb-6">
+            <p class="text-sm">Klik på det crew du er ansvarlig for, for at godkende ansøgningen og assigne den til dit crew.</p>
+        </div>
+
         <!-- Applications List -->
         @if (viewModel.Applications.Any())
         {
@@ -200,6 +204,7 @@ else
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kontakt</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alder</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Crew-ønsker</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tidl. arbejdssteder</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tilmeldt</th>
                                 <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Handling</th>
                             </tr>
@@ -257,6 +262,16 @@ else
                                         else
                                         {
                                             <span class="text-sm text-gray-400 italic">Ingen ønsker</span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        @if (!string.IsNullOrEmpty(application.TidligereArbejdssteder))
+                                        {
+                                            <span class="text-sm text-gray-900">@application.TidligereArbejdssteder</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-sm text-gray-400">-</span>
                                         }
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">

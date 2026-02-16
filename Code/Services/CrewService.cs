@@ -179,6 +179,8 @@ public class CrewService : ICrewService
             Birthdate = birthdate == DateTime.MinValue ? null : birthdate,
             TidligereArbejdssteder = member.GetValue<string>("tidligereArbejdssteder"),
             Accept2026 = member.GetValue<bool>("accept2026"),
+            MemberWish = member.GetValue<string>("memberWish"),
+            TimeslotWish = member.GetValue<string>("timeslotWish"),
             AcceptedDate = acceptedDate == DateTime.MinValue ? null : acceptedDate,
             InvitationSentDate = invitationSentDate == DateTime.MinValue ? null : invitationSentDate,
             MemberGroups = _memberService.GetAllRoles(member.Id).ToList()
