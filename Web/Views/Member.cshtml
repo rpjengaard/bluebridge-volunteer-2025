@@ -269,6 +269,19 @@
                             </div>
                         }
 
+                        <!-- Notes -->
+                        @if (!string.IsNullOrEmpty(memberData.OtherNotes))
+                        {
+                            <div class="bg-white shadow rounded-lg overflow-hidden">
+                                <div class="bg-teal-600 px-6 py-4">
+                                    <h2 class="text-xl font-bold text-white">Noter</h2>
+                                </div>
+                                <div class="p-6 prose prose-sm max-w-none text-gray-700">
+                                    @Html.Raw(memberData.OtherNotes)
+                                </div>
+                            </div>
+                        }
+
                         <!-- Crew Wishes -->
                         @if (memberData.CrewWishes.Any())
                         {

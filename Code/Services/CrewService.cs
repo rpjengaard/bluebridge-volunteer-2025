@@ -181,6 +181,7 @@ public class CrewService : ICrewService
             Accept2026 = member.GetValue<bool>("accept2026"),
             MemberWish = member.GetValue<string>("memberWish"),
             TimeslotWish = member.GetValue<string>("timeslotWish"),
+            OtherNotes = ExtractRteMarkup(member.GetValue<string>("otherNotes")),
             AcceptedDate = acceptedDate == DateTime.MinValue ? null : acceptedDate,
             InvitationSentDate = invitationSentDate == DateTime.MinValue ? null : invitationSentDate,
             MemberGroups = _memberService.GetAllRoles(member.Id).ToList()
@@ -529,6 +530,33 @@ public class CrewService : ICrewService
         {
             FindCrewsRecursive(child, crews);
         }
+    }
+
+    /// <summary>
+    /// Extracts the HTML markup from a raw RTE JSON value stored on IContent/IMember.
+    /// Umbraco v17 stores RTE as JSON: {"blocks":{...},"markup":"<p>...</p>"}
+    /// </summary>
+    private static string? ExtractRteMarkup(string? rawRteValue)
+    {
+        if (string.IsNullOrWhiteSpace(rawRteValue))
+            return null;
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(rawRteValue);
+            if (doc.RootElement.TryGetProperty("markup", out var markupElement))
+            {
+                var markup = markupElement.GetString();
+                return string.IsNullOrWhiteSpace(markup) ? null : markup;
+            }
+        }
+        catch
+        {
+            // Not JSON — might already be plain HTML
+            return rawRteValue;
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -86,6 +86,7 @@ public class MemberDetailData
     public string? MemberWish { get; set; }
     public string? TimeslotWish { get; set; }
     public List<CrewListItem> AssignedCrews { get; set; } = new();
+    public string? OtherNotes { get; set; }
     public List<CrewListItem> CrewWishes { get; set; } = new();
     public List<string> MemberGroups { get; set; } = new();
 }

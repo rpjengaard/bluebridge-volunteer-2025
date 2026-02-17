@@ -225,6 +225,16 @@
             wishesSection.classList.add('hidden');
         }
 
+        // Notes (otherNotes - richtext HTML, admin-authored and trusted)
+        var notesSection = document.getElementById('modalNotesSection');
+        var notesEl = document.getElementById('modalNotes');
+        if (data.otherNotes && data.otherNotes.trim() !== '') {
+            notesEl.innerHTML = data.otherNotes;
+            notesSection.classList.remove('hidden');
+        } else {
+            notesSection.classList.add('hidden');
+        }
+
         // Assigned crews
         var assignedSection = document.getElementById('modalAssignedCrewsSection');
         var assignedEl = document.getElementById('modalAssignedCrews');

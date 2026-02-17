@@ -62,6 +62,7 @@ public class MemberController : Controller
             memberData.Accept2026,
             AcceptedDate = memberData.AcceptedDate?.ToString("dd/MM/yyyy"),
             InvitationSentDate = memberData.InvitationSentDate?.ToString("dd/MM/yyyy"),
+            memberData.OtherNotes,
             memberData.MemberGroups,
             AssignedCrews = memberData.AssignedCrews.Select(c => new
             {

@@ -126,6 +126,14 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual string MemberWish => this.Value<string>(_publishedValueFallback, "memberWish");
 
 		///<summary>
+		/// Øvrige noter
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.1.0+2832436")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("otherNotes")]
+		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString OtherNotes => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "otherNotes");
+
+		///<summary>
 		/// Telefon
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.1.0+2832436")]
