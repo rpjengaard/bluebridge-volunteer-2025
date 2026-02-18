@@ -35,6 +35,9 @@
                     Id = c.Id,
                     Name = c.Name
                 }).OrderBy(c => c.Name).ToList(),
+                TotalDesiredVolunteers = data.TotalDesiredVolunteers,
+                VolunteersAssignedToCrews = data.VolunteersAssignedToCrews,
+                SupervisorsAssignedToCrews = data.SupervisorsAssignedToCrews,
                 Applications = data.Applications.Select(a => new ApplicationItemViewModel
                 {
                     MemberId = a.MemberId,
@@ -155,18 +158,22 @@ else
         </div>
 
         <!-- Stats -->
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white shadow rounded-lg p-4 text-center">
+                <div class="text-3xl font-bold text-green-600">@viewModel.TotalDesiredVolunteers</div>
+                <div class="text-sm text-gray-600">Ønskede frivillige</div>
+            </div>
+            <div class="bg-white shadow rounded-lg p-4 text-center">
+                <div class="text-3xl font-bold text-amber-600">@viewModel.VolunteersAssignedToCrews</div>
+                <div class="text-sm text-gray-600">Frivillige tildelt crew</div>
+            </div>
+            <div class="bg-white shadow rounded-lg p-4 text-center">
+                <div class="text-3xl font-bold text-purple-600">@viewModel.SupervisorsAssignedToCrews</div>
+                <div class="text-sm text-gray-600">Vice- / Sheriffer</div>
+            </div>
             <div class="bg-white shadow rounded-lg p-4 text-center">
                 <div class="text-3xl font-bold text-blue-bridge">@viewModel.Applications.Count</div>
-                <div class="text-sm text-gray-600">Nye ansøgninger</div>
-            </div>
-            <div class="bg-white shadow rounded-lg p-4 text-center">
-                <div class="text-3xl font-bold text-green-600">@viewModel.AllowedCrews.Count</div>
-                <div class="text-sm text-gray-600">@(viewModel.IsAdmin ? "Crews i alt" : "Dine crews")</div>
-            </div>
-            <div class="bg-white shadow rounded-lg p-4 text-center">
-                <div class="text-3xl font-bold text-amber-600">@viewModel.Applications.Count(a => a.CrewWishes.Any())</div>
-                <div class="text-sm text-gray-600">Med crew-ønsker</div>
+                <div class="text-sm text-gray-600">Nye ansøgere</div>
             </div>
         </div>
 

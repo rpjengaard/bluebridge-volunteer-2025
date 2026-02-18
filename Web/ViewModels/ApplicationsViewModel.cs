@@ -7,6 +7,9 @@ public class ApplicationsViewModel
     public bool IsScheduler { get; set; }
     public List<ApplicationItemViewModel> Applications { get; set; } = new();
     public List<CrewFilterItemViewModel> AllowedCrews { get; set; } = new();
+    public int TotalDesiredVolunteers { get; set; }
+    public int VolunteersAssignedToCrews { get; set; }
+    public int SupervisorsAssignedToCrews { get; set; }
 }
 
 public class ApplicationItemViewModel

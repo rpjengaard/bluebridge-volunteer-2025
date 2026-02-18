@@ -1,7 +1,8 @@
 using Microsoft.Extensions.Logging;
-using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core;
+using Umbraco.Cms.Core.Models.PublishedContent;
 using Umbraco.Cms.Core.Services;
-using Umbraco.Cms.Core.Web;
+using Umbraco.Extensions;
 
 namespace Code.Services;
 
@@ -9,8 +10,7 @@ public class ApplicationsService : IApplicationsService
 {
     private readonly IMemberService _memberService;
     private readonly IMemberGroupService _memberGroupService;
-    private readonly IContentService _contentService;
-    private readonly IUmbracoContextAccessor _umbracoContextAccessor;
+    private readonly IPublishedContentQuery _publishedContentQuery;
     private readonly ILogger<ApplicationsService> _logger;
 
     private const string CrewContentTypeAlias = "bbvCrewPage";
@@ -22,14 +22,12 @@ public class ApplicationsService : IApplicationsService
     public ApplicationsService(
         IMemberService memberService,
         IMemberGroupService memberGroupService,
-        IContentService contentService,
-        IUmbracoContextAccessor umbracoContextAccessor,
+        IPublishedContentQuery publishedContentQuery,
         ILogger<ApplicationsService> logger)
     {
         _memberService = memberService;
         _memberGroupService = memberGroupService;
-        _contentService = contentService;
-        _umbracoContextAccessor = umbracoContextAccessor;
+        _publishedContentQuery = publishedContentQuery;
         _logger = logger;
     }
 
@@ -59,47 +57,74 @@ public class ApplicationsService : IApplicationsService
             return Task.FromResult(result);
         }
 
+        // Build crew cache from published content (replaces recursive tree walks and per-UDI DB calls)
+        var crewCache = BuildCrewCache();
+
+        // Sum of desired volunteers across all crews
+        result.TotalDesiredVolunteers = crewCache.Values
+            .Sum(c => c.MaxVoluntiers ?? 0);
+
         // Get crews the requesting member is allowed to see
-        List<int> allowedCrewIds;
+        HashSet<int> allowedCrewIds;
         if (result.IsAdmin)
         {
             // Admin sees all crews
-            var allCrews = GetAllCrews();
-            result.AllowedCrews = allCrews;
-            allowedCrewIds = allCrews.Select(c => c.Id).ToList();
+            result.AllowedCrews = crewCache.Values.ToList();
+            allowedCrewIds = new HashSet<int>(crewCache.Values.Select(c => c.Id));
         }
         else
         {
             // Scheduler sees crews where they are assigned as supervisor or scheduleSupervisor
-            var supervisorCrews = GetCrewsForSupervisor(requestingMember.Key);
+            var supervisorCrews = GetCrewsForSupervisor(requestingMember.Key, crewCache);
             result.AllowedCrews = supervisorCrews;
-            allowedCrewIds = supervisorCrews.Select(c => c.Id).ToList();
+            allowedCrewIds = new HashSet<int>(supervisorCrews.Select(c => c.Id));
         }
 
-        // Get all members who have accept2026 = true and have no crews assigned
+        // Cache group names for the per-member checks (looked up once, not per-member)
+        var adminGroupName = adminGroup?.Name;
+        var volunteerGroup = _memberGroupService.GetByName("Frivillige");
+        var volunteerGroupName = volunteerGroup?.Name;
+        var supervisorGroupNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (schedulerGroup != null)
+            supervisorGroupNames.Add(schedulerGroup.Name);
+        foreach (var groupName in new[] { "Sherif", "Vice sherif" })
+        {
+            var group = _memberGroupService.GetByName(groupName);
+            if (group != null)
+                supervisorGroupNames.Add(group.Name);
+        }
+
+        // Get all members and process in a single pass
         var allMembers = _memberService.GetAllMembers();
 
         foreach (var member in allMembers)
         {
-            // Skip admin members
-            if (IsMemberInAdminGroup(member.Id))
-                continue;
-
-            // Check if member has accepted 2026
+            // Check accept2026 first (no DB call, just in-memory property) to skip most members early
             var accept2026 = member.GetValue<bool>("accept2026");
             if (!accept2026)
                 continue;
 
-            // Check if member has no crews assigned
-            var assignedCrewsValue = member.GetValue<string>("crews");
-            var assignedCrewIds = ParseCrewIds(assignedCrewsValue);
-            if (assignedCrewIds.Any())
-                continue; // Skip if already assigned to any crew
+            // Get roles once per member (only for members who accepted 2026)
+            var roles = _memberService.GetAllRoles(member.Id);
 
-            // Get the member's crew wishes
+            // Skip admin members
+            if (!string.IsNullOrEmpty(adminGroupName) && roles.Contains(adminGroupName))
+                continue;
+
+            // Check if member has crews assigned (dictionary lookup instead of DB call per UDI)
+            var assignedCrewsValue = member.GetValue<string>("crews");
+            if (HasAnyCrewUdis(assignedCrewsValue, crewCache))
+            {
+                if (!string.IsNullOrEmpty(volunteerGroupName) && roles.Contains(volunteerGroupName))
+                    result.VolunteersAssignedToCrews++;
+                if (roles.Any(r => supervisorGroupNames.Contains(r)))
+                    result.SupervisorsAssignedToCrews++;
+                continue; // Skip if already assigned to any crew
+            }
+
+            // Get the member's crew wishes (single pass, dictionary lookups, no DB calls)
             var crewWishesValue = member.GetValue<string>("crewWishes");
-            var crewWishIds = ParseCrewIds(crewWishesValue);
-            var crewWishes = ParseCrewReferences(crewWishesValue);
+            var (crewWishIds, crewWishes) = ParseCrewUdis(crewWishesValue, crewCache);
 
             // For schedulers, only show members whose crew wishes include one of their allowed crews
             if (!result.IsAdmin)
@@ -150,74 +175,67 @@ public class ApplicationsService : IApplicationsService
         return Task.FromResult(result);
     }
 
-    private int CalculateAge(DateTime birthdate)
+    /// <summary>
+    /// Builds a dictionary of all crew pages from the published content cache.
+    /// Replaces recursive tree walks and per-UDI _contentService.GetById() calls.
+    /// </summary>
+    private Dictionary<Guid, CrewListItem> BuildCrewCache()
     {
-        var today = DateTime.Today;
-        var age = today.Year - birthdate.Year;
-        if (birthdate.Date > today.AddYears(-age))
-            age--;
-        return age;
+        var cache = new Dictionary<Guid, CrewListItem>();
+
+        foreach (var root in _publishedContentQuery.ContentAtRoot())
+        {
+            foreach (var crew in root.DescendantsOrSelfOfType(CrewContentTypeAlias))
+            {
+                if (cache.ContainsKey(crew.Key))
+                    continue;
+
+                cache[crew.Key] = new CrewListItem
+                {
+                    Id = crew.Id,
+                    Key = crew.Key,
+                    Name = crew.Name ?? $"Crew {crew.Id}",
+                    Url = crew.Url(),
+                    MaxVoluntiers = crew.Value<int?>("maxVoluntiers")
+                };
+            }
+        }
+
+        return cache;
     }
 
-    private bool IsMemberInAdminGroup(int memberId)
-    {
-        var memberGroups = _memberService.GetAllRoles(memberId);
-        var adminGroup = _memberGroupService.GetById(AdminGroupKey);
-        return adminGroup != null && memberGroups.Contains(adminGroup.Name);
-    }
-
-    private List<CrewListItem> GetCrewsForSupervisor(Guid memberKey)
+    /// <summary>
+    /// Gets crews where the given member is a supervisor, using the published content cache.
+    /// </summary>
+    private List<CrewListItem> GetCrewsForSupervisor(Guid memberKey, Dictionary<Guid, CrewListItem> crewCache)
     {
         var crews = new List<CrewListItem>();
-        var rootContent = _contentService.GetRootContent();
 
-        foreach (var root in rootContent)
+        foreach (var root in _publishedContentQuery.ContentAtRoot())
         {
-            FindSupervisorCrewsRecursive(root, memberKey, crews);
+            foreach (var crew in root.DescendantsOrSelfOfType(CrewContentTypeAlias))
+            {
+                var scheduleSupervisors = crew.Value<IEnumerable<IPublishedContent>>("scheduleSupervisor");
+                var supervisors = crew.Value<IEnumerable<IPublishedContent>>("supervisors");
+
+                var isSupervisor =
+                    (scheduleSupervisors != null && scheduleSupervisors.Any(s => s.Key == memberKey)) ||
+                    (supervisors != null && supervisors.Any(s => s.Key == memberKey));
+
+                if (isSupervisor && crewCache.TryGetValue(crew.Key, out var crewItem))
+                {
+                    crews.Add(crewItem);
+                }
+            }
         }
 
         return crews;
     }
 
-    private void FindSupervisorCrewsRecursive(IContent content, Guid memberKey, List<CrewListItem> crews)
-    {
-        if (content.ContentType.Alias == CrewContentTypeAlias)
-        {
-            // Check if member is supervisor or scheduleSupervisor for this crew
-            var schedulerUdi = content.GetValue<string>("scheduleSupervisor");
-            var supervisorsUdi = content.GetValue<string>("supervisors");
-
-            if (IsMemberInUdiList(memberKey, schedulerUdi) || IsMemberInUdiList(memberKey, supervisorsUdi))
-            {
-                string? url = null;
-
-                if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
-                {
-                    var publishedContent = umbracoContext.Content?.GetById(content.Key);
-                    if (publishedContent != null)
-                    {
-                        url = publishedContent.Url();
-                    }
-                }
-
-                crews.Add(new CrewListItem
-                {
-                    Id = content.Id,
-                    Key = content.Key,
-                    Name = content.Name ?? $"Crew {content.Id}",
-                    Url = url
-                });
-            }
-        }
-
-        var children = _contentService.GetPagedChildren(content.Id, 0, int.MaxValue, out _);
-        foreach (var child in children)
-        {
-            FindSupervisorCrewsRecursive(child, memberKey, crews);
-        }
-    }
-
-    private bool IsMemberInUdiList(Guid memberKey, string? udiString)
+    /// <summary>
+    /// Checks if a UDI string contains any crew references that exist in the cache.
+    /// </summary>
+    private static bool HasAnyCrewUdis(string? udiString, Dictionary<Guid, CrewListItem> crewCache)
     {
         if (string.IsNullOrWhiteSpace(udiString))
             return false;
@@ -226,67 +244,30 @@ public class ApplicationsService : IApplicationsService
         foreach (var udiPart in udiParts)
         {
             var trimmed = udiPart.Trim();
-            if (trimmed.StartsWith("umb://member/", StringComparison.OrdinalIgnoreCase))
+            if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
             {
-                var guidPart = trimmed["umb://member/".Length..];
-                if (Guid.TryParse(guidPart, out var guid) && guid == memberKey)
+                var guidPart = trimmed["umb://document/".Length..];
+                if (Guid.TryParse(guidPart, out var contentGuid) && crewCache.ContainsKey(contentGuid))
                 {
                     return true;
                 }
             }
         }
+
         return false;
     }
 
-    private List<CrewListItem> GetAllCrews()
-    {
-        var crews = new List<CrewListItem>();
-        var rootContent = _contentService.GetRootContent();
-
-        foreach (var root in rootContent)
-        {
-            FindCrewsRecursive(root, crews);
-        }
-
-        return crews;
-    }
-
-    private void FindCrewsRecursive(IContent content, List<CrewListItem> crews)
-    {
-        if (content.ContentType.Alias == CrewContentTypeAlias)
-        {
-            string? url = null;
-
-            if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
-            {
-                var publishedContent = umbracoContext.Content?.GetById(content.Key);
-                if (publishedContent != null)
-                {
-                    url = publishedContent.Url();
-                }
-            }
-
-            crews.Add(new CrewListItem
-            {
-                Id = content.Id,
-                Key = content.Key,
-                Name = content.Name ?? $"Crew {content.Id}",
-                Url = url
-            });
-        }
-
-        var children = _contentService.GetPagedChildren(content.Id, 0, int.MaxValue, out _);
-        foreach (var child in children)
-        {
-            FindCrewsRecursive(child, crews);
-        }
-    }
-
-    private List<int> ParseCrewIds(string? udiString)
+    /// <summary>
+    /// Parses a UDI string and returns both the crew IDs and CrewListItem references in a single pass.
+    /// Uses the pre-built crew cache for O(1) lookups instead of per-UDI DB calls.
+    /// </summary>
+    private (List<int> Ids, List<CrewListItem> Items) ParseCrewUdis(string? udiString, Dictionary<Guid, CrewListItem> crewCache)
     {
         var ids = new List<int>();
+        var items = new List<CrewListItem>();
+
         if (string.IsNullOrWhiteSpace(udiString))
-            return ids;
+            return (ids, items);
 
         var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
         foreach (var udiPart in udiParts)
@@ -297,13 +278,10 @@ public class ApplicationsService : IApplicationsService
                 if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
                 {
                     var guidPart = trimmed["umb://document/".Length..];
-                    if (Guid.TryParse(guidPart, out var contentGuid))
+                    if (Guid.TryParse(guidPart, out var contentGuid) && crewCache.TryGetValue(contentGuid, out var crewItem))
                     {
-                        var content = _contentService.GetById(contentGuid);
-                        if (content != null)
-                        {
-                            ids.Add(content.Id);
-                        }
+                        ids.Add(crewItem.Id);
+                        items.Add(crewItem);
                     }
                 }
             }
@@ -313,57 +291,15 @@ public class ApplicationsService : IApplicationsService
             }
         }
 
-        return ids;
+        return (ids, items);
     }
 
-    private List<CrewListItem> ParseCrewReferences(string? udiString)
+    private static int CalculateAge(DateTime birthdate)
     {
-        var crews = new List<CrewListItem>();
-        if (string.IsNullOrWhiteSpace(udiString))
-            return crews;
-
-        var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var udiPart in udiParts)
-        {
-            var trimmed = udiPart.Trim();
-            try
-            {
-                if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
-                {
-                    var guidPart = trimmed["umb://document/".Length..];
-                    if (Guid.TryParse(guidPart, out var contentGuid))
-                    {
-                        var content = _contentService.GetById(contentGuid);
-                        if (content != null && content.ContentType.Alias == CrewContentTypeAlias)
-                        {
-                            string? url = null;
-
-                            if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
-                            {
-                                var publishedContent = umbracoContext.Content?.GetById(content.Key);
-                                if (publishedContent != null)
-                                {
-                                    url = publishedContent.Url();
-                                }
-                            }
-
-                            crews.Add(new CrewListItem
-                            {
-                                Id = content.Id,
-                                Key = content.Key,
-                                Name = content.Name ?? $"Crew {content.Id}",
-                                Url = url
-                            });
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to parse UDI: {Udi}", trimmed);
-            }
-        }
-
-        return crews;
+        var today = DateTime.Today;
+        var age = today.Year - birthdate.Year;
+        if (birthdate.Date > today.AddYears(-age))
+            age--;
+        return age;
     }
 }

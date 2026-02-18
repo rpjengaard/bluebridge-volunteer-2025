@@ -21,7 +21,9 @@
       "Bash(tasklist:*)",
       "Bash(powershell:*)",
       "Bash(xargs:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(find:*)",
+      "Bash(dotnet list:*)"
     ],
     "deny": [],
     "ask": []

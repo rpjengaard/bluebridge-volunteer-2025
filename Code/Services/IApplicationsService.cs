@@ -11,6 +11,9 @@ public class ApplicationsPageData
     public bool IsScheduler { get; set; }
     public List<ApplicationInfo> Applications { get; set; } = new();
     public List<CrewListItem> AllowedCrews { get; set; } = new();
+    public int TotalDesiredVolunteers { get; set; }
+    public int VolunteersAssignedToCrews { get; set; }
+    public int SupervisorsAssignedToCrews { get; set; }
 }
 
 public class ApplicationInfo
