@@ -6,6 +6,7 @@
 @inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BbvCrewList>
 @inject IMemberManager MemberManager
 @inject IMemberService MemberService
+@inject IMemberGroupService MemberGroupService
 @inject ICrewService CrewService
 @{
     Layout = null;
@@ -22,7 +23,8 @@
         if (member != null)
         {
             var roles = MemberService.GetAllRoles(member.Id);
-            isAdmin = roles.Contains("admin");
+            var adminGroup = MemberGroupService.GetById(Guid.Parse("99e1edbb-8181-421d-a74b-e66a2f1e1148"));
+            isAdmin = adminGroup != null && roles.Contains(adminGroup.Name);
         }
         var data = await CrewService.GetCrewsForMemberAsync(currentMember.Email!, isAdmin);
 
@@ -40,7 +42,10 @@
                 Description = c.Description,
                 AgeLimit = c.AgeLimit,
                 Url = c.Url,
+                MaxVoluntiers = c.MaxVoluntiers,
                 MemberCount = c.MemberCount,
+                WishCount = c.WishCount,
+                SupervisorCount = c.SupervisorCount,
                 IsMemberAssigned = c.IsMemberAssigned
             }).ToList()
         };
@@ -166,18 +171,19 @@ else
                     <thead class="bg-gray-50">
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Crew</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Beskrivelse</th>
                             @if (viewModel.IsAdmin)
                             {
+                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ønskede</th>
                                 <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frivillige</th>
+                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ansøgere</th>
+                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Sherif / vice</th>
                             }
-                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Handling</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach (var crew in viewModel.Crews.OrderBy(c => c.Name))
                         {
-                            <tr class="hover:bg-gray-50">
+                            <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='@crew.Url'">
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
                                         <div class="h-10 w-10 rounded-lg bg-blue-bridge flex items-center justify-center text-white text-sm font-bold mr-3">
@@ -192,60 +198,44 @@ else
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4">
-                                    @if (!string.IsNullOrEmpty(crew.Description))
-                                    {
-                                        <p class="text-sm text-gray-600 max-w-md truncate">@crew.Description</p>
-                                    }
-                                    else
-                                    {
-                                        <p class="text-sm text-gray-400 italic">Ingen beskrivelse</p>
-                                    }
-                                </td>
                                 @if (viewModel.IsAdmin)
                                 {
                                     <td class="px-6 py-4 whitespace-nowrap text-center">
-                                        <div class="flex items-center justify-center">
-                                            @if (crew.MemberCount == 0)
-                                            {
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-                                                    0
-                                                </span>
-                                            }
-                                            else
-                                            {
-                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                                    @crew.MemberCount
-                                                </span>
-                                            }
-                                        </div>
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                                            @(crew.MaxVoluntiers.HasValue ? crew.MaxVoluntiers.Value.ToString() : "-")
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                        @if (crew.MemberCount == 0)
+                                        {
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">0</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">@crew.MemberCount</span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                        @if (crew.WishCount == 0)
+                                        {
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">0</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">@crew.WishCount</span>
+                                        }
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                        @if (crew.SupervisorCount == 0)
+                                        {
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">0</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">@crew.SupervisorCount</span>
+                                        }
                                     </td>
                                 }
-                                <td class="px-6 py-4 whitespace-nowrap text-right">
-                                    @if (viewModel.IsAdmin)
-                                    {
-                                        <a href="@crew.Url" class="inline-flex items-center px-3 py-1.5 border border-blue-bridge text-blue-bridge text-sm font-medium rounded-md hover:bg-blue-bridge hover:text-white transition-colors">
-                                            Administrer
-                                        </a>
-                                    }
-                                    else
-                                    {
-                                        <div class="flex items-center justify-end gap-3">
-                                            <span class="inline-flex items-center text-green-700 text-xs font-medium">
-                                                <svg class="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                                </svg>
-                                                Tildelt
-                                            </span>
-                                            @if (!string.IsNullOrEmpty(crew.Url))
-                                            {
-                                                <a href="@crew.Url" class="text-blue-bridge hover:underline text-sm font-medium">
-                                                    Se mere &rarr;
-                                                </a>
-                                            }
-                                        </div>
-                                    }
-                                </td>
                             </tr>
                         }
                     </tbody>

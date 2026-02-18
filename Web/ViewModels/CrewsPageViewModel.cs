@@ -15,7 +15,10 @@ public class CrewListItemViewModel
     public string? Description { get; set; }
     public int? AgeLimit { get; set; }
     public string? Url { get; set; }
+    public int? MaxVoluntiers { get; set; }
     public int MemberCount { get; set; }
+    public int WishCount { get; set; }
+    public int SupervisorCount { get; set; }
     public bool IsMemberAssigned { get; set; }
 }
 

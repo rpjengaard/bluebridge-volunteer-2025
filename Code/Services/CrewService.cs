@@ -43,14 +43,16 @@ public class CrewService : ICrewService
         {
             // Admin sees all crews with member counts
             var allCrews = GetAllCrews();
-            var memberCrewAssignments = GetMemberCrewAssignments();
-            var memberWishAssignments = GetMemberWishAssignments();
+            var crewStats = ComputeCrewStats(allCrews);
 
             foreach (var crew in allCrews)
             {
-                var memberCount = memberCrewAssignments.Count(m => m.crewIds.Contains(crew.Id));
-                crew.MemberCount = memberCount;
-                crew.WishCount = memberWishAssignments.Count(m => m.crewIds.Contains(crew.Id));
+                if (crewStats.TryGetValue(crew.Id, out var stats))
+                {
+                    crew.MemberCount = stats.MemberCount;
+                    crew.WishCount = stats.WishCount;
+                    crew.SupervisorCount = stats.SupervisorCount;
+                }
                 result.Crews.Add(crew);
             }
         }
@@ -480,6 +482,97 @@ public class CrewService : ICrewService
         }
 
         return ids;
+    }
+
+    private struct CrewStatsEntry
+    {
+        public int MemberCount;
+        public int WishCount;
+        public int SupervisorCount;
+    }
+
+    /// <summary>
+    /// Single pass over all members to compute per-crew stats:
+    /// - MemberCount: accept2026=true, in "Frivillige" group, assigned to crew
+    /// - WishCount: accept2026=true, not admin, no crew assignments, crew in crewWishes
+    /// - SupervisorCount: accept2026=true, assigned to crew, in Sherif/Vice sherif/Vagtplanlæggere group
+    /// </summary>
+    private Dictionary<int, CrewStatsEntry> ComputeCrewStats(List<CrewListItem> allCrews)
+    {
+        var stats = new Dictionary<int, CrewStatsEntry>();
+        foreach (var crew in allCrews)
+            stats[crew.Id] = new CrewStatsEntry();
+
+        // Resolve group names once
+        var adminGroup = _memberGroupService.GetById(AdminGroupKey);
+        var volunteerGroup = _memberGroupService.GetById(VolunteerGroupKey);
+        var schedulerGroup = _memberGroupService.GetById(SchedulerGroupKey);
+
+        var adminGroupName = adminGroup?.Name;
+        var volunteerGroupName = volunteerGroup?.Name;
+        var schedulerGroupName = schedulerGroup?.Name;
+
+        var supervisorGroupNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in new[] { "Sherif", "Vice sherif" })
+            supervisorGroupNames.Add(name);
+        if (schedulerGroupName != null)
+            supervisorGroupNames.Add(schedulerGroupName);
+
+        var crewGuidToIdCache = new Dictionary<Guid, int>();
+        var allMembers = _memberService.GetAllMembers();
+
+        foreach (var member in allMembers)
+        {
+            var accepted = member.GetValue<bool>("accept2026");
+            if (!accepted)
+                continue;
+
+            var roles = _memberService.GetAllRoles(member.Id);
+            var isAdmin = adminGroupName != null && roles.Contains(adminGroupName);
+            if (isAdmin)
+                continue;
+
+            var isVolunteer = volunteerGroupName != null && roles.Contains(volunteerGroupName);
+            var isSupervisor = roles.Any(r => supervisorGroupNames.Contains(r));
+
+            // Parse crew assignments
+            var crewsValue = member.GetValue<string>("crews");
+            var assignedCrewIds = ParseCrewIdsWithCache(crewsValue, crewGuidToIdCache);
+
+            if (assignedCrewIds.Any())
+            {
+                foreach (var crewId in assignedCrewIds)
+                {
+                    if (!stats.ContainsKey(crewId))
+                        continue;
+
+                    var entry = stats[crewId];
+                    if (isVolunteer)
+                        entry.MemberCount++;
+                    if (isSupervisor)
+                        entry.SupervisorCount++;
+                    stats[crewId] = entry;
+                }
+            }
+            else
+            {
+                // No crew assignments — check wish list for Ansøgere count
+                var wishesValue = member.GetValue<string>("crewWishes");
+                var wishCrewIds = ParseCrewIdsWithCache(wishesValue, crewGuidToIdCache);
+
+                foreach (var crewId in wishCrewIds)
+                {
+                    if (!stats.ContainsKey(crewId))
+                        continue;
+
+                    var entry = stats[crewId];
+                    entry.WishCount++;
+                    stats[crewId] = entry;
+                }
+            }
+        }
+
+        return stats;
     }
 
     private List<CrewListItem> GetAllCrews()
