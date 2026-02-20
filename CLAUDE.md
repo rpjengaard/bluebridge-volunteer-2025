@@ -186,3 +186,6 @@ A custom dashboard that allows admin users to impersonate volunteer members on t
 5. Click "Start Impersonation"
 6. Click "Open Frontend in New Tab" to view as that member
 7. Click "Exit Impersonation" in the red banner when done
+
+
+Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.

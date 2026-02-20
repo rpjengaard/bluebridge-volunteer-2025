@@ -230,6 +230,7 @@ public class CrewService : ICrewService
         string? descriptionHtml = null;
         string? url = null;
         int? ageLimit = null;
+        int? maxVoluntiers = null;
 
         // Get published content to access properly converted property values
         if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
@@ -240,6 +241,7 @@ public class CrewService : ICrewService
                 url = publishedContent.Url();
                 description = GetRteDescription(publishedContent);
                 ageLimit = publishedContent.Value<int?>("ageLimit");
+                maxVoluntiers = publishedContent.Value<int?>("maxVoluntiers");
 
                 // Also get HTML version for full display
                 var descriptionValue = publishedContent.Value<Umbraco.Cms.Core.Strings.IHtmlEncodedString>("description");
@@ -249,6 +251,7 @@ public class CrewService : ICrewService
 
         // Fallback to IContent if published content not available
         ageLimit ??= content.GetValue<int?>("ageLimit");
+        maxVoluntiers ??= content.GetValue<int?>("maxVoluntiers");
 
         var detail = new CrewDetailData
         {
@@ -258,6 +261,7 @@ public class CrewService : ICrewService
             Description = description,
             DescriptionHtml = descriptionHtml,
             AgeLimit = ageLimit,
+            MaxVoluntiers = maxVoluntiers,
             Url = url,
             ViewMode = viewMode
         };

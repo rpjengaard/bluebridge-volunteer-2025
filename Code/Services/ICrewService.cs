@@ -44,6 +44,7 @@ public class CrewDetailData
     public string? Description { get; set; }
     public string? DescriptionHtml { get; set; }
     public int? AgeLimit { get; set; }
+    public int? MaxVoluntiers { get; set; }
     public string? Url { get; set; }
     public CrewViewMode ViewMode { get; set; }
     public List<CrewMemberInfo> Members { get; set; } = new();

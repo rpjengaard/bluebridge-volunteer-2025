@@ -140,57 +140,45 @@ else
             </div>
         </div>
 
-        <!-- Stats (Admin only) -->
-        @if (viewModel.IsAdmin)
-        {
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div class="bg-white shadow rounded-lg p-4 text-center">
-                    <div class="text-3xl font-bold text-blue-bridge">@viewModel.Crews.Count</div>
-                    <div class="text-sm text-gray-600">Crews i alt</div>
-                </div>
-                <div class="bg-white shadow rounded-lg p-4 text-center">
-                    <div class="text-3xl font-bold text-green-600">@viewModel.Crews.Sum(c => c.MemberCount)</div>
-                    <div class="text-sm text-gray-600">Frivillige tildelt</div>
-                </div>
-                <div class="bg-white shadow rounded-lg p-4 text-center">
-                    <div class="text-3xl font-bold text-amber-600">@viewModel.Crews.Count(c => c.MemberCount == 0)</div>
-                    <div class="text-sm text-gray-600">Crews uden frivillige</div>
-                </div>
-                <div class="bg-white shadow rounded-lg p-4 text-center">
-                    <div class="text-3xl font-bold text-blue-bridge">@(viewModel.Crews.Count > 0 ? (viewModel.Crews.Sum(c => c.MemberCount) / (double)viewModel.Crews.Count).ToString("0.#") : "0")</div>
-                    <div class="text-sm text-gray-600">Gns. pr. crew</div>
-                </div>
-            </div>
-        }
-
         <!-- Crews List -->
         @if (viewModel.Crews.Any())
         {
             <div class="bg-white shadow rounded-lg overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table class="w-full divide-y divide-gray-200 table-fixed">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Crew</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-auto">Crew</th>
                             @if (viewModel.IsAdmin)
                             {
-                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ønskede</th>
-                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Frivillige</th>
-                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ansøgere</th>
-                                <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Sherif / vice</th>
+                                <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Frivillige</th>
+                                <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Fyldt</th>
+                                <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Ansøgere</th>
+                                <th scope="col" class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Sherif / vice</th>
                             }
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach (var crew in viewModel.Crews.OrderBy(c => c.Name))
                         {
+                            var pct = (crew.MaxVoluntiers.HasValue && crew.MaxVoluntiers.Value > 0)
+                                ? Math.Min(100, (int)Math.Round(crew.MemberCount / (double)crew.MaxVoluntiers.Value * 100))
+                                : (int?)null;
+                            var pctColor = pct switch
+                            {
+                                >= 100 => "bg-green-500",
+                                >= 75 => "bg-green-400",
+                                >= 50 => "bg-amber-400",
+                                >= 25 => "bg-amber-300",
+                                _ => "bg-red-300"
+                            };
                             <tr class="hover:bg-gray-50 cursor-pointer" onclick="window.location='@crew.Url'">
-                                <td class="px-6 py-4 whitespace-nowrap">
+                                <td class="px-4 py-3 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        <div class="h-10 w-10 rounded-lg bg-blue-bridge flex items-center justify-center text-white text-sm font-bold mr-3">
+                                        <div class="h-9 w-9 rounded-lg bg-blue-bridge flex items-center justify-center text-white text-sm font-bold mr-3 flex-shrink-0">
                                             @(crew.Name.Length > 0 ? crew.Name[0].ToString().ToUpper() : "?")
                                         </div>
-                                        <div>
-                                            <div class="font-medium text-gray-900">@crew.Name</div>
+                                        <div class="min-w-0">
+                                            <div class="font-medium text-gray-900 truncate">@crew.Name</div>
                                             @if (crew.AgeLimit.HasValue && crew.AgeLimit.Value > 0)
                                             {
                                                 <span class="inline-block text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">@crew.AgeLimit+ år</span>
@@ -200,22 +188,36 @@ else
                                 </td>
                                 @if (viewModel.IsAdmin)
                                 {
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-                                            @(crew.MaxVoluntiers.HasValue ? crew.MaxVoluntiers.Value.ToString() : "-")
-                                        </span>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <td class="px-3 py-3 whitespace-nowrap text-center">
                                         @if (crew.MemberCount == 0)
                                         {
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">0</span>
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                                0 / @(crew.MaxVoluntiers.HasValue ? crew.MaxVoluntiers.Value.ToString() : "-")
+                                            </span>
                                         }
                                         else
                                         {
-                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">@crew.MemberCount</span>
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                @crew.MemberCount / @(crew.MaxVoluntiers.HasValue ? crew.MaxVoluntiers.Value.ToString() : "-")
+                                            </span>
                                         }
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <td class="px-3 py-3 whitespace-nowrap text-center">
+                                        @if (pct.HasValue)
+                                        {
+                                            <div class="flex items-center gap-2">
+                                                <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                                                    <div class="@pctColor h-2 rounded-full transition-all" style="width: @(pct)%"></div>
+                                                </div>
+                                                <span class="text-xs font-medium text-gray-600 w-9 text-right">@(pct)%</span>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-xs text-gray-400">-</span>
+                                        }
+                                    </td>
+                                    <td class="px-3 py-3 whitespace-nowrap text-center">
                                         @if (crew.WishCount == 0)
                                         {
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">0</span>
@@ -225,7 +227,7 @@ else
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">@crew.WishCount</span>
                                         }
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                                    <td class="px-3 py-3 whitespace-nowrap text-center">
                                         @if (crew.SupervisorCount == 0)
                                         {
                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">0</span>
