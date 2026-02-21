@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Blue Bridge volunteer management system built with **Umbraco CMS v17.0.2** on **.NET 10.0**. The application manages volunteer ("frivillig") information including crew assignments, personal details, and work history. The project uses a two-project structure with a Web host and a separate Code class library.
+This is a Blue Bridge volunteer management system built with **Umbraco CMS v17.2.0** on **.NET 10.0**. The application manages volunteer ("frivillig") information including crew assignments, personal details, and work history. The project uses a two-project structure with a Web host and a separate Code class library.
 
 ## Build and Run Commands
 
