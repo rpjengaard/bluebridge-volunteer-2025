@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Web (Umbraco)",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "Web/Web.csproj"],
+      "port": 35371
+    }
+  ]
+}

@@ -474,6 +474,96 @@ else
                         }
                     </div>
                 </div>
+
+                @if (canEdit)
+                {
+                <!-- Vagtplaner (Admin/Scheduler only) -->
+                <div class="bg-white shadow rounded-lg overflow-hidden" id="vagtplaner-section">
+                    <div class="bg-indigo-700 px-6 py-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-xl font-bold text-white">Vagtplaner</h2>
+                            <button type="button" onclick="toggleCreateScheduleForm()"
+                                    class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md bg-white/20 text-white hover:bg-white/30 transition-colors">
+                                <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                Ny vagtplan
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+
+                        <!-- Create schedule form -->
+                        <div id="create-schedule-form" class="hidden mb-6 bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                            <h3 class="text-sm font-semibold text-indigo-900 mb-3">Opret ny vagtplan</h3>
+                            <div class="flex flex-col sm:flex-row gap-3">
+                                <div class="flex-1">
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Navn</label>
+                                    <input type="text" id="new-schedule-name" placeholder="f.eks. Bar 1"
+                                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Dato</label>
+                                    <input type="date" id="new-schedule-date"
+                                           class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3 border" />
+                                </div>
+                                <div class="flex items-end gap-2">
+                                    <button type="button" onclick="createSchedule()"
+                                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-700 hover:bg-indigo-800">
+                                        Opret
+                                    </button>
+                                    <button type="button" onclick="toggleCreateScheduleForm()"
+                                            class="inline-flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900">
+                                        Annuller
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Schedule list (rendered by JS) -->
+                        <div id="schedule-list">
+                            <div class="text-center py-8 text-gray-400">
+                                <svg class="mx-auto h-8 w-8 mb-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
+                                </svg>
+                                <p class="text-sm">Indlæser vagtplaner...</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Assign member modal (shared) -->
+                <div id="assign-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
+                    <div class="flex items-center justify-center min-h-screen px-4">
+                        <div class="fixed inset-0 bg-gray-500 bg-opacity-75" onclick="closeAssignModal()"></div>
+                        <div class="relative bg-white rounded-lg shadow-xl w-full max-w-lg p-6 z-10">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-bold text-gray-900">Tildel frivillig til vagt</h3>
+                                <button onclick="closeAssignModal()" class="text-gray-400 hover:text-gray-600">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <!-- Sort controls -->
+                            <div class="flex gap-2 mb-3 text-xs">
+                                <span class="text-gray-500 self-center">Sortér:</span>
+                                <button onclick="loadCrewMembers('accepted')" id="sort-accepted"
+                                        class="px-2 py-1 rounded bg-indigo-100 text-indigo-700 font-medium sort-btn">Tilmeldingsdato</button>
+                                <button onclick="loadCrewMembers('name')" id="sort-name"
+                                        class="px-2 py-1 rounded text-gray-600 hover:bg-gray-100 sort-btn">Navn</button>
+                                <button onclick="loadCrewMembers('age')" id="sort-age"
+                                        class="px-2 py-1 rounded text-gray-600 hover:bg-gray-100 sort-btn">Alder</button>
+                            </div>
+                            <div id="assign-member-list" class="max-h-64 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100">
+                                <div class="p-4 text-center text-gray-400 text-sm">Indlæser...</div>
+                            </div>
+                            <p id="assign-shift-info" class="mt-3 text-xs text-gray-500"></p>
+                        </div>
+                    </div>
+                </div>
+                }
             </div>
 
             <!-- Sidebar -->
@@ -652,6 +742,654 @@ else
                     }
                 }
             });
+        </script>
+
+        <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+        <script>
+            var messageTextEl = document.getElementById('messageText');
+            if (messageTextEl) {
+                new EasyMDE({
+                    element: messageTextEl,
+                    toolbar: ['bold', 'italic', 'link', 'unordered-list', '|', 'preview'],
+                    spellChecker: false,
+                    status: false,
+                    minHeight: '100px',
+                    placeholder: 'Skriv en besked til dit crew...'
+                });
+            }
+        </script>
+
+        <script>
+        // ── Vagtplaner JavaScript ─────────────────────────────────────────────
+        const CREW_ID = @Model.Id;
+        const CREW_KEY = '@Model.Key';
+        let currentAssignShiftId = null;
+        let currentAssignScheduleId = null;
+        let currentAssignStartTime = null;   // start time of the shift being assigned
+        let currentAssignEndTime = null;     // end time of the shift being assigned
+        let currentSchedules = [];           // last-loaded schedule data (for conflict detection)
+        let currentSortMode = localStorage.getItem('vagtplan-sort') || 'accepted';
+
+        function getCsrfToken() {
+            const el = document.querySelector('input[name="__RequestVerificationToken"]');
+            return el ? el.value : '';
+        }
+
+        async function apiPost(url, data) {
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': getCsrfToken()
+                },
+                body: JSON.stringify(data)
+            });
+            return resp.json();
+        }
+
+        async function apiGet(url) {
+            const resp = await fetch(url);
+            return resp.json();
+        }
+
+        // ── Load & render schedules ───────────────────────────────────────────
+        async function loadSchedules() {
+            const container = document.getElementById('schedule-list');
+            try {
+                const schedules = await apiGet(`/umbraco/surface/schedule/forCrew?crewId=${CREW_ID}`);
+                currentSchedules = schedules || [];
+                renderScheduleList(schedules);
+            } catch (e) {
+                container.innerHTML = '<p class="text-sm text-red-600 p-4">Fejl ved indlæsning af vagtplaner.</p>';
+            }
+        }
+
+        function renderScheduleList(schedules) {
+            const container = document.getElementById('schedule-list');
+            if (!schedules || schedules.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-gray-400">
+                        <svg class="mx-auto h-10 w-10 mb-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
+                        </svg>
+                        <p class="text-sm">Ingen vagtplaner endnu. Klik "Ny vagtplan" for at starte.</p>
+                    </div>`;
+                return;
+            }
+            container.innerHTML = schedules.map(s => renderScheduleCard(s)).join('');
+        }
+
+        function renderScheduleCard(s) {
+            const publishedBadge = s.isPublished
+                ? `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Udgivet</span>`
+                : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Kladde</span>`;
+
+            const bookedCount = (s.shifts || []).filter(sh => !sh.isAvailable).length;
+            const canDeleteSchedule = bookedCount === 0;
+
+            return `
+            <div class="border border-gray-200 rounded-lg mb-4 overflow-hidden" id="schedule-card-${s.id}">
+                <!-- Schedule header -->
+                <div class="bg-indigo-50 px-4 py-3 flex flex-wrap items-center gap-2 justify-between">
+                    <div class="flex items-center gap-3">
+                        <span class="font-semibold text-indigo-900">${escHtml(s.name)}</span>
+                        <span class="text-xs text-gray-500">${s.scheduleDateFormatted}</span>
+                        ${publishedBadge}
+                        <span class="text-xs text-gray-400">${(s.shifts||[]).length} vagter (${bookedCount} booket)</span>
+                    </div>
+                    <div class="flex items-center gap-1 flex-wrap">
+                        <button onclick="toggleAddShifts(${s.id})"
+                                class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded bg-indigo-700 text-white hover:bg-indigo-800">
+                            <svg class="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                            </svg>
+                            Tilføj vagter
+                        </button>
+                        <button onclick="toggleDeletePanel(${s.id})"
+                                class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded bg-red-600 text-white hover:bg-red-700">
+                            <svg class="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                            Slet vagter
+                        </button>
+                        <button onclick="togglePublish(${s.id}, ${s.isPublished})"
+                                class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded ${s.isPublished ? 'bg-yellow-500 text-white hover:bg-yellow-600' : 'bg-green-600 text-white hover:bg-green-700'}">
+                            ${s.isPublished ? 'Skjul' : 'Udgiv'}
+                        </button>
+                        ${canDeleteSchedule ? `
+                        <button onclick="deleteSchedule(${s.id})"
+                                class="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded bg-gray-200 text-gray-700 hover:bg-gray-300">
+                            Slet plan
+                        </button>` : ''}
+                    </div>
+                </div>
+
+                <!-- Add shifts panel -->
+                <div id="add-shifts-panel-${s.id}" class="hidden border-b border-gray-200 bg-blue-50 px-4 py-4">
+                    <h4 class="text-sm font-semibold text-gray-800 mb-3">Tilføj vagter til ${escHtml(s.name)}</h4>
+                    <div class="flex gap-4 mb-3">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="shift-mode-${s.id}" value="single" checked
+                                   onchange="toggleShiftMode(${s.id}, 'single')"
+                                   class="mr-1.5 text-indigo-600" />
+                            <span class="text-sm font-medium">Single shift</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="shift-mode-${s.id}" value="smart"
+                                   onchange="toggleShiftMode(${s.id}, 'smart')"
+                                   class="mr-1.5 text-indigo-600" />
+                            <span class="text-sm font-medium">Smart shift</span>
+                        </label>
+                    </div>
+
+                    <!-- Single shift inputs -->
+                    <div id="single-shift-${s.id}" class="flex flex-wrap gap-3 items-end">
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Start</label>
+                            <div class="flex gap-1">
+                                ${timeSelect(`single-start-h-${s.id}`, 24)}
+                                <span class="self-center text-gray-400">:</span>
+                                ${minuteSelect(`single-start-m-${s.id}`)}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Slut</label>
+                            <div class="flex gap-1">
+                                ${timeSelect(`single-end-h-${s.id}`, 24)}
+                                <span class="self-center text-gray-400">:</span>
+                                ${minuteSelect(`single-end-m-${s.id}`)}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Antal vagter</label>
+                            <input type="number" id="single-count-${s.id}" min="1" max="100" value="1"
+                                   class="w-20 rounded-md border-gray-300 shadow-sm text-sm py-1.5 px-2 border" />
+                        </div>
+                        <button onclick="addSingleShift(${s.id})"
+                                class="px-4 py-1.5 text-sm font-medium rounded-md bg-indigo-700 text-white hover:bg-indigo-800">
+                            Tilføj
+                        </button>
+                    </div>
+
+                    <!-- Smart shift inputs -->
+                    <div id="smart-shift-${s.id}" class="hidden flex-wrap gap-3 items-end">
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Første start</label>
+                            <div class="flex gap-1">
+                                ${timeSelect(`smart-start-h-${s.id}`, 24, 10)}
+                                <span class="self-center text-gray-400">:</span>
+                                ${minuteSelect(`smart-start-m-${s.id}`)}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Sidste slut</label>
+                            <div class="flex gap-1">
+                                ${timeSelect(`smart-end-h-${s.id}`, 24, 0)}
+                                <span class="self-center text-gray-400">:</span>
+                                ${minuteSelect(`smart-end-m-${s.id}`)}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Slot (min)</label>
+                            <input type="number" id="smart-slot-${s.id}" min="15" max="480" value="120"
+                                   class="w-20 rounded-md border-gray-300 shadow-sm text-sm py-1.5 px-2 border" />
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Vagter/slot</label>
+                            <input type="number" id="smart-per-slot-${s.id}" min="1" max="50" value="3"
+                                   class="w-16 rounded-md border-gray-300 shadow-sm text-sm py-1.5 px-2 border" />
+                        </div>
+                        <button onclick="addSmartShift(${s.id})"
+                                class="px-4 py-1.5 text-sm font-medium rounded-md bg-indigo-700 text-white hover:bg-indigo-800">
+                            Generér
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Delete shifts panel -->
+                <div id="delete-panel-${s.id}" class="hidden border-b border-gray-200 bg-red-50 px-4 py-4">
+                    <h4 class="text-sm font-semibold text-gray-800 mb-2">Vælg vagter der skal slettes</h4>
+                    <p class="text-xs text-gray-500 mb-3">Kun ubookede vagter kan slettes.</p>
+                    <div id="delete-checkboxes-${s.id}" class="flex flex-wrap gap-2 mb-3">
+                        ${renderDeleteCheckboxes(s)}
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="deleteSelectedShifts(${s.id})"
+                                class="px-4 py-1.5 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700">
+                            Slet valgte
+                        </button>
+                        <button onclick="toggleDeletePanel(${s.id})"
+                                class="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900">
+                            Annuller
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Shift grid -->
+                <div class="p-4" id="shift-grid-${s.id}">
+                    ${renderShiftGrid(s.shifts || [])}
+                </div>
+            </div>`;
+        }
+
+        function renderDeleteCheckboxes(s) {
+            const available = (s.shifts || []).filter(sh => sh.isAvailable);
+            if (!available.length) return '<p class="text-xs text-gray-500">Ingen ledige vagter at slette.</p>';
+            return available.map(sh => `
+                <label class="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded px-2 py-1 cursor-pointer hover:border-red-300">
+                    <input type="checkbox" value="${sh.id}" class="delete-shift-cb text-red-600 rounded border-gray-300" />
+                    <span class="text-xs">${sh.startTime}–${sh.endTime}</span>
+                </label>`).join('');
+        }
+
+        function renderShiftGrid(shifts) {
+            if (!shifts || shifts.length === 0) {
+                return `<p class="text-sm text-gray-400 text-center py-4">Ingen vagter endnu.</p>`;
+            }
+
+            // Group shifts by startTime-endTime
+            const groups = {};
+            shifts.forEach(sh => {
+                const key = `${sh.startTime}-${sh.endTime}`;
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(sh);
+            });
+
+            const sortedKeys = Object.keys(groups).sort();
+            return `<div class="space-y-3">` + sortedKeys.map(key => {
+                const slotShifts = groups[key];
+                const [start, end] = key.split('-');
+                return `
+                <div>
+                    <p class="text-xs font-semibold text-gray-500 mb-1.5">${start} – ${end}</p>
+                    <div class="flex flex-wrap gap-2">
+                        ${slotShifts.map(sh => renderShiftCard(sh)).join('')}
+                    </div>
+                </div>`;
+            }).join('') + `</div>`;
+        }
+
+        function renderShiftCard(sh) {
+            if (sh.isAvailable) {
+                return `
+                <div class="bg-accent-yellow border-2 border-yellow-400 rounded-lg px-3 py-2 text-sm min-w-[120px] flex flex-col">
+                    <span class="font-medium text-blue-bridge text-xs">${sh.startTime}–${sh.endTime}</span>
+                    <span class="text-blue-bridge text-xs mt-0.5">Ledig vagt</span>
+                    <button onclick="openAssignModal(${sh.id}, ${sh.scheduleId}, '${sh.startTime}–${sh.endTime}', '${sh.startTime}', '${sh.endTime}')"
+                            class="mt-1.5 text-xs font-medium text-blue-bridge underline hover:opacity-70 text-left">
+                        Tildel →
+                    </button>
+                </div>`;
+            } else {
+                return `
+                <div class="bg-blue-bridge border-2 border-indigo-800 rounded-lg px-3 py-2 text-sm min-w-[120px] flex flex-col">
+                    <span class="font-medium text-white text-xs">${sh.startTime}–${sh.endTime}</span>
+                    <span class="text-blue-100 text-xs mt-0.5 truncate" title="${escHtml(sh.assignedMemberName || '')}">${escHtml(sh.assignedMemberName || 'Tildelt')}</span>
+                    <button onclick="unassignShift(${sh.id}, ${sh.scheduleId})"
+                            class="mt-1.5 text-xs text-blue-200 hover:text-white text-left">
+                        Fjern tildeling
+                    </button>
+                </div>`;
+            }
+        }
+
+        // ── Time select helpers ───────────────────────────────────────────────
+        function timeSelect(id, max, defaultVal = 0) {
+            let opts = '';
+            for (let h = 0; h < max; h++) {
+                const val = String(h).padStart(2, '0');
+                opts += `<option value="${val}" ${h === defaultVal ? 'selected' : ''}>${val}</option>`;
+            }
+            return `<select id="${id}" class="rounded-md border-gray-300 shadow-sm text-sm py-1.5 pl-2 pr-6 border">${opts}</select>`;
+        }
+
+        function minuteSelect(id) {
+            const vals = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+            const opts = vals.map(v => `<option value="${v}">${v}</option>`).join('');
+            return `<select id="${id}" class="rounded-md border-gray-300 shadow-sm text-sm py-1.5 pl-2 pr-6 border">${opts}</select>`;
+        }
+
+        function escHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        // ── Toggle helpers ────────────────────────────────────────────────────
+        function toggleCreateScheduleForm() {
+            const el = document.getElementById('create-schedule-form');
+            el.classList.toggle('hidden');
+            if (!el.classList.contains('hidden')) {
+                document.getElementById('new-schedule-name').focus();
+            }
+        }
+
+        function toggleAddShifts(scheduleId) {
+            const panel = document.getElementById(`add-shifts-panel-${scheduleId}`);
+            panel.classList.toggle('hidden');
+            // Close delete panel if open
+            const delPanel = document.getElementById(`delete-panel-${scheduleId}`);
+            if (!panel.classList.contains('hidden')) delPanel.classList.add('hidden');
+        }
+
+        function toggleDeletePanel(scheduleId) {
+            const panel = document.getElementById(`delete-panel-${scheduleId}`);
+            panel.classList.toggle('hidden');
+            // Close add panel if open
+            const addPanel = document.getElementById(`add-shifts-panel-${scheduleId}`);
+            if (!panel.classList.contains('hidden')) addPanel.classList.add('hidden');
+        }
+
+        function toggleShiftMode(scheduleId, mode) {
+            const single = document.getElementById(`single-shift-${scheduleId}`);
+            const smart = document.getElementById(`smart-shift-${scheduleId}`);
+            if (mode === 'single') {
+                single.classList.remove('hidden');
+                single.classList.add('flex');
+                smart.classList.remove('flex');
+                smart.classList.add('hidden');
+            } else {
+                smart.classList.remove('hidden');
+                smart.classList.add('flex');
+                single.classList.remove('flex');
+                single.classList.add('hidden');
+            }
+        }
+
+        // ── Schedule CRUD ─────────────────────────────────────────────────────
+        async function createSchedule() {
+            const name = document.getElementById('new-schedule-name').value.trim();
+            const date = document.getElementById('new-schedule-date').value;
+            if (!name || !date) {
+                alert('Udfyld navn og dato.');
+                return;
+            }
+            const result = await apiPost('/umbraco/surface/schedule/create', {
+                crewId: CREW_ID, crewKey: CREW_KEY, name, date
+            });
+            if (result.success) {
+                toggleCreateScheduleForm();
+                document.getElementById('new-schedule-name').value = '';
+                document.getElementById('new-schedule-date').value = '';
+                await loadSchedules();
+            } else {
+                alert(result.error || 'Fejl ved oprettelse.');
+            }
+        }
+
+        async function deleteSchedule(scheduleId) {
+            if (!confirm('Er du sikker på, at du vil slette hele vagtplanen?')) return;
+            const result = await apiPost('/umbraco/surface/schedule/deleteSchedule', { id: scheduleId });
+            if (result.success) {
+                await loadSchedules();
+            } else {
+                alert(result.error || 'Fejl ved sletning.');
+            }
+        }
+
+        async function togglePublish(scheduleId, isPublished) {
+            const action = isPublished ? 'unpublish' : 'publish';
+            const result = await apiPost(`/umbraco/surface/schedule/${action}`, { id: scheduleId });
+            if (result.success) {
+                await loadSchedules();
+            } else {
+                alert(result.error || 'Fejl.');
+            }
+        }
+
+        // ── Shift CRUD ────────────────────────────────────────────────────────
+        async function addSingleShift(scheduleId) {
+            const startH = document.getElementById(`single-start-h-${scheduleId}`).value;
+            const startM = document.getElementById(`single-start-m-${scheduleId}`).value;
+            const endH = document.getElementById(`single-end-h-${scheduleId}`).value;
+            const endM = document.getElementById(`single-end-m-${scheduleId}`).value;
+            const count = parseInt(document.getElementById(`single-count-${scheduleId}`).value, 10);
+
+            const result = await apiPost('/umbraco/surface/schedule/addSingleShift', {
+                scheduleId,
+                startTime: `${startH}:${startM}`,
+                endTime: `${endH}:${endM}`,
+                count
+            });
+            if (result.success) {
+                await loadSchedules();
+            } else {
+                alert(result.error || 'Fejl ved tilføjelse af vagter.');
+            }
+        }
+
+        async function addSmartShift(scheduleId) {
+            const firstStartH = document.getElementById(`smart-start-h-${scheduleId}`).value;
+            const firstStartM = document.getElementById(`smart-start-m-${scheduleId}`).value;
+            const lastEndH = document.getElementById(`smart-end-h-${scheduleId}`).value;
+            const lastEndM = document.getElementById(`smart-end-m-${scheduleId}`).value;
+            const slotMinutes = parseInt(document.getElementById(`smart-slot-${scheduleId}`).value, 10);
+            const shiftsPerSlot = parseInt(document.getElementById(`smart-per-slot-${scheduleId}`).value, 10);
+
+            const result = await apiPost('/umbraco/surface/schedule/addSmartShift', {
+                scheduleId,
+                firstStart: `${firstStartH}:${firstStartM}`,
+                lastEnd: `${lastEndH}:${lastEndM}`,
+                slotMinutes,
+                shiftsPerSlot
+            });
+            if (result.success) {
+                await loadSchedules();
+            } else {
+                alert(result.error || 'Fejl ved generering af vagter.');
+            }
+        }
+
+        async function deleteSelectedShifts(scheduleId) {
+            const checkboxes = document.querySelectorAll(`#delete-checkboxes-${scheduleId} .delete-shift-cb:checked`);
+            const ids = Array.from(checkboxes).map(cb => parseInt(cb.value, 10));
+            if (!ids.length) {
+                alert('Vælg mindst én vagt.');
+                return;
+            }
+            if (!confirm(`Slet ${ids.length} vagt(er)?`)) return;
+            const result = await apiPost('/umbraco/surface/schedule/deleteShifts', { scheduleId, shiftIds: ids });
+            if (result.success) {
+                await loadSchedules();
+            } else {
+                alert(result.error || 'Fejl ved sletning.');
+            }
+        }
+
+        async function unassignShift(shiftId, scheduleId) {
+            if (!confirm('Fjern tildelingen fra denne vagt?')) return;
+            const result = await apiPost('/umbraco/surface/schedule/unassign', { shiftId, scheduleId });
+            if (result.success) {
+                await loadSchedules();
+            } else {
+                alert(result.error || 'Fejl.');
+            }
+        }
+
+        // ── Assign modal ──────────────────────────────────────────────────────
+        function openAssignModal(shiftId, scheduleId, timeLabel, startTime, endTime) {
+            currentAssignShiftId = shiftId;
+            currentAssignScheduleId = scheduleId;
+            currentAssignStartTime = startTime || null;
+            currentAssignEndTime = endTime || null;
+            document.getElementById('assign-shift-info').textContent = `Vagt: ${timeLabel}`;
+            document.getElementById('assign-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            loadCrewMembers(currentSortMode);
+        }
+
+        function closeAssignModal() {
+            document.getElementById('assign-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            currentAssignShiftId = null;
+            currentAssignScheduleId = null;
+            currentAssignStartTime = null;
+            currentAssignEndTime = null;
+        }
+
+        // ── Conflict detection ────────────────────────────────────────────────
+        // Returns two sets built from the currently loaded schedule data:
+        //   blockedKeys  – members already assigned to the SAME timeslot (hard block)
+        //   warnedSlots  – members assigned to ANY other shift  (soft warning, Map: key → label)
+        function buildAssignmentSets() {
+            const blockedKeys = new Set();
+            const warnedCounts = new Map(); // memberKey → number of assigned shifts
+
+            currentSchedules.forEach(schedule => {
+                (schedule.shifts || []).forEach(shift => {
+                    if (shift.isAvailable || !shift.assignedMemberKey) return;
+                    const key = (shift.assignedMemberKey || '').toString().toLowerCase();
+
+                    if (shift.startTime === currentAssignStartTime &&
+                        shift.endTime   === currentAssignEndTime) {
+                        // Exact same timeslot → hard block
+                        blockedKeys.add(key);
+                    }
+
+                    // Count every assigned shift for this member
+                    warnedCounts.set(key, (warnedCounts.get(key) || 0) + 1);
+                });
+            });
+
+            return { blockedKeys, warnedCounts };
+        }
+
+        async function loadCrewMembers(sort) {
+            currentSortMode = sort;
+            localStorage.setItem('vagtplan-sort', sort);
+
+            // Update sort button styles
+            document.querySelectorAll('.sort-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-100', 'text-indigo-700', 'font-medium');
+                btn.classList.add('text-gray-600');
+            });
+            const activeBtn = document.getElementById(`sort-${sort}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-indigo-100', 'text-indigo-700', 'font-medium');
+                activeBtn.classList.remove('text-gray-600');
+            }
+
+            const listEl = document.getElementById('assign-member-list');
+            listEl.innerHTML = '<div class="p-4 text-center text-gray-400 text-sm">Indlæser...</div>';
+
+            const members = await apiGet(`/umbraco/surface/schedule/crewMembers?crewId=${CREW_ID}&sort=${sort}`);
+
+            if (!members || members.length === 0) {
+                listEl.innerHTML = '<div class="p-4 text-center text-gray-400 text-sm">Ingen frivillige fundet.</div>';
+                return;
+            }
+
+            const { blockedKeys, warnedCounts } = buildAssignmentSets();
+
+            listEl.innerHTML = members.map(m => {
+                const memberKeyLower = (m.key || '').toString().toLowerCase();
+                const isBlocked  = blockedKeys.has(memberKeyLower);
+                const shiftCount = warnedCounts.get(memberKeyLower) || 0;
+                // Warned = has ≥1 shift elsewhere, but NOT blocked by this exact timeslot
+                const isWarned   = shiftCount > 0 && !isBlocked;
+
+                const acceptedStr = m.signupDate
+                    ? new Date(m.signupDate).toLocaleDateString('da-DK', {day:'numeric',month:'short',year:'numeric'})
+                    : '—';
+                const ageStr = m.age != null ? `${m.age} år` : '—';
+
+                // ── Hard-blocked: same timeslot already taken ─────────────────
+                if (isBlocked) {
+                    return `
+                    <div class="w-full flex items-center justify-between px-4 py-3 bg-red-50 cursor-not-allowed select-none"
+                         title="Allerede tildelt i dette tidsrum – kan ikke tildeles igen">
+                        <div>
+                            <p class="text-sm font-medium text-gray-400 line-through">${escHtml(m.name)}</p>
+                            <p class="text-xs text-gray-400">${escHtml(m.email)}</p>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 mt-1">
+                                <svg class="h-3 w-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/>
+                                </svg>
+                                Optaget i dette tidsrum
+                            </span>
+                        </div>
+                        <div class="text-right text-xs text-gray-400 shrink-0 ml-2">
+                            <p>${ageStr}</p>
+                            <p>${acceptedStr}</p>
+                        </div>
+                    </div>`;
+                }
+
+                // ── Soft-warned: has shifts in other timeslots ────────────────
+                const warnBadge = isWarned ? `
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 mt-1">
+                        <svg class="h-3 w-3 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+                        </svg>
+                        Har allerede ${shiftCount} vagt${shiftCount !== 1 ? 'er' : ''}
+                    </span>` : '';
+
+                return `
+                <button onclick="assignMember('${m.key}', '${escHtml(m.name)}', ${isWarned}, ${shiftCount})"
+                        class="w-full text-left px-4 py-3 hover:bg-indigo-50 transition-colors${isWarned ? ' bg-amber-50' : ''}">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">${escHtml(m.name)}</p>
+                            <p class="text-xs text-gray-500">${escHtml(m.email)}</p>
+                            ${warnBadge}
+                        </div>
+                        <div class="text-right text-xs text-gray-400 shrink-0 ml-2">
+                            <p>${ageStr}</p>
+                            <p>${acceptedStr}</p>
+                        </div>
+                    </div>
+                </button>`;
+            }).join('');
+        }
+
+        async function assignMember(memberKey, memberName, isWarned, shiftCount) {
+            if (!currentAssignShiftId) return;
+
+            // ── Hard block: same timeslot (defensive re-check in case UI is stale) ──
+            const { blockedKeys } = buildAssignmentSets();
+            const keyLower = (memberKey || '').toString().toLowerCase();
+            if (blockedKeys.has(keyLower)) {
+                alert(
+                    `${memberName} er allerede tildelt en vagt i tidsrummet ` +
+                    `${currentAssignStartTime}–${currentAssignEndTime}.\n\n` +
+                    `Den samme frivillige kan ikke tildeles to vagter i samme tidsrum.`
+                );
+                return;
+            }
+
+            // ── Soft warning: has shifts in other timeslots ───────────────────
+            if (isWarned && shiftCount) {
+                const vagter = shiftCount === 1 ? 'vagt' : 'vagter';
+                const ok = confirm(
+                    `${memberName} har allerede ${shiftCount} ${vagter}.\n\n` +
+                    `Vil du alligevel tildele dem denne ekstra vagt?`
+                );
+                if (!ok) return;
+            }
+
+            const result = await apiPost('/umbraco/surface/schedule/assign', {
+                shiftId: currentAssignShiftId,
+                scheduleId: currentAssignScheduleId,
+                memberKey,
+                memberName
+            });
+            if (result.success) {
+                closeAssignModal();
+                await loadSchedules();
+            } else {
+                alert(result.error || 'Fejl ved tildeling.');
+            }
+        }
+
+        // Close assign modal on Escape
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                var modal = document.getElementById('assign-modal');
+                if (modal && !modal.classList.contains('hidden')) closeAssignModal();
+            }
+        });
+
+        // ── Init ──────────────────────────────────────────────────────────────
+        loadSchedules();
         </script>
 
         <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>

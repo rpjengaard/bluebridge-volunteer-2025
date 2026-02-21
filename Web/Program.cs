@@ -22,6 +22,7 @@ builder.Services.AddScoped<ICrewService, CrewService>();
 builder.Services.AddScoped<IMemberImpersonationService, MemberImpersonationService>();
 builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 builder.Services.AddScoped<ICrewMessageService, CrewMessageService>();
+builder.Services.AddScoped<IScheduleService, ScheduleService>();
 
 builder.CreateUmbracoBuilder()
     .AddBackOffice()

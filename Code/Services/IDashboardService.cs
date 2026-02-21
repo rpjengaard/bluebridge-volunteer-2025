@@ -11,6 +11,7 @@ public class DashboardData
     public List<CrewData> CrewWishes { get; set; } = new();
     public List<CrewData> AssignedCrews { get; set; } = new();
     public List<ShiftData> Shifts { get; set; } = new();
+    public List<ScheduleData> PublishedCrewSchedules { get; set; } = new();
     public bool HasAccepted2026 { get; set; }
     public DateTime? AcceptedDate { get; set; }
 }
@@ -18,6 +19,7 @@ public class DashboardData
 public class MemberProfileData
 {
     public int MemberId { get; set; }
+    public Guid MemberKey { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;

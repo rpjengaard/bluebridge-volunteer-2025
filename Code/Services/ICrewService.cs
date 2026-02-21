@@ -57,10 +57,15 @@ public class CrewMemberInfo
 {
     public int MemberId { get; set; }
     public Guid MemberKey { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? Phone { get; set; }
     public bool HasAccepted2026 { get; set; }
+    public DateTime? AcceptedDate { get; set; }
+    public DateTime SignupDate { get; set; }   // member.CreateDate – always set, used for "tilmeldingsdato" sort
+    public DateTime? Birthdate { get; set; }
 }
 
 public class SupervisorInfo
