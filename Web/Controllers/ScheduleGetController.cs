@@ -62,7 +62,10 @@ public class ScheduleController : Controller
             birthdate = m.Birthdate,
             age = m.Birthdate.HasValue
                 ? (int)((DateTime.Today - m.Birthdate.Value).TotalDays / 365.25)
-                : (int?)null
+                : (int?)null,
+            memberWish = m.MemberWish,
+            timeslotWish = m.TimeslotWish,
+            otherNotes = m.OtherNotes
         }).ToList();
 
         var sorted = sort switch

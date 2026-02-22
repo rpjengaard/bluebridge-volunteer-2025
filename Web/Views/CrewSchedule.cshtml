@@ -220,6 +220,7 @@ else
     let currentAssignEndTime = null;     // end time of the shift being assigned
     let currentSchedules = [];           // last-loaded schedule data (for conflict detection)
     let currentSortMode = localStorage.getItem('vagtplan-sort') || 'accepted';
+    let crewMembersCache = null;   // populated on first fetch, reused for sort changes
 
     function getCsrfToken() {
         const el = document.querySelector('input[name="__RequestVerificationToken"]');
@@ -710,6 +711,33 @@ else
         return { blockedKeys, warnedCounts };
     }
 
+    // Fetch crew members from the server and populate the cache.
+    // Returns the cached array (fetches only once per page load).
+    async function fetchCrewMembersIfNeeded() {
+        if (crewMembersCache !== null) return crewMembersCache;
+        const members = await apiGet(`/umbraco/surface/schedule/crewMembers?crewId=${CREW_ID}&sort=accepted`);
+        crewMembersCache = members || [];
+        return crewMembersCache;
+    }
+
+    function sortMembers(members, sort) {
+        const copy = [...members];
+        if (sort === 'name') {
+            copy.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'da'));
+        } else if (sort === 'age') {
+            copy.sort((a, b) => {
+                if (!a.birthdate && !b.birthdate) return 0;
+                if (!a.birthdate) return 1;
+                if (!b.birthdate) return -1;
+                return new Date(a.birthdate) - new Date(b.birthdate);
+            });
+        } else {
+            // 'accepted' – oldest signup first (ascending CreateDate)
+            copy.sort((a, b) => new Date(a.signupDate) - new Date(b.signupDate));
+        }
+        return copy;
+    }
+
     async function loadCrewMembers(sort) {
         currentSortMode = sort;
         localStorage.setItem('vagtplan-sort', sort);
@@ -726,9 +754,14 @@ else
         }
 
         const listEl = document.getElementById('assign-member-list');
-        listEl.innerHTML = '<div class="p-4 text-center text-gray-400 text-sm">Indlæser...</div>';
 
-        const members = await apiGet(`/umbraco/surface/schedule/crewMembers?crewId=${CREW_ID}&sort=${sort}`);
+        // Show spinner only if we still need to fetch
+        if (crewMembersCache === null) {
+            listEl.innerHTML = '<div class="p-4 text-center text-gray-400 text-sm">Indlæser...</div>';
+        }
+
+        const allMembers = await fetchCrewMembersIfNeeded();
+        const members = sortMembers(allMembers, sort);
 
         if (!members || members.length === 0) {
             listEl.innerHTML = '<div class="p-4 text-center text-gray-400 text-sm">Ingen frivillige fundet.</div>';
@@ -748,6 +781,24 @@ else
                 ? new Date(m.signupDate).toLocaleDateString('da-DK', {day:'numeric',month:'short',year:'numeric'})
                 : '—';
             const ageStr = m.age != null ? `${m.age} år` : '—';
+
+            // Parse timeslotWish (stored as JSON array e.g. ["morgen","aften"])
+            let timeslotWishStr = '';
+            if (m.timeslotWish) {
+                try {
+                    const parsed = JSON.parse(m.timeslotWish);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        timeslotWishStr = parsed.join(', ');
+                    }
+                } catch { timeslotWishStr = m.timeslotWish; }
+            }
+
+            // Extra info chips (memberWish, timeslotWish, otherNotes)
+            const extraInfo = [
+                m.memberWish    ? `<span class="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full" title="Ønsker at stå med">👥 ${escHtml(m.memberWish)}</span>` : '',
+                timeslotWishStr ? `<span class="inline-block bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded-full" title="Vagtønsker">🕐 ${escHtml(timeslotWishStr)}</span>` : '',
+                m.otherNotes    ? `<span class="inline-block bg-gray-50 text-gray-600 text-xs px-2 py-0.5 rounded-full border border-gray-200" title="Øvrige noter">📝 ${m.otherNotes}</span>` : ''
+            ].filter(Boolean).join(' ');
 
             // ── Hard-blocked: same timeslot already taken ─────────────────
             if (isBlocked) {
@@ -783,13 +834,14 @@ else
             return `
             <button onclick="assignMember('${m.key}', '${escHtml(m.name)}', ${isWarned}, ${shiftCount})"
                     class="w-full text-left px-4 py-3 hover:bg-indigo-50 transition-colors${isWarned ? ' bg-amber-50' : ''}">
-                <div class="flex items-center justify-between">
-                    <div>
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
                         <p class="text-sm font-medium text-gray-900">${escHtml(m.name)}</p>
                         <p class="text-xs text-gray-500">${escHtml(m.email)}</p>
+                        ${extraInfo ? `<div class="flex flex-wrap gap-1 mt-1">${extraInfo}</div>` : ''}
                         ${warnBadge}
                     </div>
-                    <div class="text-right text-xs text-gray-400 shrink-0 ml-2">
+                    <div class="text-right text-xs text-gray-400 shrink-0">
                         <p>${ageStr}</p>
                         <p>${acceptedStr}</p>
                     </div>
@@ -847,6 +899,8 @@ else
 
     // ── Init ──────────────────────────────────────────────────────────────
     loadSchedules();
+    // Prefetch crew members in the background so the assign modal opens instantly
+    fetchCrewMembersIfNeeded();
     </script>
 }
 

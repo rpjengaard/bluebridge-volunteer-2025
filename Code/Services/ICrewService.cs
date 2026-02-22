@@ -66,6 +66,9 @@ public class CrewMemberInfo
     public DateTime? AcceptedDate { get; set; }
     public DateTime SignupDate { get; set; }   // member.CreateDate – always set, used for "tilmeldingsdato" sort
     public DateTime? Birthdate { get; set; }
+    public string? MemberWish { get; set; }
+    public string? TimeslotWish { get; set; }
+    public string? OtherNotes { get; set; }
 }
 
 public class SupervisorInfo

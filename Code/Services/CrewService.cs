@@ -755,7 +755,10 @@ public class CrewService : ICrewService
                     HasAccepted2026 = member.GetValue<bool>("accept2026"),
                     AcceptedDate = acceptedDateVal > DateTime.MinValue ? acceptedDateVal : null,
                     SignupDate = member.CreateDate,
-                    Birthdate = birthdateVal > new DateTime(1900, 1, 1) ? birthdateVal : null
+                    Birthdate = birthdateVal > new DateTime(1900, 1, 1) ? birthdateVal : null,
+                    MemberWish = member.GetValue<string>("memberWish"),
+                    TimeslotWish = member.GetValue<string>("timeslotWish"),
+                    OtherNotes = ExtractRteMarkup(member.GetValue<string>("otherNotes"))
                 });
             }
         }
