@@ -23,12 +23,8 @@ public class ScheduleService : IScheduleService
         var schedules = db.Fetch<ScheduleSchema>(
             "SELECT * FROM BbvSchedule WHERE CrewId = @0 ORDER BY ScheduleDate ASC, Name ASC", crewId);
 
-        var result = schedules.Select(s => MapSchedule(s)).ToList();
-
-        foreach (var schedule in result)
-        {
-            schedule.Shifts = GetShiftsForSchedule(db, schedule.Id);
-        }
+        var result = schedules.Select(MapSchedule).ToList();
+        LoadShiftsForSchedules(db, result);
 
         return Task.FromResult(result);
     }
@@ -81,6 +77,10 @@ public class ScheduleService : IScheduleService
 
     public Task AddSingleShiftAsync(int scheduleId, string startTime, string endTime, int count)
     {
+        if (!IsValidTime(startTime)) throw new ArgumentException("Ugyldig starttid.", nameof(startTime));
+        if (!IsValidTime(endTime))   throw new ArgumentException("Ugyldig sluttid.", nameof(endTime));
+        if (count <= 0 || count > 100) throw new ArgumentOutOfRangeException(nameof(count), "Antal skal være 1–100.");
+
         using var scope = _scopeProvider.CreateScope(autoComplete: true);
         var db = scope.Database;
 
@@ -102,6 +102,8 @@ public class ScheduleService : IScheduleService
 
     public Task AddSmartShiftsAsync(int scheduleId, string firstStart, string lastEnd, int slotMinutes, int shiftsPerSlot)
     {
+        if (!IsValidTime(firstStart)) throw new ArgumentException("Ugyldig starttid.", nameof(firstStart));
+        if (!IsValidTime(lastEnd))    throw new ArgumentException("Ugyldig sluttid.", nameof(lastEnd));
         if (slotMinutes <= 0) throw new ArgumentException("slotMinutes must be > 0", nameof(slotMinutes));
         if (shiftsPerSlot <= 0) throw new ArgumentException("shiftsPerSlot must be > 0", nameof(shiftsPerSlot));
 
@@ -112,6 +114,12 @@ public class ScheduleService : IScheduleService
         if (endMins == 0) endMins = 24 * 60;
         // If lastEnd <= firstStart, it spans midnight
         if (endMins <= startMins) endMins += 24 * 60;
+
+        // Safety cap: refuse to generate more than 500 shifts at once
+        var totalSlots = (endMins - startMins + slotMinutes - 1) / slotMinutes;
+        if ((long)totalSlots * shiftsPerSlot > 500)
+            throw new ArgumentException(
+                "For mange vagter ville blive genereret. Begræns tidsvinduet eller øg slot-længden (maks. 500 vagter ad gangen).");
 
         using var scope = _scopeProvider.CreateScope(autoComplete: true);
         var db = scope.Database;
@@ -204,6 +212,7 @@ public class ScheduleService : IScheduleService
         using var scope = _scopeProvider.CreateScope(autoComplete: true);
         var db = scope.Database;
 
+        // Only return shifts from PUBLISHED schedules – volunteers must not see drafts
         var rows = db.Fetch<dynamic>(@"
             SELECT sh.Id, sh.ScheduleId, sh.StartTime, sh.EndTime,
                    sh.AssignedMemberKey, sh.AssignedMemberName,
@@ -212,6 +221,7 @@ public class ScheduleService : IScheduleService
             FROM BbvShift sh
             INNER JOIN BbvSchedule sc ON sh.ScheduleId = sc.Id
             WHERE sh.AssignedMemberKey = @0
+              AND sc.IsPublished = 1
             ORDER BY sc.ScheduleDate ASC, sh.StartTime ASC", memberKey);
 
         var shifts = rows.Select(r => new ScheduleShiftData
@@ -238,17 +248,43 @@ public class ScheduleService : IScheduleService
             "SELECT * FROM BbvSchedule WHERE CrewId = @0 AND IsPublished = 1 ORDER BY ScheduleDate ASC, Name ASC",
             crewId);
 
-        var result = schedules.Select(s => MapSchedule(s)).ToList();
-
-        foreach (var schedule in result)
-        {
-            schedule.Shifts = GetShiftsForSchedule(db, schedule.Id);
-        }
+        var result = schedules.Select(MapSchedule).ToList();
+        LoadShiftsForSchedules(db, result);
 
         return Task.FromResult(result);
     }
 
-    private List<ScheduleShiftData> GetShiftsForSchedule(Umbraco.Cms.Infrastructure.Persistence.IUmbracoDatabase db, int scheduleId)
+    /// <summary>
+    /// Batch-loads shifts for a list of schedules in a single SQL query (avoids N+1).
+    /// </summary>
+    private static void LoadShiftsForSchedules(
+        Umbraco.Cms.Infrastructure.Persistence.IUmbracoDatabase db,
+        List<ScheduleData> schedules)
+    {
+        if (schedules.Count == 0) return;
+
+        var ids = schedules.Select(s => s.Id).ToList();
+        var placeholders = string.Join(",", ids.Select((_, i) => $"@{i}"));
+        var args = ids.Cast<object>().ToArray();
+
+        var rows = db.Fetch<ShiftSchema>(
+            $"SELECT * FROM BbvShift WHERE ScheduleId IN ({placeholders}) ORDER BY ScheduleId ASC, StartTime ASC, CreatedUtc ASC",
+            args);
+
+        var shiftsBySchedule = rows
+            .GroupBy(r => r.ScheduleId)
+            .ToDictionary(g => g.Key, g => g.Select(MapShift).ToList());
+
+        foreach (var schedule in schedules)
+        {
+            schedule.Shifts = shiftsBySchedule.TryGetValue(schedule.Id, out var shifts)
+                ? shifts
+                : new List<ScheduleShiftData>();
+        }
+    }
+
+    private static List<ScheduleShiftData> GetShiftsForSchedule(
+        Umbraco.Cms.Infrastructure.Persistence.IUmbracoDatabase db, int scheduleId)
     {
         var rows = db.Fetch<ShiftSchema>(
             "SELECT * FROM BbvShift WHERE ScheduleId = @0 ORDER BY StartTime ASC, CreatedUtc ASC",
@@ -294,4 +330,12 @@ public class ScheduleService : IScheduleService
         var m = totalMinutes % 60;
         return $"{h:00}:{m:00}";
     }
+
+    /// <summary>Returns true iff <paramref name="time"/> is a valid "HH:mm" string (00:00 – 23:59).</summary>
+    private static bool IsValidTime(string? time) =>
+        !string.IsNullOrEmpty(time) &&
+        time.Length == 5 &&
+        time[2] == ':' &&
+        int.TryParse(time.AsSpan(0, 2), out var h) && h >= 0 && h <= 23 &&
+        int.TryParse(time.AsSpan(3, 2), out var m) && m >= 0 && m <= 59;
 }

@@ -112,6 +112,10 @@ public class ScheduleController : Controller
         var (authorized, errorResult) = await AuthorizeCrewEditorAsync(schedule.CrewId);
         if (!authorized) return errorResult!;
 
+        // Server-side guard: refuse to delete a schedule that still has booked shifts
+        if (schedule.Shifts.Any(s => !s.IsAvailable))
+            return Json(new { success = false, error = "Vagtplanen har bookede vagter og kan ikke slettes. Fjern tildelingerne først." });
+
         await _scheduleService.DeleteScheduleAsync(req.Id);
         return Json(new { success = true });
     }
@@ -130,6 +134,9 @@ public class ScheduleController : Controller
         if (req.Count <= 0 || req.Count > 100)
             return Json(new { success = false, error = "Antal skal være mellem 1 og 100." });
 
+        if (!IsValidTime(req.StartTime) || !IsValidTime(req.EndTime))
+            return Json(new { success = false, error = "Ugyldig tidsformat. Brug HH:mm (f.eks. 08:30)." });
+
         await _scheduleService.AddSingleShiftAsync(req.ScheduleId, req.StartTime, req.EndTime, req.Count);
 
         var updated = await _scheduleService.GetScheduleAsync(req.ScheduleId);
@@ -147,11 +154,20 @@ public class ScheduleController : Controller
         var (authorized, errorResult) = await AuthorizeCrewEditorAsync(schedule.CrewId);
         if (!authorized) return errorResult!;
 
+        if (!IsValidTime(req.FirstStart) || !IsValidTime(req.LastEnd))
+            return Json(new { success = false, error = "Ugyldig tidsformat. Brug HH:mm (f.eks. 08:30)." });
+
         if (req.SlotMinutes <= 0)
             return Json(new { success = false, error = "Slotlængde skal være større end 0." });
 
         if (req.ShiftsPerSlot <= 0 || req.ShiftsPerSlot > 50)
             return Json(new { success = false, error = "Vagter pr. slot skal være mellem 1 og 50." });
+
+        // Safety cap: prevent generating more than 500 shifts in one go
+        var windowMins = TimeToMinutesForCalc(req.FirstStart, req.LastEnd);
+        var totalSlots = (windowMins + req.SlotMinutes - 1) / req.SlotMinutes;
+        if ((long)totalSlots * req.ShiftsPerSlot > 500)
+            return Json(new { success = false, error = "For mange vagter. Begræns tidsvinduet eller øg slot-længden (maks. 500 vagter ad gangen)." });
 
         await _scheduleService.AddSmartShiftsAsync(
             req.ScheduleId, req.FirstStart, req.LastEnd, req.SlotMinutes, req.ShiftsPerSlot);
@@ -247,6 +263,31 @@ public class ScheduleController : Controller
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>Returns true iff <paramref name="time"/> is a well-formed "HH:mm" string.</summary>
+    private static bool IsValidTime(string? time) =>
+        !string.IsNullOrEmpty(time) &&
+        time.Length == 5 &&
+        time[2] == ':' &&
+        int.TryParse(time.AsSpan(0, 2), out var h) && h >= 0 && h <= 23 &&
+        int.TryParse(time.AsSpan(3, 2), out var m) && m >= 0 && m <= 59;
+
+    /// <summary>
+    /// Returns the number of minutes between <paramref name="firstStart"/> and <paramref name="lastEnd"/>.
+    /// Handles midnight-spanning windows ("00:00" as lastEnd = 24:00, or lastEnd ≤ firstStart).
+    /// Assumes both times have already passed <see cref="IsValidTime"/>.
+    /// </summary>
+    private static int TimeToMinutesForCalc(string firstStart, string lastEnd)
+    {
+        static int Parse(string t) =>
+            int.Parse(t.AsSpan(0, 2)) * 60 + int.Parse(t.AsSpan(3, 2));
+
+        var s = Parse(firstStart);
+        var e = Parse(lastEnd);
+        if (e == 0) e = 24 * 60;         // "00:00" means end of day
+        if (e <= s) e += 24 * 60;        // spans midnight
+        return e - s;
+    }
 
     private async Task<(bool authorized, IActionResult? errorResult)> AuthorizeCrewEditorAsync(int crewId)
     {
