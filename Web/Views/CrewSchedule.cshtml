@@ -181,7 +181,7 @@ else
     <div id="assign-modal" class="hidden fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true">
         <div class="flex items-center justify-center min-h-screen px-4">
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75" onclick="closeAssignModal()"></div>
-            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-lg p-6 z-10">
+            <div class="relative bg-white rounded-lg shadow-xl w-full max-w-2xl p-6 z-10">
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-bold text-gray-900">Tildel frivillig til vagt</h3>
                     <button onclick="closeAssignModal()" class="text-gray-400 hover:text-gray-600">
@@ -200,7 +200,7 @@ else
                     <button onclick="loadCrewMembers('age')" id="sort-age"
                             class="px-2 py-1 rounded text-gray-600 hover:bg-gray-100 sort-btn">Alder</button>
                 </div>
-                <div id="assign-member-list" class="max-h-64 overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100">
+                <div id="assign-member-list" class="max-h-[32rem] overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100">
                     <div class="p-4 text-center text-gray-400 text-sm">Indlæser...</div>
                 </div>
                 <p id="assign-shift-info" class="mt-3 text-xs text-gray-500"></p>
@@ -793,12 +793,15 @@ else
                 } catch { timeslotWishStr = m.timeslotWish; }
             }
 
-            // Extra info chips (memberWish, timeslotWish, otherNotes)
-            const extraInfo = [
-                m.memberWish    ? `<span class="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full" title="Ønsker at stå med">👥 ${escHtml(m.memberWish)}</span>` : '',
-                timeslotWishStr ? `<span class="inline-block bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded-full" title="Vagtønsker">🕐 ${escHtml(timeslotWishStr)}</span>` : '',
-                m.otherNotes    ? `<span class="inline-block bg-gray-50 text-gray-600 text-xs px-2 py-0.5 rounded-full border border-gray-200" title="Øvrige noter">📝 ${m.otherNotes}</span>` : ''
-            ].filter(Boolean).join(' ');
+            // Extra info rows (memberWish, timeslotWish, otherNotes)
+            const extraRows = [
+                m.memberWish    ? `<tr><td class="text-gray-400 pr-2 whitespace-nowrap align-top">Ønsker at stå med</td><td class="text-gray-700">${escHtml(m.memberWish)}</td></tr>` : '',
+                timeslotWishStr ? `<tr><td class="text-gray-400 pr-2 whitespace-nowrap align-top">Ønsket tidsrum</td><td class="text-gray-700">${escHtml(timeslotWishStr)}</td></tr>` : '',
+                m.otherNotes    ? `<tr><td class="text-gray-400 pr-2 whitespace-nowrap align-top">Andre noter/ønsker</td><td class="text-gray-700">${m.otherNotes}</td></tr>` : ''
+            ].filter(Boolean).join('');
+            const extraInfo = extraRows
+                ? `<table class="text-xs mt-1.5 w-full">${extraRows}</table>`
+                : '';
 
             // ── Hard-blocked: same timeslot already taken ─────────────────
             if (isBlocked) {
