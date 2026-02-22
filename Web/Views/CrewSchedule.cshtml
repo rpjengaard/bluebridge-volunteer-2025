@@ -447,25 +447,34 @@ else
         });
 
         const sortedKeys = Object.keys(groups).sort();
-        return `<div class="space-y-3">` + sortedKeys.map(key => {
+
+        // Horizontal layout: one column per timeslot, shifts stacked below the header
+        const cols = sortedKeys.map(key => {
             const slotShifts = groups[key];
             const [start, end] = key.split('-');
             return `
-            <div>
-                <p class="text-xs font-semibold text-gray-500 mb-1.5">${start} – ${end}</p>
-                <div class="flex flex-wrap gap-2">
-                    ${slotShifts.map(sh => renderShiftCard(sh)).join('')}
+            <div class="flex flex-col gap-2" style="min-width:9rem;">
+                <div class="bg-indigo-50 border border-indigo-200 rounded-md px-2 py-1.5 text-center">
+                    <p class="text-xs font-bold text-indigo-800">${start}</p>
+                    <p class="text-[11px] text-indigo-500">–&nbsp;${end}</p>
                 </div>
+                ${slotShifts.map(sh => renderShiftCard(sh)).join('')}
             </div>`;
-        }).join('') + `</div>`;
+        }).join('');
+
+        return `
+        <div class="overflow-x-auto pb-2">
+            <div class="flex gap-3 w-max">
+                ${cols}
+            </div>
+        </div>`;
     }
 
     function renderShiftCard(sh) {
         if (sh.isAvailable) {
             return `
-            <div class="bg-accent-yellow border-2 border-yellow-400 rounded-lg px-3 py-2 text-sm min-w-[120px] flex flex-col">
-                <span class="font-medium text-blue-bridge text-xs">${sh.startTime}–${sh.endTime}</span>
-                <span class="text-blue-bridge text-xs mt-0.5">Ledig vagt</span>
+            <div class="bg-accent-yellow border-2 border-yellow-400 rounded-lg px-3 py-2 flex flex-col">
+                <span class="text-blue-bridge text-xs font-medium">Ledig vagt</span>
                 <button onclick="openAssignModal(${sh.id}, ${sh.scheduleId}, '${sh.startTime}–${sh.endTime}', '${sh.startTime}', '${sh.endTime}')"
                         class="mt-1.5 text-xs font-medium text-blue-bridge underline hover:opacity-70 text-left">
                     Tildel →
@@ -473,9 +482,8 @@ else
             </div>`;
         } else {
             return `
-            <div class="bg-blue-bridge border-2 border-indigo-800 rounded-lg px-3 py-2 text-sm min-w-[120px] flex flex-col">
-                <span class="font-medium text-white text-xs">${sh.startTime}–${sh.endTime}</span>
-                <span class="text-blue-100 text-xs mt-0.5 truncate" title="${escHtml(sh.assignedMemberName || '')}">${escHtml(sh.assignedMemberName || 'Tildelt')}</span>
+            <div class="bg-blue-bridge border-2 border-indigo-800 rounded-lg px-3 py-2 flex flex-col">
+                <span class="text-white text-xs font-medium truncate leading-snug" title="${escHtml(sh.assignedMemberName || '')}">${escHtml(sh.assignedMemberName || 'Tildelt')}</span>
                 <button onclick="unassignShift(${sh.id}, ${sh.scheduleId})"
                         class="mt-1.5 text-xs text-blue-200 hover:text-white text-left">
                     Fjern tildeling
