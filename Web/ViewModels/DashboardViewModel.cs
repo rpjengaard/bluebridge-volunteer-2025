@@ -1,3 +1,5 @@
+using Code.Services;
+
 namespace Web.ViewModels;
 
 public class DashboardViewModel
@@ -6,12 +8,14 @@ public class DashboardViewModel
     public List<CrewViewModel> CrewWishes { get; set; } = new();
     public List<CrewViewModel> AssignedCrews { get; set; } = new();
     public List<ShiftViewModel> Shifts { get; set; } = new();
+    public List<ScheduleData> PublishedCrewSchedules { get; set; } = new();
     public bool HasAccepted2026 { get; set; }
     public DateTime? AcceptedDate { get; set; }
 }
 
 public class MemberProfileViewModel
 {
+    public Guid MemberKey { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string FullName => $"{FirstName} {LastName}".Trim();

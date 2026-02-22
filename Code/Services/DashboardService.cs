@@ -11,6 +11,7 @@ public class DashboardService : IDashboardService
     private readonly IMemberService _memberService;
     private readonly IContentService _contentService;
     private readonly IUmbracoContextAccessor _umbracoContextAccessor;
+    private readonly IScheduleService _scheduleService;
     private readonly ILogger<DashboardService> _logger;
 
     private const string CrewContentTypeAlias = "bbvCrewPage";
@@ -19,26 +20,26 @@ public class DashboardService : IDashboardService
         IMemberService memberService,
         IContentService contentService,
         IUmbracoContextAccessor umbracoContextAccessor,
+        IScheduleService scheduleService,
         ILogger<DashboardService> logger)
     {
         _memberService = memberService;
         _contentService = contentService;
         _umbracoContextAccessor = umbracoContextAccessor;
+        _scheduleService = scheduleService;
         _logger = logger;
     }
 
-    public Task<DashboardData?> GetDashboardDataAsync(string memberEmail)
+    public async Task<DashboardData?> GetDashboardDataAsync(string memberEmail)
     {
         if (string.IsNullOrWhiteSpace(memberEmail))
-        {
-            return Task.FromResult<DashboardData?>(null);
-        }
+            return null;
 
         var member = _memberService.GetByEmail(memberEmail);
         if (member == null)
         {
             _logger.LogWarning("Member not found for email: {Email}", memberEmail);
-            return Task.FromResult<DashboardData?>(null);
+            return null;
         }
 
         var data = new DashboardData
@@ -46,6 +47,7 @@ public class DashboardService : IDashboardService
             Profile = new MemberProfileData
             {
                 MemberId = member.Id,
+                MemberKey = member.Key,
                 FirstName = member.GetValue<string>("firstName") ?? string.Empty,
                 LastName = member.GetValue<string>("lastName") ?? string.Empty,
                 Email = member.Email ?? string.Empty,
@@ -60,25 +62,69 @@ public class DashboardService : IDashboardService
         // Get crew wishes
         var crewWishesValue = member.GetValue<string>("crewWishes");
         if (!string.IsNullOrEmpty(crewWishesValue))
-        {
             data.CrewWishes = ParseCrewReferences(crewWishesValue);
-        }
 
         // Get assigned crews
         var assignedCrewsValue = member.GetValue<string>("crews");
         if (!string.IsNullOrEmpty(assignedCrewsValue))
-        {
             data.AssignedCrews = ParseCrewReferences(assignedCrewsValue);
+
+        // Load shifts assigned to this member
+        var scheduleShifts = await _scheduleService.GetShiftsForMemberAsync(member.Key);
+        data.Shifts = scheduleShifts.Select(s => new ShiftData
+        {
+            Id = s.Id,
+            CrewName = s.CrewName ?? string.Empty,
+            StartTime = CombineDateTime(s.ScheduleDate, s.StartTime),
+            EndTime = CombineEndDateTime(s.ScheduleDate, s.StartTime, s.EndTime),
+            Location = null,
+            Notes = s.ScheduleName
+        }).ToList();
+
+        // Load published schedules for assigned crews (for the "Crew vagter" section)
+        var publishedSchedules = new List<ScheduleData>();
+        foreach (var crew in data.AssignedCrews)
+        {
+            var crewSchedules = await _scheduleService.GetPublishedSchedulesForCrewAsync(crew.Id);
+            publishedSchedules.AddRange(crewSchedules);
         }
+        data.PublishedCrewSchedules = publishedSchedules;
 
-        // Shifts would be loaded here when the shift content type exists
-        // For now, return empty list
-        data.Shifts = new List<ShiftData>();
+        _logger.LogDebug("Loaded dashboard data for {Email}: {WishCount} wishes, {AssignedCount} assigned crews, {ShiftCount} shifts",
+            memberEmail, data.CrewWishes.Count, data.AssignedCrews.Count, data.Shifts.Count);
 
-        _logger.LogDebug("Loaded dashboard data for {Email}: {WishCount} wishes, {AssignedCount} assigned crews",
-            memberEmail, data.CrewWishes.Count, data.AssignedCrews.Count);
+        return data;
+    }
 
-        return Task.FromResult<DashboardData?>(data);
+    private static DateTime CombineDateTime(DateTime date, string timeStr)
+    {
+        if (string.IsNullOrEmpty(timeStr)) return date;
+        var parts = timeStr.Split(':');
+        if (parts.Length == 2 && int.TryParse(parts[0], out var h) && int.TryParse(parts[1], out var m))
+            return date.Date.AddHours(h).AddMinutes(m);
+        return date;
+    }
+
+    private static DateTime CombineEndDateTime(DateTime scheduleDate, string startTimeStr, string endTimeStr)
+    {
+        var startMins = TimeToMinutes(startTimeStr);
+        var endMins = TimeToMinutes(endTimeStr);
+        // endTime "00:00" = midnight end of day
+        if (endMins == 0) endMins = 24 * 60;
+        // spans midnight
+        var addDays = endMins <= startMins ? 1 : 0;
+        var h = endMins / 60 % 24;
+        var m = endMins % 60;
+        return scheduleDate.Date.AddDays(addDays).AddHours(h).AddMinutes(m);
+    }
+
+    private static int TimeToMinutes(string time)
+    {
+        if (string.IsNullOrEmpty(time)) return 0;
+        var parts = time.Split(':');
+        if (parts.Length == 2 && int.TryParse(parts[0], out var h) && int.TryParse(parts[1], out var m))
+            return h * 60 + m;
+        return 0;
     }
 
     private List<CrewData> ParseCrewReferences(string udiString)

@@ -73,7 +73,7 @@ public class MemberImpersonationController : ManagementApiControllerBase
             {
                 success = true,
                 message = $"Impersonation started for {request.MemberEmail}",
-                frontendUrl = "/dashboard"
+                frontendUrl = "/"
             });
         }
 

@@ -740,14 +740,22 @@ public class CrewService : ICrewService
                 if (string.IsNullOrEmpty(fullName))
                     fullName = member.Name ?? member.Email ?? "Unknown";
 
+                var acceptedDateVal = member.GetValue<DateTime?>("acceptedDate");
+                var birthdateVal = member.GetValue<DateTime?>("birthdate");
+
                 members.Add(new CrewMemberInfo
                 {
                     MemberId = member.Id,
                     MemberKey = member.Key,
+                    FirstName = firstName,
+                    LastName = lastName,
                     FullName = fullName,
                     Email = member.Email ?? string.Empty,
                     Phone = member.GetValue<string>("phone"),
-                    HasAccepted2026 = member.GetValue<bool>("accept2026")
+                    HasAccepted2026 = member.GetValue<bool>("accept2026"),
+                    AcceptedDate = acceptedDateVal > DateTime.MinValue ? acceptedDateVal : null,
+                    SignupDate = member.CreateDate,
+                    Birthdate = birthdateVal > new DateTime(1900, 1, 1) ? birthdateVal : null
                 });
             }
         }

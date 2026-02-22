@@ -20,6 +20,7 @@
             {
                 Profile = new MemberProfileViewModel
                 {
+                    MemberKey = data.Profile.MemberKey,
                     FirstName = data.Profile.FirstName,
                     LastName = data.Profile.LastName,
                     Email = data.Profile.Email,
@@ -53,7 +54,8 @@
                     EndTime = s.EndTime,
                     Location = s.Location,
                     Notes = s.Notes
-                }).ToList()
+                }).ToList(),
+                PublishedCrewSchedules = data.PublishedCrewSchedules
             };
         }
     }
@@ -345,6 +347,80 @@ else
                         }
                     </div>
                 </div>
+
+                @if (dashboard.PublishedCrewSchedules.Any())
+                {
+                    foreach (var crewScheduleGroup in dashboard.PublishedCrewSchedules
+                        .GroupBy(s => new { s.CrewId, s.CrewKey }))
+                    {
+                        var firstSchedule = crewScheduleGroup.First();
+                        var crewName = dashboard.AssignedCrews.FirstOrDefault(c => c.Id == firstSchedule.CrewId)?.Name ?? "Crew";
+
+                        <!-- Crew vagter -->
+                        <div class="bg-white shadow rounded-lg overflow-hidden">
+                            <div class="bg-indigo-700 px-6 py-4">
+                                <h2 class="text-xl font-bold text-white">Vagtplan — @crewName</h2>
+                            </div>
+                            <div class="p-6 space-y-6">
+                                @foreach (var schedule in crewScheduleGroup.OrderBy(s => s.ScheduleDate))
+                                {
+                                    var memberKey = dashboard.Profile.MemberKey;
+                                    <div>
+                                        <h3 class="text-sm font-semibold text-gray-700 mb-3">
+                                            @schedule.Name
+                                            <span class="ml-2 text-xs font-normal text-gray-400">
+                                                @schedule.ScheduleDate.ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK"))
+                                            </span>
+                                        </h3>
+                                        @if (schedule.Shifts.Any())
+                                        {
+                                            var shiftGroups = schedule.Shifts
+                                                .GroupBy(sh => $"{sh.StartTime}-{sh.EndTime}")
+                                                .OrderBy(g => g.Key);
+
+                                            <div class="flex flex-wrap gap-2">
+                                                @foreach (var group in shiftGroups)
+                                                {
+                                                    @foreach (var sh in group)
+                                                    {
+                                                        var isMine = sh.AssignedMemberKey.HasValue && sh.AssignedMemberKey.Value == memberKey;
+                                                        var cardClass = sh.IsAvailable
+                                                            ? "bg-accent-yellow border-2 border-yellow-400"
+                                                            : isMine
+                                                                ? "bg-blue-bridge border-2 border-blue-900"
+                                                                : "bg-gray-100 border-2 border-gray-200";
+                                                        var textClass = (sh.IsAvailable || isMine) ? "text-blue-bridge" : "text-gray-600";
+                                                        if (isMine) { textClass = "text-white"; }
+
+                                                        <div class="@cardClass rounded-lg px-3 py-2 min-w-[110px]">
+                                                            <p class="text-xs font-semibold @textClass">@sh.StartTime–@sh.EndTime</p>
+                                                            @if (sh.IsAvailable)
+                                                            {
+                                                                <p class="text-xs @textClass mt-0.5">Ledig vagt</p>
+                                                            }
+                                                            else if (isMine)
+                                                            {
+                                                                <p class="text-xs @textClass mt-0.5 font-medium">Din vagt ✓</p>
+                                                            }
+                                                            else
+                                                            {
+                                                                <p class="text-xs text-gray-500 mt-0.5 truncate" title="@sh.AssignedMemberName">@sh.AssignedMemberName</p>
+                                                            }
+                                                        </div>
+                                                    }
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <p class="text-sm text-gray-400">Ingen vagter i denne vagtplan.</p>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
             </div>
         </div>
 
