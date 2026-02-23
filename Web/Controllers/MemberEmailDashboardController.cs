@@ -64,7 +64,7 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
                     fullName = m.Name ?? m.Email ?? "Unknown";
 
                 var crewIds = GetMemberCrewIdsFromCache(m, guidToIdLookup);
-                var crewNames = crewIds.Select(id => crewLookup.TryGetValue(id, out var name) ? name : $"Crew {id}").ToList();
+                var crewNames = ResolveCrewNamesFromLookup(crewIds, crewLookup);
 
                 return new
                 {
@@ -160,7 +160,7 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
                 var firstName = member.GetValue<string>("firstName") ?? member.Name?.Split(' ').FirstOrDefault() ?? "Frivillig";
                 var lastName = member.GetValue<string>("lastName") ?? string.Empty;
                 var crewIds = GetMemberCrewIdsFromCache(member, guidToIdLookup);
-                var crewNames = crewIds.Select(id => crewLookup.TryGetValue(id, out var name) ? name : $"Crew {id}").ToList();
+                var crewNames = ResolveCrewNamesFromLookup(crewIds, crewLookup);
 
                 var memberData = new MemberEmailData
                 {
@@ -259,6 +259,11 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
         }
 
         return (crewLookup, guidToIdLookup);
+    }
+
+    private List<string> ResolveCrewNamesFromLookup(List<int> crewIds, Dictionary<int, string> crewLookup)
+    {
+        return crewIds.Select(id => crewLookup.TryGetValue(id, out var name) ? name : $"Crew {id}").ToList();
     }
 
     private List<int> GetMemberCrewIdsFromCache(IMember member, Dictionary<Guid, int> guidToIdLookup)
