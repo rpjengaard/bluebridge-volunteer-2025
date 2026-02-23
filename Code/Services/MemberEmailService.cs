@@ -278,6 +278,17 @@ public class MemberEmailService : IMemberEmailService
             result = ReplacePlaceholder(result, "portalUrl", portalButtonHtml);
         }
 
+        // Replace {{ invitationUrl }} with a styled button (if present)
+        if (!string.IsNullOrEmpty(memberData.InvitationUrl))
+        {
+            var inviteButtonHtml = CreateStyledButton("Tilmeld mig som frivillig", memberData.InvitationUrl);
+            result = ReplacePlaceholder(result, "invitationUrl", inviteButtonHtml);
+        }
+        else
+        {
+            result = ReplacePlaceholder(result, "invitationUrl", string.Empty);
+        }
+
         return result;
     }
 

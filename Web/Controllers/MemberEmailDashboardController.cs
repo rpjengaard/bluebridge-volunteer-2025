@@ -17,6 +17,7 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
     private readonly IMemberService _memberService;
     private readonly IContentService _contentService;
     private readonly IMemberEmailService _emailService;
+    private readonly IEmailLogService _emailLogService;
     private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<MemberEmailDashboardController> _logger;
 
@@ -24,12 +25,14 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
         IMemberService memberService,
         IContentService contentService,
         IMemberEmailService emailService,
+        IEmailLogService emailLogService,
         IHttpContextAccessor httpContextAccessor,
         ILogger<MemberEmailDashboardController> logger)
     {
         _memberService = memberService;
         _contentService = contentService;
         _emailService = emailService;
+        _emailLogService = emailLogService;
         _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
@@ -61,6 +64,7 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
 
                 var crewIds = GetMemberCrewIds(m);
                 var crewNames = ResolveCrewNames(crewIds);
+                var hasInvitationUrl = hasToken && !hasAccepted;
 
                 return new
                 {
@@ -73,6 +77,7 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
                     status,
                     crewIds,
                     crewNames,
+                    hasInvitationUrl,
                     invitationSentDate = m.GetValue<DateTime?>("invitationSentDate"),
                     acceptedDate = m.GetValue<DateTime?>("acceptedDate")
                 };
@@ -92,25 +97,35 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
     {
         try
         {
-            var crews = new List<object>();
+            var crews = new List<(int Id, string Name)>();
             var rootContent = _contentService.GetRootContent();
             foreach (var root in rootContent)
             {
                 FindCrewsRecursive(root, crews);
             }
 
-            var ordered = crews
-                .Select(c => (dynamic)c)
-                .OrderBy(c => (string)c.name)
-                .Select(c => new { id = (int)c.id, name = (string)c.name })
-                .ToList();
-
-            return Ok(new { success = true, crews = ordered });
+            var result = crews.OrderBy(c => c.Name).Select(c => new { id = c.Id, name = c.Name }).ToList();
+            return Ok(new { success = true, crews = result });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get crews for email dashboard");
             return StatusCode(500, new { success = false, message = $"Failed to get crews: {ex.Message}" });
+        }
+    }
+
+    [HttpGet("logs")]
+    public async Task<IActionResult> GetLogs()
+    {
+        try
+        {
+            var logs = await _emailLogService.GetLogsAsync(50);
+            return Ok(new { success = true, logs });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get email logs");
+            return StatusCode(500, new { success = false, message = $"Failed to get logs: {ex.Message}" });
         }
     }
 
@@ -127,26 +142,43 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
             return BadRequest(new { success = false, message = "No members selected" });
         }
 
+        var baseUrl = GetBaseUrl();
         var sentCount = 0;
         var errorCount = 0;
-        var errors = new List<string>();
+        var recipients = new List<EmailLogRecipient>();
 
         foreach (var memberId in request.MemberIds)
         {
             var member = _memberService.GetById(memberId);
             if (member == null || string.IsNullOrEmpty(member.Email))
             {
-                errors.Add($"Member ID {memberId}: not found or has no email");
+                recipients.Add(new EmailLogRecipient
+                {
+                    Email = $"ID:{memberId}",
+                    FullName = "Unknown",
+                    Success = false,
+                    ErrorMessage = "Member not found or has no email"
+                });
                 errorCount++;
                 continue;
             }
 
+            var firstName = member.GetValue<string>("firstName") ?? member.Name?.Split(' ').FirstOrDefault() ?? "Frivillig";
+            var lastName = member.GetValue<string>("lastName") ?? string.Empty;
+            var fullName = $"{firstName} {lastName}".Trim();
+            if (string.IsNullOrEmpty(fullName)) fullName = member.Name ?? member.Email;
+
             try
             {
-                var firstName = member.GetValue<string>("firstName") ?? member.Name?.Split(' ').FirstOrDefault() ?? "Frivillig";
-                var lastName = member.GetValue<string>("lastName") ?? string.Empty;
                 var crewIds = GetMemberCrewIds(member);
                 var crewNames = ResolveCrewNames(crewIds);
+
+                // Build invitation URL if the member has an active token
+                var invitationToken = member.GetValue<string>("invitationToken");
+                var hasAccepted = member.GetValue<bool>("accept2026");
+                var invitationUrl = (!string.IsNullOrEmpty(invitationToken) && !hasAccepted)
+                    ? $"{baseUrl.TrimEnd('/')}/umbraco/surface/InvitationSurface/AcceptInvitation?token={invitationToken}"
+                    : string.Empty;
 
                 var memberData = new MemberEmailData
                 {
@@ -159,20 +191,46 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
                     TidligereArbejdssteder = member.GetValue<string>("tidligereArbejdssteder") ?? string.Empty,
                     SelectedCrews = string.Join(", ", crewNames),
                     MemberWish = member.GetValue<string>("memberWish") ?? string.Empty,
-                    PortalUrl = GetBaseUrl()
+                    PortalUrl = baseUrl,
+                    InvitationUrl = invitationUrl
                 };
 
                 await _emailService.SendCustomEmailAsync(member.Email, request.Subject, request.Body, memberData);
+
+                recipients.Add(new EmailLogRecipient
+                {
+                    Email = member.Email,
+                    FullName = fullName,
+                    Success = true
+                });
                 sentCount++;
-                _logger.LogInformation("Email dashboard: sent email to {Email}", member.Email);
+                _logger.LogInformation("Email dashboard: sent to {Email}", member.Email);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Email dashboard: failed to send to member {MemberId} ({Email})", memberId, member.Email);
-                errors.Add($"{member.Email}: {ex.Message}");
+                _logger.LogError(ex, "Email dashboard: failed to send to {Email}", member.Email);
+                recipients.Add(new EmailLogRecipient
+                {
+                    Email = member.Email,
+                    FullName = fullName,
+                    Success = false,
+                    ErrorMessage = ex.Message
+                });
                 errorCount++;
             }
         }
+
+        // Persist the log entry
+        var logEntry = new EmailLogEntry
+        {
+            SentAt = DateTime.Now,
+            Subject = request.Subject,
+            Body = request.Body,
+            SentCount = sentCount,
+            ErrorCount = errorCount,
+            Recipients = recipients
+        };
+        await _emailLogService.AddLogAsync(logEntry);
 
         var message = $"Sendt {sentCount} emails, {errorCount} fejl";
         _logger.LogInformation("Email dashboard bulk send complete: {Message}", message);
@@ -183,7 +241,7 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
             message,
             sentCount,
             errorCount,
-            errors
+            errors = recipients.Where(r => !r.Success).Select(r => $"{r.Email}: {r.ErrorMessage}").ToList()
         });
     }
 
@@ -191,27 +249,20 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
     {
         var ids = new List<int>();
 
-        // Assigned crews (set by admin)
         var crewsValue = member.GetValue<string>("crews");
         if (!string.IsNullOrWhiteSpace(crewsValue))
-        {
             ResolveUdiToIds(crewsValue, ids);
-        }
 
-        // Crew wishes (set when accepting invitation)
         var wishesValue = member.GetValue<string>("crewWishes");
         if (!string.IsNullOrWhiteSpace(wishesValue))
-        {
             ResolveUdiToIds(wishesValue, ids);
-        }
 
         return ids.Distinct().ToList();
     }
 
     private void ResolveUdiToIds(string udiString, List<int> ids)
     {
-        var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var udiPart in udiParts)
+        foreach (var udiPart in udiString.Split(',', StringSplitOptions.RemoveEmptyEntries))
         {
             var trimmed = udiPart.Trim();
             if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
@@ -221,9 +272,7 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
                 {
                     var content = _contentService.GetById(contentGuid);
                     if (content != null)
-                    {
                         ids.Add(content.Id);
-                    }
                 }
             }
         }
@@ -242,25 +291,19 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
         foreach (var content in contents)
         {
             if (content != null && !string.IsNullOrEmpty(content.Name))
-            {
                 names.Add(content.Name);
-            }
         }
         return names;
     }
 
-    private void FindCrewsRecursive(IContent content, List<object> crews)
+    private void FindCrewsRecursive(IContent content, List<(int, string)> crews)
     {
         if (content.ContentType.Alias == "bbvCrewPage")
-        {
-            crews.Add(new { id = content.Id, name = content.Name ?? $"Crew {content.Id}" });
-        }
+            crews.Add((content.Id, content.Name ?? $"Crew {content.Id}"));
 
         var children = _contentService.GetPagedChildren(content.Id, 0, int.MaxValue, out _);
         foreach (var child in children)
-        {
             FindCrewsRecursive(child, crews);
-        }
     }
 
     private string GetBaseUrl()

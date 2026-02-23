@@ -29,4 +29,7 @@ public class MemberEmailData
     // For supervisor notifications
     public string SupervisorName { get; set; } = string.Empty;
     public string CrewName { get; set; } = string.Empty;
+
+    // For custom emails
+    public string InvitationUrl { get; set; } = string.Empty;
 }
