@@ -400,7 +400,8 @@ public class CrewService : ICrewService
                 FullName = fullName,
                 Email = member.Email ?? string.Empty,
                 Phone = member.GetValue<string>("phone"),
-                HasAccepted2026 = member.GetValue<bool>("accept2026")
+                HasAccepted2026 = member.GetValue<bool>("accept2026"),
+                CrewWishes = ParseCrewReferences(wishlistValue)
             });
         }
 
