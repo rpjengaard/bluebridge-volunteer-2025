@@ -23,7 +23,8 @@
       "Bash(xargs:*)",
       "Bash(dotnet run:*)",
       "Bash(find:*)",
-      "Bash(dotnet list:*)"
+      "Bash(dotnet list:*)",
+      "Bash(cd:*)"
     ],
     "deny": [],
     "ask": []
