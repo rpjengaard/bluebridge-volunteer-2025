@@ -40,6 +40,10 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
         try
         {
             var members = _memberService.GetAllMembers().ToList();
+
+            // Bulk resolve all crew UDIs to IDs and then to names in one pass
+            var (crewLookup, guidToIdLookup) = BuildCrewLookupForMembers(members);
+
             var memberDtos = members.Select(m =>
             {
                 var hasToken = !string.IsNullOrEmpty(m.GetValue<string>("invitationToken"));
@@ -59,8 +63,8 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
                 if (string.IsNullOrEmpty(fullName))
                     fullName = m.Name ?? m.Email ?? "Unknown";
 
-                var crewIds = GetMemberCrewIds(m);
-                var crewNames = ResolveCrewNames(crewIds);
+                var crewIds = GetMemberCrewIdsFromCache(m, guidToIdLookup);
+                var crewNames = crewIds.Select(id => crewLookup.TryGetValue(id, out var name) ? name : $"Crew {id}").ToList();
 
                 return new
                 {
@@ -187,6 +191,87 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
         });
     }
 
+    private (Dictionary<int, string> crewLookup, Dictionary<Guid, int> guidToIdLookup) BuildCrewLookupForMembers(List<IMember> members)
+    {
+        // Collect all unique UDI strings from all members
+        var allUdiStrings = new HashSet<string>();
+
+        foreach (var member in members)
+        {
+            var crewsValue = member.GetValue<string>("crews");
+            if (!string.IsNullOrWhiteSpace(crewsValue))
+            {
+                foreach (var udi in crewsValue.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    allUdiStrings.Add(udi.Trim());
+                }
+            }
+
+            var wishesValue = member.GetValue<string>("crewWishes");
+            if (!string.IsNullOrWhiteSpace(wishesValue))
+            {
+                foreach (var udi in wishesValue.Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    allUdiStrings.Add(udi.Trim());
+                }
+            }
+        }
+
+        // Resolve all UDIs to content GUIDs
+        var contentGuids = new List<Guid>();
+        foreach (var udiString in allUdiStrings)
+        {
+            if (udiString.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
+            {
+                var guidPart = udiString["umb://document/".Length..];
+                if (Guid.TryParse(guidPart, out var contentGuid))
+                {
+                    contentGuids.Add(contentGuid);
+                }
+            }
+        }
+
+        // Bulk load all crew content items and create lookups
+        var crewLookup = new Dictionary<int, string>();
+        var guidToIdLookup = new Dictionary<Guid, int>();
+
+        if (contentGuids.Any())
+        {
+            var contents = _contentService.GetByIds(contentGuids);
+            foreach (var content in contents)
+            {
+                if (content != null)
+                {
+                    crewLookup[content.Id] = content.Name ?? $"Crew {content.Id}";
+                    guidToIdLookup[content.Key] = content.Id;
+                }
+            }
+        }
+
+        return (crewLookup, guidToIdLookup);
+    }
+
+    private List<int> GetMemberCrewIdsFromCache(IMember member, Dictionary<Guid, int> guidToIdLookup)
+    {
+        var ids = new List<int>();
+
+        // Assigned crews (set by admin)
+        var crewsValue = member.GetValue<string>("crews");
+        if (!string.IsNullOrWhiteSpace(crewsValue))
+        {
+            ResolveUdiToIdsFromCache(crewsValue, ids, guidToIdLookup);
+        }
+
+        // Crew wishes (set when accepting invitation)
+        var wishesValue = member.GetValue<string>("crewWishes");
+        if (!string.IsNullOrWhiteSpace(wishesValue))
+        {
+            ResolveUdiToIdsFromCache(wishesValue, ids, guidToIdLookup);
+        }
+
+        return ids.Distinct().ToList();
+    }
+
     private List<int> GetMemberCrewIds(IMember member)
     {
         var ids = new List<int>();
@@ -206,6 +291,27 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
         }
 
         return ids.Distinct().ToList();
+    }
+
+    private void ResolveUdiToIdsFromCache(string udiString, List<int> ids, Dictionary<Guid, int> guidToIdLookup)
+    {
+        var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var udiPart in udiParts)
+        {
+            var trimmed = udiPart.Trim();
+            if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
+            {
+                var guidPart = trimmed["umb://document/".Length..];
+                if (Guid.TryParse(guidPart, out var contentGuid))
+                {
+                    // Look up the ID from our pre-loaded cache
+                    if (guidToIdLookup.TryGetValue(contentGuid, out var contentId))
+                    {
+                        ids.Add(contentId);
+                    }
+                }
+            }
+        }
     }
 
     private void ResolveUdiToIds(string udiString, List<int> ids)
