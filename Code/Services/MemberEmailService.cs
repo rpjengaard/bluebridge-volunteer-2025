@@ -156,6 +156,14 @@ public class MemberEmailService : IMemberEmailService
         await SendEmailAsync(toEmail, subject, body, useBroadcast: true);
     }
 
+    public async Task SendCustomEmailAsync(string email, string subject, string htmlBody, MemberEmailData memberData)
+    {
+        var processedSubject = ReplaceMemberPlaceholders(subject, memberData);
+        var processedBody = ReplaceMemberPlaceholders(htmlBody, memberData);
+        processedBody = WrapInHtml(processedBody);
+        await SendEmailAsync(email, processedSubject, processedBody, useBroadcast: true);
+    }
+
     private async Task SendEmailAsync(string toEmail, string subject, string htmlBody, bool useBroadcast = false)
     {
         try
