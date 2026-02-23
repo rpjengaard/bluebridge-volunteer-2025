@@ -143,10 +143,12 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
 
         var (crewLookup, guidToIdLookup) = BuildCrewLookupForMembers(members!);
 
+        // Create a dictionary for O(1) member lookups
+        var memberLookup = members.ToDictionary(m => m.Id);
+
         foreach (var memberId in request.MemberIds)
         {
-            var member = members.FirstOrDefault(m => m.Id == memberId);
-            if (member == null || string.IsNullOrEmpty(member.Email))
+            if (!memberLookup.TryGetValue(memberId, out var member) || string.IsNullOrEmpty(member.Email))
             {
                 errors.Add($"Member ID {memberId}: not found or has no email");
                 errorCount++;
