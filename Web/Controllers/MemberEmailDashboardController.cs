@@ -232,9 +232,15 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
     private List<string> ResolveCrewNames(List<int> crewIds)
     {
         var names = new List<string>();
-        foreach (var id in crewIds)
+
+        if (crewIds == null || crewIds.Count == 0)
         {
-            var content = _contentService.GetById(id);
+            return names;
+        }
+
+        var contents = _contentService.GetByIds(crewIds);
+        foreach (var content in contents)
+        {
             if (content != null && !string.IsNullOrEmpty(content.Name))
             {
                 names.Add(content.Name);
