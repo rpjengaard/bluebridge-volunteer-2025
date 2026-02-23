@@ -1,4 +1,5 @@
 using Code.Services;
+using Microsoft.AspNetCore.Hosting;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,13 @@ builder.Services.AddScoped<IMemberImpersonationService, MemberImpersonationServi
 builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 builder.Services.AddScoped<ICrewMessageService, CrewMessageService>();
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
+builder.Services.AddSingleton<IEmailLogService>(sp =>
+{
+    var env = sp.GetRequiredService<IWebHostEnvironment>();
+    var logger = sp.GetRequiredService<ILogger<EmailLogService>>();
+    var dataDir = Path.Combine(env.ContentRootPath, "App_Data");
+    return new EmailLogService(dataDir, logger);
+});
 
 builder.CreateUmbracoBuilder()
     .AddBackOffice()

@@ -1,0 +1,25 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "MemberEmailDashboard",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "dashboard",
+      "alias": "My.MemberEmailDashboard.Dashboard",
+      "name": "Member Email Dashboard",
+      "element": "/App_Plugins/MemberEmailDashboard/member-email-dashboard.js",
+      "elementName": "member-email-dashboard",
+      "weight": 85,
+      "meta": {
+        "label": "Send Email",
+        "pathname": "member-email-dashboard"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Members"
+        }
+      ]
+    }
+  ]
+}

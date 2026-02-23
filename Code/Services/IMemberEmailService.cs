@@ -9,6 +9,7 @@ public interface IMemberEmailService
     Task SendAcceptanceConfirmationEmailAsync(string email, MemberEmailData memberData, IEnumerable<string> selectedCrewNames, string subjectTemplate, string bodyTemplate);
     Task SendSupervisorNotificationEmailAsync(string supervisorEmail, string supervisorName, MemberEmailData memberData, string crewName, string subjectTemplate, string bodyTemplate);
     Task SendCrewMessageNotificationAsync(string toEmail, string recipientName, string authorName, string crewName, string messageHtml, string crewUrl);
+    Task SendCustomEmailAsync(string email, string subject, string htmlBody, MemberEmailData memberData);
 }
 
 public class MemberEmailData
@@ -28,4 +29,7 @@ public class MemberEmailData
     // For supervisor notifications
     public string SupervisorName { get; set; } = string.Empty;
     public string CrewName { get; set; } = string.Empty;
+
+    // For custom emails
+    public string InvitationUrl { get; set; } = string.Empty;
 }

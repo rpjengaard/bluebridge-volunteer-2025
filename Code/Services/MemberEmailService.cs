@@ -156,6 +156,14 @@ public class MemberEmailService : IMemberEmailService
         await SendEmailAsync(toEmail, subject, body, useBroadcast: true);
     }
 
+    public async Task SendCustomEmailAsync(string email, string subject, string htmlBody, MemberEmailData memberData)
+    {
+        var processedSubject = ReplaceMemberPlaceholders(subject, memberData);
+        var processedBody = ReplaceMemberPlaceholders(htmlBody, memberData);
+        processedBody = WrapInHtml(processedBody);
+        await SendEmailAsync(email, processedSubject, processedBody, useBroadcast: true);
+    }
+
     private async Task SendEmailAsync(string toEmail, string subject, string htmlBody, bool useBroadcast = false)
     {
         try
@@ -268,6 +276,17 @@ public class MemberEmailService : IMemberEmailService
             var loginUrl = $"{memberData.PortalUrl.TrimEnd('/')}/login";
             var portalButtonHtml = CreateStyledButton("Gå til portalen", loginUrl);
             result = ReplacePlaceholder(result, "portalUrl", portalButtonHtml);
+        }
+
+        // Replace {{ invitationUrl }} with a styled button (if present)
+        if (!string.IsNullOrEmpty(memberData.InvitationUrl))
+        {
+            var inviteButtonHtml = CreateStyledButton("Tilmeld mig som frivillig", memberData.InvitationUrl);
+            result = ReplacePlaceholder(result, "invitationUrl", inviteButtonHtml);
+        }
+        else
+        {
+            result = ReplacePlaceholder(result, "invitationUrl", string.Empty);
         }
 
         return result;
