@@ -135,9 +135,17 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
         var errorCount = 0;
         var errors = new List<string>();
 
+        // Pre-load all members to build crew lookup
+        var members = request.MemberIds
+            .Select(id => _memberService.GetById(id))
+            .Where(m => m != null)
+            .ToList();
+
+        var (crewLookup, guidToIdLookup) = BuildCrewLookupForMembers(members!);
+
         foreach (var memberId in request.MemberIds)
         {
-            var member = _memberService.GetById(memberId);
+            var member = members.FirstOrDefault(m => m.Id == memberId);
             if (member == null || string.IsNullOrEmpty(member.Email))
             {
                 errors.Add($"Member ID {memberId}: not found or has no email");
@@ -149,8 +157,8 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
             {
                 var firstName = member.GetValue<string>("firstName") ?? member.Name?.Split(' ').FirstOrDefault() ?? "Frivillig";
                 var lastName = member.GetValue<string>("lastName") ?? string.Empty;
-                var crewIds = GetMemberCrewIds(member);
-                var crewNames = ResolveCrewNames(crewIds);
+                var crewIds = GetMemberCrewIdsFromCache(member, guidToIdLookup);
+                var crewNames = crewIds.Select(id => crewLookup.TryGetValue(id, out var name) ? name : $"Crew {id}").ToList();
 
                 var memberData = new MemberEmailData
                 {
@@ -272,27 +280,6 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
         return ids.Distinct().ToList();
     }
 
-    private List<int> GetMemberCrewIds(IMember member)
-    {
-        var ids = new List<int>();
-
-        // Assigned crews (set by admin)
-        var crewsValue = member.GetValue<string>("crews");
-        if (!string.IsNullOrWhiteSpace(crewsValue))
-        {
-            ResolveUdiToIds(crewsValue, ids);
-        }
-
-        // Crew wishes (set when accepting invitation)
-        var wishesValue = member.GetValue<string>("crewWishes");
-        if (!string.IsNullOrWhiteSpace(wishesValue))
-        {
-            ResolveUdiToIds(wishesValue, ids);
-        }
-
-        return ids.Distinct().ToList();
-    }
-
     private void ResolveUdiToIdsFromCache(string udiString, List<int> ids, Dictionary<Guid, int> guidToIdLookup)
     {
         var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
@@ -312,47 +299,6 @@ public class MemberEmailDashboardController : ManagementApiControllerBase
                 }
             }
         }
-    }
-
-    private void ResolveUdiToIds(string udiString, List<int> ids)
-    {
-        var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var udiPart in udiParts)
-        {
-            var trimmed = udiPart.Trim();
-            if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
-            {
-                var guidPart = trimmed["umb://document/".Length..];
-                if (Guid.TryParse(guidPart, out var contentGuid))
-                {
-                    var content = _contentService.GetById(contentGuid);
-                    if (content != null)
-                    {
-                        ids.Add(content.Id);
-                    }
-                }
-            }
-        }
-    }
-
-    private List<string> ResolveCrewNames(List<int> crewIds)
-    {
-        var names = new List<string>();
-
-        if (crewIds == null || crewIds.Count == 0)
-        {
-            return names;
-        }
-
-        var contents = _contentService.GetByIds(crewIds);
-        foreach (var content in contents)
-        {
-            if (content != null && !string.IsNullOrEmpty(content.Name))
-            {
-                names.Add(content.Name);
-            }
-        }
-        return names;
     }
 
     private void FindCrewsRecursive(IContent content, List<object> crews)
