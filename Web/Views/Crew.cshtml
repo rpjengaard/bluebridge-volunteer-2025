@@ -339,6 +339,7 @@ else
                                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Navn</th>
                                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                                                 <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Crew-ønsker</th>
                                                 <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Handling</th>
                                             </tr>
                                         </thead>
@@ -369,6 +370,26 @@ else
                                                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                                                                 Ikke bekræftet
                                                             </span>
+                                                        }
+                                                    </td>
+                                                    <td class="px-4 py-4">
+                                                        @if (member.CrewWishes.Any())
+                                                        {
+                                                            <div class="flex flex-wrap gap-1">
+                                                                @foreach (var wish in member.CrewWishes)
+                                                                {
+                                                                    <a href="@wish.Url" class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors" title="Gå til @wish.Name">
+                                                                        @wish.Name
+                                                                        <svg class="ml-1 h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                                                                        </svg>
+                                                                    </a>
+                                                                }
+                                                            </div>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="text-sm text-gray-400 italic">Ingen ønsker</span>
                                                         }
                                                     </td>
                                                     <td class="px-4 py-4 whitespace-nowrap text-right">

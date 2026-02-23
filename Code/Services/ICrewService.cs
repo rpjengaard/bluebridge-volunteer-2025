@@ -69,6 +69,7 @@ public class CrewMemberInfo
     public string? MemberWish { get; set; }
     public string? TimeslotWish { get; set; }
     public string? OtherNotes { get; set; }
+    public List<CrewListItem> CrewWishes { get; set; } = new();
 }
 
 public class SupervisorInfo
