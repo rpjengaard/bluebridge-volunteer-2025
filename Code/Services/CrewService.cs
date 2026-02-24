@@ -759,7 +759,8 @@ public class CrewService : ICrewService
                     Birthdate = birthdateVal > new DateTime(1900, 1, 1) ? birthdateVal : null,
                     MemberWish = member.GetValue<string>("memberWish"),
                     TimeslotWish = member.GetValue<string>("timeslotWish"),
-                    OtherNotes = ExtractRteMarkup(member.GetValue<string>("otherNotes"))
+                    OtherNotes = ExtractRteMarkup(member.GetValue<string>("otherNotes")),
+                    MemberGroups = _memberService.GetAllRoles(member.Id).ToList()
                 });
             }
         }

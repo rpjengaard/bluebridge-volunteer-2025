@@ -65,7 +65,8 @@ public class ScheduleController : Controller
                 : (int?)null,
             memberWish = m.MemberWish,
             timeslotWish = m.TimeslotWish,
-            otherNotes = m.OtherNotes
+            otherNotes = m.OtherNotes,
+            memberGroups = m.MemberGroups
         }).ToList();
 
         var sorted = sort switch

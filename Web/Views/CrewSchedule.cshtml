@@ -199,6 +199,8 @@ else
                             class="px-2 py-1 rounded text-gray-600 hover:bg-gray-100 sort-btn">Navn</button>
                     <button onclick="loadCrewMembers('age')" id="sort-age"
                             class="px-2 py-1 rounded text-gray-600 hover:bg-gray-100 sort-btn">Alder</button>
+                    <button onclick="loadCrewMembers('sheriff')" id="sort-sheriff"
+                            class="px-2 py-1 rounded text-gray-600 hover:bg-gray-100 sort-btn">Sheriffer / Vice</button>
                 </div>
                 <div id="assign-member-list" class="max-h-[32rem] overflow-y-auto border border-gray-200 rounded-md divide-y divide-gray-100">
                     <div class="p-4 text-center text-gray-400 text-sm">Indlæser...</div>
@@ -722,7 +724,7 @@ else
 
     function sortMembers(members, sort) {
         const copy = [...members];
-        if (sort === 'name') {
+        if (sort === 'name' || sort === 'sheriff') {
             copy.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'da'));
         } else if (sort === 'age') {
             copy.sort((a, b) => {
@@ -761,7 +763,19 @@ else
         }
 
         const allMembers = await fetchCrewMembersIfNeeded();
-        const members = sortMembers(allMembers, sort);
+
+        // Filter members by sheriff/vice status
+        const isSheriff = g => {
+            const lower = (g || '').toLowerCase();
+            return lower === 'sherif' || lower === 'vice sherif';
+        };
+        let filtered;
+        if (sort === 'sheriff') {
+            filtered = allMembers.filter(m => (m.memberGroups || []).some(isSheriff));
+        } else {
+            filtered = allMembers.filter(m => !(m.memberGroups || []).some(isSheriff));
+        }
+        const members = sortMembers(filtered, sort);
 
         if (!members || members.length === 0) {
             listEl.innerHTML = '<div class="p-4 text-center text-gray-400 text-sm">Ingen frivillige fundet.</div>';
