@@ -213,12 +213,13 @@ public class MemberEmailService : IMemberEmailService
 
         var result = template;
 
-        // Replace member field placeholders {{ fieldName }}
-        result = ReplaceMemberPlaceholders(result, memberData);
-
-        // Replace {{ invitationUrl }} with a styled button
+        // Replace {{ invitationUrl }} with a styled button BEFORE ReplaceMemberPlaceholders,
+        // which would otherwise replace the placeholder with empty string (memberData.InvitationUrl is not set here).
         var buttonHtml = CreateStyledButton("Tilmeld mig som frivillig", invitationUrl);
         result = ReplacePlaceholder(result, "invitationUrl", buttonHtml);
+
+        // Replace member field placeholders {{ fieldName }}
+        result = ReplaceMemberPlaceholders(result, memberData);
 
         return result;
     }
