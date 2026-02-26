@@ -362,10 +362,12 @@ public class CrewService : ICrewService
 
     private List<CrewMemberInfo> GetWishlistMembersNotAssigned(int crewId, HashSet<int> adminMemberIds, Dictionary<Guid, int> crewGuidToIdCache)
     {
-        var wishlistMembers = new List<CrewMemberInfo>();
         var allMembers = _memberService.GetAllMembers();
 
         Stopwatch sw = Stopwatch.StartNew();
+
+        // Pass 1: filter members and collect raw wishlist strings (no extra DB calls)
+        var candidates = new List<(CrewMemberInfo Info, string? WishlistValue)>();
 
         foreach (var member in allMembers)
         {
@@ -393,7 +395,7 @@ public class CrewService : ICrewService
             if (string.IsNullOrEmpty(fullName))
                 fullName = member.Name ?? member.Email ?? "Unknown";
 
-            wishlistMembers.Add(new CrewMemberInfo
+            candidates.Add((new CrewMemberInfo
             {
                 MemberId = member.Id,
                 MemberKey = member.Key,
@@ -401,9 +403,32 @@ public class CrewService : ICrewService
                 Email = member.Email ?? string.Empty,
                 Phone = member.GetValue<string>("phone"),
                 HasAccepted2026 = member.GetValue<bool>("accept2026"),
-                CrewWishes = ParseCrewReferences(wishlistValue)
-            });
+            }, wishlistValue));
         }
+
+        // Pass 2: batch-load all unique crew content referenced across all wishlists.
+        // crewGuidToIdCache is already populated with Guid→int from pass 1,
+        // so we resolve int IDs without extra DB calls, then fetch in one batch.
+        var allWishGuids = candidates
+            .Where(c => !string.IsNullOrWhiteSpace(c.WishlistValue))
+            .SelectMany(c => ExtractGuidsFromUdiString(c.WishlistValue!))
+            .Distinct()
+            .ToList();
+
+        var crewItemLookup = BuildCrewItemLookupBatch(allWishGuids, crewGuidToIdCache);
+
+        // Assign crew wishes from the pre-built lookup
+        var wishlistMembers = candidates.Select(c =>
+        {
+            if (!string.IsNullOrWhiteSpace(c.WishlistValue))
+            {
+                c.Info.CrewWishes = ExtractGuidsFromUdiString(c.WishlistValue)
+                    .Where(crewItemLookup.ContainsKey)
+                    .Select(g => crewItemLookup[g])
+                    .ToList();
+            }
+            return c.Info;
+        }).ToList();
 
         sw.Stop();
         _logger.LogInformation("GetWishlistMembersNotAssigned for crewId {CrewId} took {ElapsedMilliseconds} ms and found {MemberCount} members", crewId, sw.ElapsedMilliseconds, wishlistMembers.Count);
@@ -804,6 +829,74 @@ public class CrewService : ICrewService
         }
 
         return ids;
+    }
+
+    private static List<Guid> ExtractGuidsFromUdiString(string udiString)
+    {
+        var guids = new List<Guid>();
+        foreach (var part in udiString.Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = part.Trim();
+            if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
+            {
+                var guidPart = trimmed["umb://document/".Length..];
+                if (Guid.TryParse(guidPart, out var g))
+                    guids.Add(g);
+            }
+        }
+        return guids;
+    }
+
+    private Dictionary<Guid, CrewListItem> BuildCrewItemLookupBatch(List<Guid> crewGuids, Dictionary<Guid, int> crewGuidToIdCache)
+    {
+        var lookup = new Dictionary<Guid, CrewListItem>();
+        if (crewGuids.Count == 0) return lookup;
+
+        // Resolve integer IDs from cache (already populated by ParseCrewIdsWithCache — no extra DB calls)
+        var intIds = crewGuids
+            .Where(crewGuidToIdCache.ContainsKey)
+            .Select(g => crewGuidToIdCache[g])
+            .Distinct()
+            .ToList();
+
+        if (intIds.Count == 0) return lookup;
+
+        // Single batch DB call instead of one per crew
+        var contentById = _contentService.GetByIds(intIds)
+            .Where(c => c.ContentType.Alias == CrewContentTypeAlias)
+            .ToDictionary(c => c.Id);
+
+        _umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext);
+
+        foreach (var g in crewGuids)
+        {
+            if (!crewGuidToIdCache.TryGetValue(g, out var intId)) continue;
+            if (!contentById.TryGetValue(intId, out var content)) continue;
+
+            string? url = null;
+            string? description = null;
+            if (umbracoContext != null)
+            {
+                var publishedContent = umbracoContext.Content?.GetById(content.Key);
+                if (publishedContent != null)
+                {
+                    url = publishedContent.Url();
+                    description = GetRteDescription(publishedContent, 150);
+                }
+            }
+
+            lookup[g] = new CrewListItem
+            {
+                Id = content.Id,
+                Key = content.Key,
+                Name = content.Name ?? $"Crew {content.Id}",
+                Description = description,
+                AgeLimit = content.GetValue<int?>("ageLimit"),
+                Url = url
+            };
+        }
+
+        return lookup;
     }
 
     private List<CrewListItem> ParseCrewReferences(string udiString)
