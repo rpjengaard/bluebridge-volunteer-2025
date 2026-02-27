@@ -52,6 +52,9 @@ public class MemberListService : IMemberListService
 
         foreach (var member in allMembers)
         {
+            if (!member.GetValue<bool>("accept2026"))
+                continue;
+
             var firstName = member.GetValue<string>("firstName") ?? string.Empty;
             var lastName = member.GetValue<string>("lastName") ?? string.Empty;
             var fullName = $"{firstName} {lastName}".Trim();
