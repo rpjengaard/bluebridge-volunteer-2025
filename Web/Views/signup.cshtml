@@ -260,7 +260,7 @@
                         </div>
                         <div class="ml-3">
                             <label for="acceptTerms" class="text-sm text-gray-600">
-                                Jeg accepterer <a href="#" class="font-semibold text-blue-bridge hover:opacity-80">vilkår og betingelser</a>
+                                Jeg accepterer <a href="@(siteSettings?.TermsAndConditions?.Url() ?? "#")" target="_blank" rel="noopener noreferrer" class="font-semibold text-blue-bridge hover:opacity-80">vilkår og betingelser</a>
                             </label>
                         </div>
                     </div>
