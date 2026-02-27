@@ -1,0 +1,21 @@
+namespace Code.Services;
+
+public interface IMemberListService
+{
+    Task<MemberListData?> GetAcceptedMembersAsync(string requestingMemberEmail);
+}
+
+public class MemberListData
+{
+    public List<MemberListItem> Members { get; set; } = new();
+    public List<string> AllCrewNames { get; set; } = new();
+}
+
+public class MemberListItem
+{
+    public Guid MemberKey { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public DateTime SignupDate { get; set; }
+    public List<string> CrewNames { get; set; } = new();
+}
