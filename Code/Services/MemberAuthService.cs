@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Core.Security;
+using Umbraco.Cms.Core.Serialization;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Web.Common.Security;
 
@@ -10,20 +11,28 @@ public class MemberAuthService : IMemberAuthService
     private readonly IMemberManager _memberManager;
     private readonly IMemberSignInManager _memberSignInManager;
     private readonly IMemberService _memberService;
+    private readonly IMemberGroupService _memberGroupService;
     private readonly IContentService _contentService;
+    private readonly IJsonSerializer _jsonSerializer;
     private readonly ILogger<MemberAuthService> _logger;
+
+    private const string MemberGroupName = "Frivillige";
 
     public MemberAuthService(
         IMemberManager memberManager,
         IMemberSignInManager memberSignInManager,
         IMemberService memberService,
+        IMemberGroupService memberGroupService,
         IContentService contentService,
+        IJsonSerializer jsonSerializer,
         ILogger<MemberAuthService> logger)
     {
         _memberManager = memberManager;
         _memberSignInManager = memberSignInManager;
         _memberService = memberService;
+        _memberGroupService = memberGroupService;
         _contentService = contentService;
+        _jsonSerializer = jsonSerializer;
         _logger = logger;
     }
 
@@ -71,7 +80,9 @@ public class MemberAuthService : IMemberAuthService
         string? phone,
         DateTime? birthdate,
         string? zipcode,
-        List<int>? crewWishes)
+        List<int>? crewWishes,
+        string? memberWish,
+        List<string>? selectedTimeslots)
     {
         var memberName = $"{firstName} {lastName}";
 
@@ -128,7 +139,17 @@ public class MemberAuthService : IMemberAuthService
                 }
             }
 
+            if (!string.IsNullOrWhiteSpace(memberWish))
+                member.SetValue("memberWish", memberWish);
+
+            if (selectedTimeslots != null && selectedTimeslots.Count > 0)
+            {
+                var timeslotArray = selectedTimeslots.ToArray();
+                member.SetValue("timeslotWish", _jsonSerializer.Serialize(timeslotArray));
+            }
+
             _memberService.Save(member);
+            EnsureMemberInGroup(member);
         }
 
         // Auto-login after registration
@@ -177,6 +198,26 @@ public class MemberAuthService : IMemberAuthService
         var errors = result.Errors.Select(e => TranslateIdentityError(e.Code));
         _logger.LogWarning("Password reset failed for {Email}: {Errors}", email, string.Join(", ", errors));
         return new PasswordResetResult(false, errors);
+    }
+
+    private void EnsureMemberInGroup(Umbraco.Cms.Core.Models.IMember member)
+    {
+        var group = _memberGroupService.GetByName(MemberGroupName);
+        if (group == null)
+        {
+            group = new Umbraco.Cms.Core.Models.MemberGroup { Name = MemberGroupName };
+#pragma warning disable CS0618
+            _memberGroupService.Save(group);
+#pragma warning restore CS0618
+            _logger.LogInformation("Created member group '{GroupName}'", MemberGroupName);
+        }
+
+        var memberGroups = _memberService.GetAllRoles(member.Id);
+        if (!memberGroups.Contains(MemberGroupName))
+        {
+            _memberService.AssignRole(member.Id, MemberGroupName);
+            _logger.LogInformation("Added member {Email} to group '{GroupName}'", member.Email, MemberGroupName);
+        }
     }
 
     private static string TranslateIdentityError(string code)

@@ -33,14 +33,22 @@ public class MemberEmailService : IMemberEmailService
         await SendEmailAsync(email, subject, body);
     }
 
-    public async Task SendWelcomeEmailAsync(string email, string firstName)
+    public async Task SendWelcomeEmailAsync(string email, string firstName, string? memberWish = null, string? timeslotWishes = null)
     {
         var subject = "Velkommen til Blue Bridge Portal";
+
+        var extraFields = string.Empty;
+        if (!string.IsNullOrWhiteSpace(memberWish))
+            extraFields += $"<p><strong>Ønsker at have vagt med:</strong> {memberWish}</p>";
+        if (!string.IsNullOrWhiteSpace(timeslotWishes))
+            extraFields += $"<p><strong>Ønsker til vagttidspunkt:</strong> {timeslotWishes}</p>";
+
         var body = $@"
             <html>
             <body>
                 <p>Kære {firstName},</p>
                 <p>Velkommen til Blue Bridge Frivillig Portal!</p>
+                {extraFields}
                 <p>Du kan nu logge ind og se dine oplysninger.</p>
             </body>
             </html>";

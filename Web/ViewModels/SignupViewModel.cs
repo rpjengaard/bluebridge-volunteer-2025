@@ -19,14 +19,17 @@ public class SignupViewModel
     [Display(Name = "Email adresse")]
     public string Email { get; set; } = string.Empty;
 
+    [Required(ErrorMessage = "Telefonnummer er påkrævet")]
     [Phone(ErrorMessage = "Ugyldigt telefonnummer")]
     [Display(Name = "Telefon")]
     public string? Phone { get; set; }
 
+    [Required(ErrorMessage = "Fødselsdato er påkrævet")]
     [DataType(DataType.Date)]
     [Display(Name = "Fødselsdato")]
     public DateTime? Birthdate { get; set; }
 
+    [Required(ErrorMessage = "Postnummer er påkrævet")]
     [StringLength(4, MinimumLength = 4, ErrorMessage = "Postnummer skal være præcis 4 cifre")]
     [RegularExpression(@"^\d{4}$", ErrorMessage = "Postnummer skal være 4 cifre")]
     [Display(Name = "Postnummer")]

@@ -2,8 +2,10 @@
 @using Web.ViewModels;
 @using Code.Services;
 @using System.Text.Json;
+@using Umbraco.Cms.Core.PropertyEditors;
 @inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BbvSignUp>
 @inject ICrewService CrewService
+@inject Umbraco.Cms.Core.Services.IDataTypeService DataTypeService
 @{
     Layout = "~/Views/Shared/_MasterLayout.cshtml";
 
@@ -34,6 +36,18 @@
     var availableCrews = crewsData.Crews
         .Where(c => !c.MaxVoluntiers.HasValue || c.MaxVoluntiers.Value == 0 || c.WishCount < c.MaxVoluntiers.Value)
         .OrderBy(c => c.Name).ToList();
+
+    // Load timeslot options from datatype
+    var timeslotDataTypeKey = new Guid("fbaf13a8-4036-41f2-93a3-974f678c312a");
+    var timeslotDataType = await DataTypeService.GetAsync(timeslotDataTypeKey);
+    var timeslotOptions = new List<TimeslotOption>();
+    if (timeslotDataType?.ConfigurationObject is ValueListConfiguration timeslotConfig && timeslotConfig.Items != null)
+    {
+        foreach (var item in timeslotConfig.Items)
+        {
+            timeslotOptions.Add(new TimeslotOption { Value = item, Label = item });
+        }
+    }
 }
 <!DOCTYPE html>
 <html lang="da" class="h-full bg-slate-50">
@@ -50,6 +64,37 @@
         .text-blue-bridge { color: #23297A; }
         .bg-accent-yellow { background-color: #FFF000; }
     </style>
+    <script>
+        function updateCrewValidation() {
+            const crewCheckboxes = document.querySelectorAll('.crew-checkbox');
+            const anyChecked = Array.from(crewCheckboxes).some(cb => cb.checked);
+
+            crewCheckboxes.forEach(cb => {
+                if (anyChecked) {
+                    cb.removeAttribute('required');
+                } else {
+                    if (cb === crewCheckboxes[0]) {
+                        cb.setAttribute('required', '');
+                    }
+                }
+            });
+        }
+
+        function updateTimeslotValidation() {
+            const timeslotCheckboxes = document.querySelectorAll('.timeslot-checkbox');
+            const anyChecked = Array.from(timeslotCheckboxes).some(cb => cb.checked);
+
+            timeslotCheckboxes.forEach(cb => {
+                if (anyChecked) {
+                    cb.removeAttribute('required');
+                } else {
+                    if (cb === timeslotCheckboxes[0]) {
+                        cb.setAttribute('required', '');
+                    }
+                }
+            });
+        }
+    </script>
 </head>
 <body class="h-full">
 @await Html.PartialAsync("Partials/_Navigation")
@@ -101,25 +146,25 @@
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label for="phone" class="block text-sm font-medium leading-6 text-gray-900">Telefon <span class="text-gray-400 font-normal">(valgfrit)</span></label>
+                            <label for="phone" class="block text-sm font-medium leading-6 text-gray-900">Telefon</label>
                             <div class="mt-2">
-                                <input id="phone" name="Phone" type="tel" autocomplete="tel" value="@formModel.Phone"
+                                <input id="phone" name="Phone" type="tel" autocomplete="tel" required value="@formModel.Phone"
                                        class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                             </div>
                         </div>
                         <div>
-                            <label for="zipcode" class="block text-sm font-medium leading-6 text-gray-900">Postnummer <span class="text-gray-400 font-normal">(valgfrit)</span></label>
+                            <label for="zipcode" class="block text-sm font-medium leading-6 text-gray-900">Postnummer</label>
                             <div class="mt-2">
-                                <input id="zipcode" name="Zipcode" type="text" autocomplete="postal-code" maxlength="4" pattern="\d{4}" placeholder="0000" value="@formModel.Zipcode"
+                                <input id="zipcode" name="Zipcode" type="text" autocomplete="postal-code" required maxlength="4" pattern="\d{4}" placeholder="0000" value="@formModel.Zipcode"
                                        class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <label for="birthdate" class="block text-sm font-medium leading-6 text-gray-900">Fødselsdato <span class="text-gray-400 font-normal">(valgfrit)</span></label>
+                        <label for="birthdate" class="block text-sm font-medium leading-6 text-gray-900">Fødselsdato</label>
                         <div class="mt-2">
-                            <input id="birthdate" name="Birthdate" type="date" autocomplete="bday" value="@(formModel.Birthdate?.ToString("yyyy-MM-dd"))"
+                            <input id="birthdate" name="Birthdate" type="date" autocomplete="bday" required value="@(formModel.Birthdate?.ToString("yyyy-MM-dd"))"
                                    class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
                         </div>
                     </div>
@@ -129,13 +174,17 @@
                         <div class="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3 space-y-2">
                             @if (availableCrews.Any())
                             {
+                                var anyCrewChecked = formModel.CrewWishes?.Any() ?? false;
                                 @foreach (var crew in availableCrews)
                                 {
                                     var isChecked = formModel.CrewWishes?.Contains(crew.Id) ?? false;
+                                    var isFirst = availableCrews.IndexOf(crew) == 0;
                                     <div class="flex items-start">
                                         <div class="flex items-center h-5">
                                             <input id="crew_@crew.Id" name="CrewWishes" type="checkbox" value="@crew.Id" @(isChecked ? "checked" : "")
-                                                   class="h-4 w-4 rounded border-gray-300 text-blue-800 focus:ring-blue-800">
+                                                   class="h-4 w-4 rounded border-gray-300 text-blue-800 focus:ring-blue-800 crew-checkbox"
+                                                   @(isFirst && !anyCrewChecked ? "required" : "")
+                                                   onchange="updateCrewValidation()">
                                         </div>
                                         <div class="ml-3">
                                             <label for="crew_@crew.Id" class="font-medium text-gray-900 cursor-pointer">@crew.Name</label>
@@ -157,6 +206,35 @@
                             }
                         </div>
                     </div>
+
+                    <div>
+                        <label for="memberWish" class="block text-sm font-medium leading-6 text-gray-900">Ønsker at have vagt med? <span class="text-gray-400 font-normal">(valgfrit)</span></label>
+                        <div class="mt-2">
+                            <input id="memberWish" name="MemberWish" type="text" value="@formModel.MemberWish"
+                                   placeholder="F.eks. navn på venner eller bekendte"
+                                   class="block w-full rounded-md border-0 py-2.5 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-800 sm:text-sm sm:leading-6 px-3">
+                        </div>
+                    </div>
+
+                    @if (timeslotOptions.Any())
+                    {
+                        <div>
+                            <label class="block text-sm font-medium leading-6 text-gray-900 mb-2">Ønsker til vagttidspunkt <span class="text-gray-400 font-normal">(valgfrit)</span></label>
+                            <div class="border border-gray-300 rounded-md p-3 space-y-2">
+                                @foreach (var timeslot in timeslotOptions)
+                                {
+                                    var isTimeslotChecked = formModel.SelectedTimeslots?.Contains(timeslot.Value) ?? false;
+                                    <div class="flex items-center">
+                                        <input id="timeslot_@timeslot.Value" name="SelectedTimeslots" type="checkbox" value="@timeslot.Value"
+                                               @(isTimeslotChecked ? "checked" : "")
+                                               class="h-4 w-4 rounded border-gray-300 text-blue-800 focus:ring-blue-800 timeslot-checkbox"
+                                               onchange="updateTimeslotValidation()">
+                                        <label for="timeslot_@timeslot.Value" class="ml-3 text-sm text-gray-700 cursor-pointer">@timeslot.Label</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
 
                     <div>
                         <label for="password" class="block text-sm font-medium leading-6 text-gray-900">Adgangskode</label>

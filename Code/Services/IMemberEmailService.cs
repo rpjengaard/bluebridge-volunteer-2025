@@ -3,7 +3,7 @@ namespace Code.Services;
 public interface IMemberEmailService
 {
     Task SendPasswordResetEmailAsync(string email, string resetUrl);
-    Task SendWelcomeEmailAsync(string email, string firstName);
+    Task SendWelcomeEmailAsync(string email, string firstName, string? memberWish = null, string? timeslotWishes = null);
     Task SendSignupConfirmationEmailAsync(string email, MemberEmailData memberData, IEnumerable<string> selectedCrewNames, string subjectTemplate, string bodyTemplate);
     Task SendInvitationEmailAsync(string email, MemberEmailData memberData, string invitationUrl, string subjectTemplate, string bodyTemplate);
     Task SendAcceptanceConfirmationEmailAsync(string email, MemberEmailData memberData, IEnumerable<string> selectedCrewNames, string subjectTemplate, string bodyTemplate);

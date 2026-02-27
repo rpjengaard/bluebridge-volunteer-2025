@@ -118,6 +118,13 @@ public class MemberAuthSurfaceController : SurfaceController
             return Redirect(signupUrl);
         }
 
+        if (model.CrewWishes == null || !model.CrewWishes.Any())
+        {
+            TempData["SignupError"] = "Vælg mindst ét crew-ønske.";
+            TempData["SignupModel"] = System.Text.Json.JsonSerializer.Serialize(model);
+            return Redirect(signupUrl);
+        }
+
         if (await _authService.MemberExistsAsync(model.Email))
         {
             TempData["SignupError"] = "Der findes allerede en bruger med denne email.";
@@ -133,7 +140,9 @@ public class MemberAuthSurfaceController : SurfaceController
             model.Phone,
             model.Birthdate,
             model.Zipcode,
-            model.CrewWishes);
+            model.CrewWishes,
+            model.MemberWish,
+            model.SelectedTimeslots);
 
         if (!result.Succeeded)
         {
@@ -141,6 +150,20 @@ public class MemberAuthSurfaceController : SurfaceController
             TempData["SignupError"] = errorMessage;
             TempData["SignupModel"] = System.Text.Json.JsonSerializer.Serialize(model);
             return Redirect(signupUrl);
+        }
+
+        // Get crew names for selected crews (needed for TempData and emails)
+        var crewNames = new List<string>();
+        var crewIdsWithSupervisors = new List<(int crewId, string crewName)>();
+
+        foreach (var crewId in model.CrewWishes ?? new List<int>())
+        {
+            var crew = _contentService.GetById(crewId);
+            if (crew != null)
+            {
+                crewNames.Add(crew.Name ?? $"Crew {crewId}");
+                crewIdsWithSupervisors.Add((crewId, crew.Name ?? $"Crew {crewId}"));
+            }
         }
 
         try
@@ -153,20 +176,6 @@ public class MemberAuthSurfaceController : SurfaceController
                 !string.IsNullOrEmpty(signupSubject), !string.IsNullOrEmpty(signupBody));
             _logger.LogInformation("Supervisor templates - Subject: {HasSubject}, Body: {HasBody}",
                 !string.IsNullOrEmpty(supervisorSubject), !string.IsNullOrEmpty(supervisorBody));
-
-            // Get crew names for selected crews
-            var crewNames = new List<string>();
-            var crewIdsWithSupervisors = new List<(int crewId, string crewName)>();
-
-            foreach (var crewId in model.CrewWishes ?? new List<int>())
-            {
-                var crew = _contentService.GetById(crewId);
-                if (crew != null)
-                {
-                    crewNames.Add(crew.Name ?? $"Crew {crewId}");
-                    crewIdsWithSupervisors.Add((crewId, crew.Name ?? $"Crew {crewId}"));
-                }
-            }
 
             _logger.LogInformation("Member selected {CrewCount} crews: {CrewNames}",
                 crewNames.Count, string.Join(", ", crewNames));
@@ -198,7 +207,8 @@ public class MemberAuthSurfaceController : SurfaceController
             else
             {
                 // Fallback to old welcome email if templates not configured
-                await _emailService.SendWelcomeEmailAsync(model.Email, model.FirstName);
+                var timeslotWishesFallback = model.SelectedTimeslots != null ? string.Join(", ", model.SelectedTimeslots) : null;
+                await _emailService.SendWelcomeEmailAsync(model.Email, model.FirstName, model.MemberWish, timeslotWishesFallback);
             }
 
             // Send supervisor notifications if templates are configured
@@ -223,15 +233,18 @@ public class MemberAuthSurfaceController : SurfaceController
             _logger.LogError(ex, "Error sending signup emails for {Email}", model.Email);
         }
 
-        // Check if signup page has a first child article page to redirect to
-        var redirectUrl = GetSignupRedirectUrl();
-        if (!string.IsNullOrEmpty(redirectUrl))
-        {
-            return Redirect(redirectUrl);
-        }
+        TempData["MemberName"] = $"{model.FirstName} {model.LastName}";
+        TempData["SelectedCrews"] = string.Join(", ", crewNames);
+        TempData["MemberWish"] = model.MemberWish;
+        TempData["SelectedTimeslots"] = model.SelectedTimeslots != null ? string.Join(", ", model.SelectedTimeslots) : string.Empty;
 
-        var dashboardUrl = GetDashboardUrl();
-        return Redirect(dashboardUrl ?? "/");
+        return RedirectToAction("SignupConfirmation");
+    }
+
+    [HttpGet]
+    public IActionResult SignupConfirmation()
+    {
+        return View("~/Views/SignupConfirmation.cshtml");
     }
 
     #endregion
