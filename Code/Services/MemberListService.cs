@@ -25,7 +25,7 @@ public class MemberListService : IMemberListService
         _logger = logger;
     }
 
-    public Task<MemberListData?> GetAcceptedMembersAsync(string requestingMemberEmail)
+    public Task<MemberListData?> GetAllMembersAsync(string requestingMemberEmail)
     {
         var requestingMember = _memberService.GetByEmail(requestingMemberEmail);
         if (requestingMember == null)
@@ -48,22 +48,10 @@ public class MemberListService : IMemberListService
         var crewNameCache = new Dictionary<Guid, string>();
         var items = new List<MemberListItem>();
         var allCrewNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        var adminGroupName = adminGroup?.Name;
+        var allGroupNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var member in allMembers)
         {
-            if (!member.GetValue<bool>("accept2026"))
-                continue;
-
-            // Skip admin members from the list
-            if (adminGroupName != null)
-            {
-                var memberGroups = _memberService.GetAllRoles(member.Id);
-                if (memberGroups.Contains(adminGroupName))
-                    continue;
-            }
-
             var firstName = member.GetValue<string>("firstName") ?? string.Empty;
             var lastName = member.GetValue<string>("lastName") ?? string.Empty;
             var fullName = $"{firstName} {lastName}".Trim();
@@ -72,9 +60,12 @@ public class MemberListService : IMemberListService
 
             var crewsValue = member.GetValue<string>("crews");
             var crewNames = ResolveCrewNames(crewsValue, crewNameCache);
-
             foreach (var name in crewNames)
                 allCrewNames.Add(name);
+
+            var memberGroups = _memberService.GetAllRoles(member.Id).ToList();
+            foreach (var group in memberGroups)
+                allGroupNames.Add(group);
 
             items.Add(new MemberListItem
             {
@@ -82,14 +73,16 @@ public class MemberListService : IMemberListService
                 FullName = fullName,
                 Email = member.Email ?? string.Empty,
                 SignupDate = member.CreateDate,
-                CrewNames = crewNames
+                CrewNames = crewNames,
+                MemberGroups = memberGroups
             });
         }
 
         var result = new MemberListData
         {
             Members = items.OrderBy(m => m.FullName).ToList(),
-            AllCrewNames = allCrewNames.OrderBy(c => c).ToList()
+            AllCrewNames = allCrewNames.OrderBy(c => c).ToList(),
+            AllGroupNames = allGroupNames.OrderBy(g => g).ToList()
         };
 
         return Task.FromResult<MemberListData?>(result);

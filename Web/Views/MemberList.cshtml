@@ -37,7 +37,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <h1 class="text-2xl font-bold">Frivilligliste</h1>
-                        <p class="text-white/70 text-sm">Accepterede frivillige for 2026</p>
+                        <p class="text-white/70 text-sm">Alle frivillige</p>
                     </div>
                     <span id="memberCount" class="bg-white/20 text-white text-sm px-4 py-2 rounded-full font-medium">
                         @Model.Members.Count frivillige
@@ -65,7 +65,7 @@
                             class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent"
                         >
                     </div>
-                    <div class="sm:w-56">
+                    <div class="sm:w-52">
                         <select
                             id="crewFilter"
                             class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent bg-white"
@@ -75,7 +75,20 @@
                             {
                                 <option value="@crew">@crew</option>
                             }
-                            <option value="__none__">Ingen crew tildelt</option>
+                            <option value="__none_crew__">Ingen crew tildelt</option>
+                        </select>
+                    </div>
+                    <div class="sm:w-52">
+                        <select
+                            id="groupFilter"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent bg-white"
+                        >
+                            <option value="">Alle grupper</option>
+                            @foreach (var group in Model.AllGroups)
+                            {
+                                <option value="@group">@group</option>
+                            }
+                            <option value="__none_group__">Ingen gruppe</option>
                         </select>
                     </div>
                     <button
@@ -109,6 +122,9 @@
                                 <th class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
                                     Crew
                                 </th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
+                                    Gruppe(r)
+                                </th>
                                 <th
                                     data-sort="signup"
                                     class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider"
@@ -120,11 +136,11 @@
                         <tbody id="memberTableBody" class="bg-white divide-y divide-gray-200">
                             @foreach (var member in Model.Members)
                             {
-                                var crewDisplay = member.Crews.Any()
-                                    ? string.Join(", ", member.Crews)
-                                    : "Ingen crew";
                                 var crewDataAttr = member.Crews.Any()
                                     ? string.Join("|", member.Crews).ToLowerInvariant()
+                                    : "";
+                                var groupDataAttr = member.Groups.Any()
+                                    ? string.Join("|", member.Groups).ToLowerInvariant()
                                     : "";
                                 <tr
                                     class="hover:bg-slate-50 transition-colors"
@@ -132,6 +148,8 @@
                                     data-email="@member.Email.ToLowerInvariant()"
                                     data-crews="@crewDataAttr"
                                     data-has-crew="@(member.Crews.Any() ? "1" : "0")"
+                                    data-groups="@groupDataAttr"
+                                    data-has-group="@(member.Groups.Any() ? "1" : "0")"
                                     data-signup="@member.SignupDate.Ticks"
                                 >
                                     <td class="px-6 py-4 whitespace-nowrap">
@@ -167,6 +185,29 @@
                                             <span class="text-sm text-gray-400 italic">Ingen crew</span>
                                         }
                                     </td>
+                                    <td class="px-6 py-4">
+                                        @if (member.Groups.Any())
+                                        {
+                                            <div class="flex flex-wrap gap-1">
+                                                @foreach (var group in member.Groups)
+                                                {
+                                                    var badgeColor = group.ToLowerInvariant() switch
+                                                    {
+                                                        "admin" => "bg-red-100 text-red-800",
+                                                        "vagtplanlæggere" => "bg-purple-100 text-purple-800",
+                                                        _ => "bg-green-100 text-green-800"
+                                                    };
+                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium @badgeColor">
+                                                        @group
+                                                    </span>
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-sm text-gray-400 italic">Ingen gruppe</span>
+                                        }
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         @member.SignupDate.ToString("dd.MM.yyyy")
                                     </td>
@@ -200,32 +241,35 @@
         (function () {
             const searchInput = document.getElementById('searchInput');
             const crewFilter = document.getElementById('crewFilter');
+            const groupFilter = document.getElementById('groupFilter');
             const resetBtn = document.getElementById('resetBtn');
             const tableBody = document.getElementById('memberTableBody');
             const noResults = document.getElementById('noResults');
             const memberCountBadge = document.getElementById('memberCount');
             const visibleCount = document.getElementById('visibleCount');
 
-            const totalMembers = @Model.Members.Count;
             let rows = Array.from(tableBody.querySelectorAll('tr'));
             let currentSort = { col: 'name', asc: true };
 
             function applyFiltersAndSort() {
                 const search = searchInput.value.toLowerCase().trim();
                 const crew = crewFilter.value;
+                const group = groupFilter.value;
 
                 let visible = rows.filter(function (row) {
                     const name = row.dataset.name || '';
                     const email = row.dataset.email || '';
                     const crews = row.dataset.crews || '';
                     const hasCrew = row.dataset.hasCrew === '1';
+                    const groups = row.dataset.groups || '';
+                    const hasGroup = row.dataset.hasGroup === '1';
 
                     const matchesSearch = !search || name.includes(search) || email.includes(search);
 
                     let matchesCrew;
                     if (!crew) {
                         matchesCrew = true;
-                    } else if (crew === '__none__') {
+                    } else if (crew === '__none_crew__') {
                         matchesCrew = !hasCrew;
                     } else {
                         matchesCrew = crews.split('|').some(function (c) {
@@ -233,27 +277,37 @@
                         });
                     }
 
-                    return matchesSearch && matchesCrew;
+                    let matchesGroup;
+                    if (!group) {
+                        matchesGroup = true;
+                    } else if (group === '__none_group__') {
+                        matchesGroup = !hasGroup;
+                    } else {
+                        matchesGroup = groups.split('|').some(function (g) {
+                            return g.trim() === group.toLowerCase();
+                        });
+                    }
+
+                    return matchesSearch && matchesCrew && matchesGroup;
                 });
 
                 // Sort visible rows
                 visible.sort(function (a, b) {
-                    var valA, valB;
                     if (currentSort.col === 'name') {
-                        valA = a.dataset.name;
-                        valB = b.dataset.name;
+                        var valA = a.dataset.name;
+                        var valB = b.dataset.name;
                         return currentSort.asc
                             ? valA.localeCompare(valB, 'da')
                             : valB.localeCompare(valA, 'da');
                     } else if (currentSort.col === 'email') {
-                        valA = a.dataset.email;
-                        valB = b.dataset.email;
+                        var valA = a.dataset.email;
+                        var valB = b.dataset.email;
                         return currentSort.asc
                             ? valA.localeCompare(valB, 'da')
                             : valB.localeCompare(valA, 'da');
                     } else if (currentSort.col === 'signup') {
-                        valA = parseInt(a.dataset.signup, 10);
-                        valB = parseInt(b.dataset.signup, 10);
+                        var valA = parseInt(a.dataset.signup, 10);
+                        var valB = parseInt(b.dataset.signup, 10);
                         return currentSort.asc ? valA - valB : valB - valA;
                     }
                     return 0;
@@ -294,15 +348,17 @@
 
             searchInput.addEventListener('input', applyFiltersAndSort);
             crewFilter.addEventListener('change', applyFiltersAndSort);
+            groupFilter.addEventListener('change', applyFiltersAndSort);
 
             resetBtn.addEventListener('click', function () {
                 searchInput.value = '';
                 crewFilter.value = '';
+                groupFilter.value = '';
                 applyFiltersAndSort();
                 searchInput.focus();
             });
 
-            // Initial render (already sorted by name server-side, but sync the indicator)
+            // Initial render
             applyFiltersAndSort();
         })();
     </script>

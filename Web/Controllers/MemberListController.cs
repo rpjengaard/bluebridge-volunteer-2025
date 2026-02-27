@@ -23,7 +23,7 @@ public class MemberListController : Controller
         if (currentMember == null)
             return Redirect("/login?returnUrl=/members");
 
-        var data = await _memberListService.GetAcceptedMembersAsync(currentMember.Email!);
+        var data = await _memberListService.GetAllMembersAsync(currentMember.Email!);
         if (data == null)
             return Redirect("/dashboard");
 
@@ -35,9 +35,11 @@ public class MemberListController : Controller
                 FullName = m.FullName,
                 Email = m.Email,
                 SignupDate = m.SignupDate,
-                Crews = m.CrewNames
+                Crews = m.CrewNames,
+                Groups = m.MemberGroups
             }).ToList(),
-            AllCrews = data.AllCrewNames
+            AllCrews = data.AllCrewNames,
+            AllGroups = data.AllGroupNames
         };
 
         return View("~/Views/MemberList.cshtml", viewModel);
