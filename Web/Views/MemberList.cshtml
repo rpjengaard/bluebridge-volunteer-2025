@@ -20,222 +20,149 @@
         .text-blue-bridge { color: #23297A; }
         .bg-accent-yellow { background-color: #FFF000; }
         .border-blue-bridge { border-color: #23297A; }
-        th[data-sort] { cursor: pointer; user-select: none; }
-        th[data-sort]:hover { background-color: rgba(255,255,255,0.1); }
-        th[data-sort].sort-asc::after { content: ' ↑'; opacity: 0.8; }
-        th[data-sort].sort-desc::after { content: ' ↓'; opacity: 0.8; }
-        th[data-sort]:not(.sort-asc):not(.sort-desc)::after { content: ' ↕'; opacity: 0.4; }
     </style>
 </head>
 <body class="h-full">
-    <div class="min-h-screen">
-        @await Html.PartialAsync("Partials/_Navigation")
+
+    @await Html.PartialAsync("Partials/_Navigation")
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
 
         <!-- Header -->
-        <header class="bg-blue-bridge text-white shadow-lg">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <h1 class="text-2xl font-bold">Frivilligliste</h1>
-                        <p class="text-white/70 text-sm">Alle frivillige</p>
-                    </div>
-                    <span id="memberCount" class="bg-white/20 text-white text-sm px-4 py-2 rounded-full font-medium">
-                        @Model.Members.Count frivillige
-                    </span>
+        <div class="mb-8">
+            <div class="flex flex-wrap items-start gap-3 justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Frivilligliste</h1>
+                    <p class="mt-2 text-gray-600">Alle frivillige for Blue Bridge Festival 2026.</p>
                 </div>
+                <span id="memberCount" class="flex items-center bg-blue-bridge text-white text-sm px-4 py-2 rounded-full font-medium">
+                    @Model.Members.Count frivillige
+                </span>
             </div>
-        </header>
+        </div>
 
-        <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-            <!-- Search and filter controls -->
-            <div class="bg-white shadow rounded-lg p-4 mb-6">
-                <div class="flex flex-col sm:flex-row gap-3">
-                    <div class="flex-1 relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                            </svg>
-                        </div>
-                        <input
-                            type="search"
-                            id="searchInput"
-                            placeholder="Søg på navn eller e-mail..."
-                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent"
-                        >
+        <!-- Search and filter controls -->
+        <div class="bg-white shadow rounded-lg p-4 mb-6">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <div class="flex-1 relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                        </svg>
                     </div>
-                    <div class="sm:w-52">
-                        <select
-                            id="crewFilter"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent bg-white"
-                        >
-                            <option value="">Alle crews</option>
-                            @foreach (var crew in Model.AllCrews)
-                            {
-                                <option value="@crew">@crew</option>
-                            }
-                            <option value="__none_crew__">Ingen crew tildelt</option>
-                        </select>
-                    </div>
-                    <div class="sm:w-52">
-                        <select
-                            id="groupFilter"
-                            class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent bg-white"
-                        >
-                            <option value="">Alle grupper</option>
-                            @foreach (var group in Model.AllGroups)
-                            {
-                                <option value="@group">@group</option>
-                            }
-                            <option value="__none_group__">Ingen gruppe</option>
-                        </select>
-                    </div>
-                    <button
-                        id="resetBtn"
-                        type="button"
-                        class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors whitespace-nowrap"
+                    <input
+                        type="search"
+                        id="searchInput"
+                        placeholder="Søg på navn eller e-mail..."
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent"
                     >
-                        Nulstil
-                    </button>
                 </div>
+                <div class="sm:w-52">
+                    <select
+                        id="crewFilter"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent bg-white"
+                    >
+                        <option value="">Alle crews</option>
+                        @foreach (var crew in Model.AllCrews)
+                        {
+                            <option value="@crew">@crew</option>
+                        }
+                        <option value="__none_crew__">Ingen crew tildelt</option>
+                    </select>
+                </div>
+                <div class="sm:w-52">
+                    <select
+                        id="groupFilter"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent bg-white"
+                    >
+                        <option value="">Alle grupper</option>
+                        @foreach (var group in Model.AllGroups)
+                        {
+                            <option value="@group">@group</option>
+                        }
+                        <option value="__none_group__">Ingen gruppe</option>
+                    </select>
+                </div>
+                <button
+                    id="resetBtn"
+                    type="button"
+                    class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors whitespace-nowrap"
+                >
+                    Nulstil
+                </button>
             </div>
+        </div>
 
-            <!-- Member table -->
-            <div class="bg-white shadow rounded-lg overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200" id="memberTable">
-                        <thead class="bg-blue-bridge">
-                            <tr>
-                                <th
-                                    data-sort="name"
-                                    class="sort-asc px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider"
-                                >
-                                    Navn
-                                </th>
-                                <th
-                                    data-sort="email"
-                                    class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider"
-                                >
-                                    E-mail
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
-                                    Crew
-                                </th>
-                                <th class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider">
-                                    Gruppe(r)
-                                </th>
-                                <th
-                                    data-sort="signup"
-                                    class="px-6 py-3 text-left text-xs font-semibold text-white uppercase tracking-wider"
-                                >
-                                    Tilmeldt
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody id="memberTableBody" class="bg-white divide-y divide-gray-200">
-                            @foreach (var member in Model.Members)
+        <!-- Member list -->
+        <div id="memberList" class="space-y-3">
+            @foreach (var member in Model.Members.OrderBy(m => m.FullName))
+            {
+                var crewDataAttr = member.Crews.Any()
+                    ? string.Join("|", member.Crews).ToLowerInvariant()
+                    : "";
+                var groupDataAttr = member.Groups.Any()
+                    ? string.Join("|", member.Groups).ToLowerInvariant()
+                    : "";
+                <a
+                    href="/member?key=@member.MemberKey"
+                    class="member-card block bg-white shadow rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                    data-name="@member.FullName.ToLowerInvariant()"
+                    data-email="@member.Email.ToLowerInvariant()"
+                    data-crews="@crewDataAttr"
+                    data-has-crew="@(member.Crews.Any() ? "1" : "0")"
+                    data-groups="@groupDataAttr"
+                    data-has-group="@(member.Groups.Any() ? "1" : "0")"
+                >
+                    <div class="flex items-center gap-3">
+                        <div class="h-10 w-10 rounded-lg bg-blue-bridge flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                            @(member.FullName.Length > 0 ? member.FullName[0].ToString().ToUpper() : "?")
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium text-gray-900 truncate">@member.FullName</div>
+                            <div class="text-sm text-gray-500 truncate">@member.Email</div>
+                            @if (member.Crews.Any() || member.Groups.Any())
                             {
-                                var crewDataAttr = member.Crews.Any()
-                                    ? string.Join("|", member.Crews).ToLowerInvariant()
-                                    : "";
-                                var groupDataAttr = member.Groups.Any()
-                                    ? string.Join("|", member.Groups).ToLowerInvariant()
-                                    : "";
-                                <tr
-                                    class="hover:bg-slate-50 transition-colors"
-                                    data-name="@member.FullName.ToLowerInvariant()"
-                                    data-email="@member.Email.ToLowerInvariant()"
-                                    data-crews="@crewDataAttr"
-                                    data-has-crew="@(member.Crews.Any() ? "1" : "0")"
-                                    data-groups="@groupDataAttr"
-                                    data-has-group="@(member.Groups.Any() ? "1" : "0")"
-                                    data-signup="@member.SignupDate.Ticks"
-                                >
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <a
-                                            href="/member?key=@member.MemberKey"
-                                            class="text-sm font-medium text-blue-bridge hover:underline"
-                                        >
-                                            @member.FullName
-                                        </a>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <a
-                                            href="mailto:@member.Email"
-                                            class="text-sm text-gray-600 hover:text-blue-bridge hover:underline"
-                                        >
-                                            @member.Email
-                                        </a>
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        @if (member.Crews.Any())
+                                <div class="flex flex-wrap gap-1 mt-1">
+                                    @foreach (var crew in member.Crews)
+                                    {
+                                        <span class="inline-block text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">@crew</span>
+                                    }
+                                    @foreach (var group in member.Groups)
+                                    {
+                                        var badgeColor = group.ToLowerInvariant() switch
                                         {
-                                            <div class="flex flex-wrap gap-1">
-                                                @foreach (var crew in member.Crews)
-                                                {
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                                                        @crew
-                                                    </span>
-                                                }
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-sm text-gray-400 italic">Ingen crew</span>
-                                        }
-                                    </td>
-                                    <td class="px-6 py-4">
-                                        @if (member.Groups.Any())
-                                        {
-                                            <div class="flex flex-wrap gap-1">
-                                                @foreach (var group in member.Groups)
-                                                {
-                                                    var badgeColor = group.ToLowerInvariant() switch
-                                                    {
-                                                        "admin" => "bg-red-100 text-red-800",
-                                                        "vagtplanlæggere" => "bg-purple-100 text-purple-800",
-                                                        _ => "bg-green-100 text-green-800"
-                                                    };
-                                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium @badgeColor">
-                                                        @group
-                                                    </span>
-                                                }
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-sm text-gray-400 italic">Ingen gruppe</span>
-                                        }
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        @member.SignupDate.ToString("dd.MM.yyyy")
-                                    </td>
-                                </tr>
+                                            "admin" => "bg-red-100 text-red-800",
+                                            "vagtplanlæggere" => "bg-purple-100 text-purple-800",
+                                            _ => "bg-green-100 text-green-800"
+                                        };
+                                        <span class="inline-block text-xs @badgeColor px-2 py-0.5 rounded">@group</span>
+                                    }
+                                </div>
                             }
-                        </tbody>
-                    </table>
-                </div>
+                        </div>
+                        <div class="text-xs text-gray-400 flex-shrink-0 hidden sm:block">
+                            @member.SignupDate.ToString("dd.MM.yyyy")
+                        </div>
+                        <svg class="h-5 w-5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                        </svg>
+                    </div>
+                </a>
+            }
+        </div>
 
-                <!-- Empty state -->
-                <div id="noResults" class="hidden px-6 py-12 text-center">
-                    <svg class="mx-auto h-10 w-10 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                    </svg>
-                    <p class="text-sm text-gray-500">Ingen frivillige matcher søgningen.</p>
-                </div>
+        <!-- Empty state -->
+        <div id="noResults" class="hidden bg-white shadow rounded-lg p-12 text-center">
+            <svg class="mx-auto h-10 w-10 text-gray-300 mb-3" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+            </svg>
+            <p class="text-sm text-gray-500">Ingen frivillige matcher søgningen.</p>
+        </div>
 
-                <!-- Footer with result count -->
-                <div class="border-t border-gray-200 px-6 py-3 bg-gray-50">
-                    <p class="text-xs text-gray-500">
-                        Viser <span id="visibleCount">@Model.Members.Count</span> ud af @Model.Members.Count frivillige
-                    </p>
-                </div>
-            </div>
-        </main>
+    </main>
 
-        @await Html.PartialAsync("Partials/_Footer")
-    </div>
+    @await Html.PartialAsync("Partials/_Footer")
 
     <script>
         (function () {
@@ -243,26 +170,26 @@
             const crewFilter = document.getElementById('crewFilter');
             const groupFilter = document.getElementById('groupFilter');
             const resetBtn = document.getElementById('resetBtn');
-            const tableBody = document.getElementById('memberTableBody');
+            const memberList = document.getElementById('memberList');
             const noResults = document.getElementById('noResults');
             const memberCountBadge = document.getElementById('memberCount');
-            const visibleCount = document.getElementById('visibleCount');
 
-            let rows = Array.from(tableBody.querySelectorAll('tr'));
-            let currentSort = { col: 'name', asc: true };
+            const cards = Array.from(memberList.querySelectorAll('.member-card'));
 
-            function applyFiltersAndSort() {
+            function applyFilters() {
                 const search = searchInput.value.toLowerCase().trim();
                 const crew = crewFilter.value;
                 const group = groupFilter.value;
 
-                let visible = rows.filter(function (row) {
-                    const name = row.dataset.name || '';
-                    const email = row.dataset.email || '';
-                    const crews = row.dataset.crews || '';
-                    const hasCrew = row.dataset.hasCrew === '1';
-                    const groups = row.dataset.groups || '';
-                    const hasGroup = row.dataset.hasGroup === '1';
+                let visibleCount = 0;
+
+                cards.forEach(function (card) {
+                    const name = card.dataset.name || '';
+                    const email = card.dataset.email || '';
+                    const crews = card.dataset.crews || '';
+                    const hasCrew = card.dataset.hasCrew === '1';
+                    const groups = card.dataset.groups || '';
+                    const hasGroup = card.dataset.hasGroup === '1';
 
                     const matchesSearch = !search || name.includes(search) || email.includes(search);
 
@@ -288,78 +215,27 @@
                         });
                     }
 
-                    return matchesSearch && matchesCrew && matchesGroup;
+                    const visible = matchesSearch && matchesCrew && matchesGroup;
+                    card.style.display = visible ? '' : 'none';
+                    if (visible) visibleCount++;
                 });
 
-                // Sort visible rows
-                visible.sort(function (a, b) {
-                    if (currentSort.col === 'name') {
-                        var valA = a.dataset.name;
-                        var valB = b.dataset.name;
-                        return currentSort.asc
-                            ? valA.localeCompare(valB, 'da')
-                            : valB.localeCompare(valA, 'da');
-                    } else if (currentSort.col === 'email') {
-                        var valA = a.dataset.email;
-                        var valB = b.dataset.email;
-                        return currentSort.asc
-                            ? valA.localeCompare(valB, 'da')
-                            : valB.localeCompare(valA, 'da');
-                    } else if (currentSort.col === 'signup') {
-                        var valA = parseInt(a.dataset.signup, 10);
-                        var valB = parseInt(b.dataset.signup, 10);
-                        return currentSort.asc ? valA - valB : valB - valA;
-                    }
-                    return 0;
-                });
-
-                // Hide all rows, then append sorted visible rows
-                rows.forEach(function (r) { r.style.display = 'none'; });
-                visible.forEach(function (r) {
-                    r.style.display = '';
-                    tableBody.appendChild(r);
-                });
-
-                const count = visible.length;
-                noResults.classList.toggle('hidden', count > 0);
-                visibleCount.textContent = count;
-                memberCountBadge.textContent = count + ' frivillige';
+                noResults.classList.toggle('hidden', visibleCount > 0);
+                memberList.classList.toggle('hidden', visibleCount === 0);
+                memberCountBadge.textContent = visibleCount + ' frivillige';
             }
 
-            // Column sort headers
-            document.querySelectorAll('th[data-sort]').forEach(function (th) {
-                th.addEventListener('click', function () {
-                    const col = th.dataset.sort;
-                    if (currentSort.col === col) {
-                        currentSort.asc = !currentSort.asc;
-                    } else {
-                        currentSort.col = col;
-                        currentSort.asc = true;
-                    }
-
-                    document.querySelectorAll('th[data-sort]').forEach(function (el) {
-                        el.classList.remove('sort-asc', 'sort-desc');
-                    });
-                    th.classList.add(currentSort.asc ? 'sort-asc' : 'sort-desc');
-
-                    applyFiltersAndSort();
-                });
-            });
-
-            searchInput.addEventListener('input', applyFiltersAndSort);
-            crewFilter.addEventListener('change', applyFiltersAndSort);
-            groupFilter.addEventListener('change', applyFiltersAndSort);
+            searchInput.addEventListener('input', applyFilters);
+            crewFilter.addEventListener('change', applyFilters);
+            groupFilter.addEventListener('change', applyFilters);
 
             resetBtn.addEventListener('click', function () {
                 searchInput.value = '';
                 crewFilter.value = '';
                 groupFilter.value = '';
-                applyFiltersAndSort();
+                applyFilters();
                 searchInput.focus();
             });
-
-            // Initial render
-            applyFiltersAndSort();
         })();
     </script>
 </body>
