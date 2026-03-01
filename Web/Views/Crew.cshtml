@@ -64,6 +64,31 @@
     var messages = currentMember != null
         ? await CrewMessageService.GetMessagesAsync(Model.Id)
         : new List<CrewMessageData>();
+
+    // Load rejected members who wished for this crew
+    var rejectedMembers = new List<(string FullName, string Email, string RejectedBy, string RejectionReason)>();
+    if (canEdit && crewData != null)
+    {
+        var crewKeyNoDashes = Model.Key.ToString("N");
+        foreach (var m in MemberService.GetAllMembers())
+        {
+            if (!m.GetValue<bool>("rejected")) continue;
+            var wishes = m.GetValue<string>("crewWishes") ?? string.Empty;
+            if (!wishes.Contains(crewKeyNoDashes, StringComparison.OrdinalIgnoreCase)) continue;
+
+            var firstName = m.GetValue<string>("firstName") ?? string.Empty;
+            var lastName = m.GetValue<string>("lastName") ?? string.Empty;
+            var fullName = $"{firstName} {lastName}".Trim();
+            if (string.IsNullOrEmpty(fullName)) fullName = m.Name ?? m.Email ?? "Ukendt";
+
+            rejectedMembers.Add((
+                fullName,
+                m.Email ?? string.Empty,
+                m.GetValue<string>("rejectedBy") ?? string.Empty,
+                m.GetValue<string>("rejectionReason") ?? string.Empty
+            ));
+        }
+    }
 }
 <!DOCTYPE html>
 <html lang="da" class="h-full bg-slate-50">
@@ -221,7 +246,84 @@ else
 
                 @if (viewMode == CrewViewMode.Admin || viewMode == CrewViewMode.Scheduler)
                 {
-                    <!-- Assigned Members (Admin/Scheduler only) -->
+                    <!-- 1. Ansøgninger (Admin/Scheduler only) -->
+                    @if (crewData.WishlistMembers.Any())
+                    {
+                        <div class="bg-white shadow rounded-lg overflow-hidden">
+                            <div class="bg-amber-500 px-6 py-4 flex items-center justify-between">
+                                <h2 class="text-xl font-bold text-white">Ansøgninger</h2>
+                                <span class="bg-white/20 text-white text-sm px-3 py-1 rounded-full">
+                                    @crewData.WishlistMembers.Count @(crewData.WishlistMembers.Count == 1 ? "person" : "personer")
+                                </span>
+                            </div>
+                            <div class="p-6">
+                                <p class="text-sm text-gray-600 mb-4">
+                                    Disse frivillige har dette crew på deres ønskeliste og er ikke tildelt et crew endnu.
+                                </p>
+                                <div class="space-y-3">
+                                    @foreach (var member in crewData.WishlistMembers)
+                                    {
+                                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                                            <div class="flex items-center gap-3">
+                                                <div class="h-10 w-10 rounded-lg bg-amber-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                                    @(member.FullName.Length > 0 ? member.FullName[0].ToString().ToUpper() : "?")
+                                                </div>
+                                                <div class="flex-1 min-w-0">
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        <button onclick="openMemberModal('@member.MemberKey')" class="font-medium text-blue-bridge hover:underline text-left">@member.FullName</button>
+                                                        @if (member.HasAccepted2026)
+                                                        {
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Bekræftet</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Ikke bekræftet</span>
+                                                        }
+                                                    </div>
+                                                    <div class="text-sm text-gray-500 truncate">@member.Email</div>
+                                                    @if (member.CrewWishes.Any())
+                                                    {
+                                                        <div class="flex flex-wrap gap-1 mt-1">
+                                                            @foreach (var wish in member.CrewWishes)
+                                                            {
+                                                                <a href="@wish.Url" class="inline-block text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded hover:bg-amber-200 transition-colors">@wish.Name</a>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                                <div class="flex items-center gap-2 flex-shrink-0">
+                                                    <form method="post" action="/umbraco/surface/CrewSurface/AcceptMember" class="inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="crewId" value="@crewData.Id" />
+                                                        <input type="hidden" name="memberId" value="@member.MemberId" />
+                                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                                        <button type="submit" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                                            <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                            </svg>
+                                                            Accepter
+                                                        </button>
+                                                    </form>
+                                                    <button type="button"
+                                                            data-member-id="@member.MemberId"
+                                                            data-member-name="@member.FullName"
+                                                            onclick="openDismissModal(this)"
+                                                            class="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                                                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                        Afslag
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- 2. Tildelte frivillige (Admin/Scheduler only) -->
                     <div class="bg-white shadow rounded-lg overflow-hidden">
                         <div class="bg-green-600 px-6 py-4">
                             <div class="flex items-center justify-between mb-2">
@@ -318,79 +420,41 @@ else
                         </div>
                     </div>
 
-                    <!-- Wishlist Members (Admin/Scheduler only) -->
-                    @if (crewData.WishlistMembers.Any())
+                    <!-- 3. Afslåede ansøgninger (Admin/Scheduler only) -->
+                    @if (rejectedMembers.Any())
                     {
                         <div class="bg-white shadow rounded-lg overflow-hidden">
-                            <div class="bg-amber-500 px-6 py-4 flex items-center justify-between">
-                                <h2 class="text-xl font-bold text-white">Ønsker dette crew</h2>
+                            <div class="bg-red-600 px-6 py-4 flex items-center justify-between">
+                                <h2 class="text-xl font-bold text-white">Afslåede ansøgninger</h2>
                                 <span class="bg-white/20 text-white text-sm px-3 py-1 rounded-full">
-                                    @crewData.WishlistMembers.Count @(crewData.WishlistMembers.Count == 1 ? "person" : "personer")
+                                    @rejectedMembers.Count @(rejectedMembers.Count == 1 ? "person" : "personer")
                                 </span>
                             </div>
-                            <div class="p-6">
-                                <p class="text-sm text-gray-600 mb-4">
-                                    Disse frivillige har dette crew på deres ønskeliste og er ikke tildelt et crew endnu.
-                                </p>
-                                <div class="space-y-3">
-                                    @foreach (var member in crewData.WishlistMembers)
-                                    {
-                                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                            <div class="flex items-center gap-3">
-                                                <div class="h-10 w-10 rounded-lg bg-amber-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                                                    @(member.FullName.Length > 0 ? member.FullName[0].ToString().ToUpper() : "?")
-                                                </div>
-                                                <div class="flex-1 min-w-0">
-                                                    <div class="flex flex-wrap items-center gap-2">
-                                                        <button onclick="openMemberModal('@member.MemberKey')" class="font-medium text-blue-bridge hover:underline text-left">@member.FullName</button>
-                                                        @if (member.HasAccepted2026)
-                                                        {
-                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Bekræftet</span>
-                                                        }
-                                                        else
-                                                        {
-                                                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Ikke bekræftet</span>
-                                                        }
+                            <div class="p-6 space-y-3">
+                                @foreach (var (fullName, email, rejectedBy, reason) in rejectedMembers)
+                                {
+                                    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                                        <div class="flex items-start gap-3">
+                                            <div class="h-10 w-10 rounded-lg bg-red-200 flex items-center justify-center text-red-700 text-sm font-bold flex-shrink-0">
+                                                @(fullName.Length > 0 ? fullName[0].ToString().ToUpper() : "?")
+                                            </div>
+                                            <div class="flex-1 min-w-0">
+                                                <div class="font-medium text-gray-900">@fullName</div>
+                                                <div class="text-sm text-gray-500">@email</div>
+                                                @if (!string.IsNullOrEmpty(reason))
+                                                {
+                                                    <div class="mt-2 text-sm text-gray-700">
+                                                        <span class="font-medium">Begrundelse:</span> @reason
                                                     </div>
-                                                    <div class="text-sm text-gray-500 truncate">@member.Email</div>
-                                                    @if (member.CrewWishes.Any())
-                                                    {
-                                                        <div class="flex flex-wrap gap-1 mt-1">
-                                                            @foreach (var wish in member.CrewWishes)
-                                                            {
-                                                                <a href="@wish.Url" class="inline-block text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded hover:bg-amber-200 transition-colors">@wish.Name</a>
-                                                            }
-                                                        </div>
-                                                    }
-                                                </div>
-                                                <div class="flex items-center gap-2 flex-shrink-0">
-                                                    <form method="post" action="/umbraco/surface/CrewSurface/AcceptMember" class="inline">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="crewId" value="@crewData.Id" />
-                                                        <input type="hidden" name="memberId" value="@member.MemberId" />
-                                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
-                                                        <button type="submit" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                                                            <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                                            </svg>
-                                                            Accepter
-                                                        </button>
-                                                    </form>
-                                                    <button type="button"
-                                                            data-member-id="@member.MemberId"
-                                                            data-member-name="@member.FullName"
-                                                            onclick="openDismissModal(this)"
-                                                            class="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded-md text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                                                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                        Afslag
-                                                    </button>
-                                                </div>
+                                                }
+                                                @if (!string.IsNullOrEmpty(rejectedBy))
+                                                {
+                                                    <div class="mt-1 text-xs text-gray-400">Afslået af: @rejectedBy</div>
+                                                }
                                             </div>
                                         </div>
-                                    }
-                                </div>
+                                    </div>
+                                }
                             </div>
                         </div>
                     }

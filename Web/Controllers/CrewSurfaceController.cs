@@ -276,9 +276,16 @@ public class CrewSurfaceController : SurfaceController
             return Redirect(returnUrl ?? "/");
         }
 
+        var adminRecord = _memberService.GetByEmail(currentMember.Email!);
+        var adminFirstName = adminRecord?.GetValue<string>("firstName") ?? string.Empty;
+        var adminLastName = adminRecord?.GetValue<string>("lastName") ?? string.Empty;
+        var adminName = $"{adminFirstName} {adminLastName}".Trim();
+        if (string.IsNullOrEmpty(adminName))
+            adminName = currentMember.Name ?? currentMember.UserName ?? currentMember.Email ?? "Ukendt";
+
         member.SetValue("accept2026", false);
         member.SetValue("rejected", true);
-        member.SetValue("rejectedBy", currentMember.Email);
+        member.SetValue("rejectedBy", adminName);
         member.SetValue("rejectionReason", reason);
         _memberService.Save(member);
 

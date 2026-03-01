@@ -109,6 +109,12 @@ public class CrewService : ICrewService
             return Task.FromResult(CrewViewMode.Scheduler);
         }
 
+        // Check if member is in Sherif or Vice sherif group
+        if (memberGroups.Contains("Sherif") || memberGroups.Contains("Vice sherif"))
+        {
+            return Task.FromResult(CrewViewMode.Scheduler);
+        }
+
         // Also check if member is assigned as scheduler/supervisor for this specific crew
         var content = _contentService.GetById(crewId);
         if (content != null)
@@ -373,6 +379,10 @@ public class CrewService : ICrewService
             if (adminMemberIds.Contains(member.Id))
                 continue;
 
+            // Skip rejected members
+            if (member.GetValue<bool>("rejected"))
+                continue;
+
             // Check if crew is on their wishlist
             var wishlistValue = member.GetValue<string>("crewWishes");
             var wishlistIds = ParseCrewIdsWithCache(wishlistValue, crewGuidToIdCache);
@@ -530,6 +540,9 @@ public class CrewService : ICrewService
         {
             var accepted = member.GetValue<bool>("accept2026");
             if (!accepted)
+                continue;
+
+            if (member.GetValue<bool>("rejected"))
                 continue;
 
             var roles = _memberService.GetAllRoles(member.Id);
@@ -728,6 +741,10 @@ public class CrewService : ICrewService
         {
             // Skip admin members using cached set
             if (adminMemberIds.Contains(member.Id))
+                continue;
+
+            // Skip rejected members
+            if (member.GetValue<bool>("rejected"))
                 continue;
 
             var crewsValue = member.GetValue<string>("crews");

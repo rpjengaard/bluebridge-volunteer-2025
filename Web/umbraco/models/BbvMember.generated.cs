@@ -142,6 +142,29 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual string Phone => this.Value<string>(_publishedValueFallback, "phone");
 
 		///<summary>
+		/// Afslået
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
+		[ImplementPropertyType("rejected")]
+		public virtual bool Rejected => this.Value<bool>(_publishedValueFallback, "rejected");
+
+		///<summary>
+		/// Afslået af
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("rejectedBy")]
+		public virtual global::Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent RejectedBy => this.Value<global::Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>(_publishedValueFallback, "rejectedBy");
+
+		///<summary>
+		/// Grund
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("rejectionReason")]
+		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString RejectionReason => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "rejectionReason");
+
+		///<summary>
 		/// Tidligere arbejdssteder
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
