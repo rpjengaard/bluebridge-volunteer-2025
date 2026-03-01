@@ -190,6 +190,20 @@ else
                         </svg>
                     </button>
                 </div>
+                <!-- Search -->
+                <div class="relative mb-3">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                        </svg>
+                    </div>
+                    <input
+                        type="search"
+                        id="assign-search"
+                        placeholder="Søg på navn eller e-mail..."
+                        class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                </div>
                 <!-- Sort controls -->
                 <div class="flex gap-2 mb-3 text-xs">
                     <span class="text-gray-500 self-center">Sortér:</span>
@@ -223,6 +237,7 @@ else
     let currentSchedules = [];           // last-loaded schedule data (for conflict detection)
     let currentSortMode = localStorage.getItem('vagtplan-sort') || 'accepted';
     let crewMembersCache = null;   // populated on first fetch, reused for sort changes
+    let currentSearchQuery = '';         // live search filter in assign modal
 
     function getCsrfToken() {
         const el = document.querySelector('input[name="__RequestVerificationToken"]');
@@ -674,6 +689,9 @@ else
         document.getElementById('assign-shift-info').textContent = `Vagt: ${timeLabel}`;
         document.getElementById('assign-modal').classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+        currentSearchQuery = '';
+        const searchEl = document.getElementById('assign-search');
+        if (searchEl) searchEl.value = '';
         loadCrewMembers(currentSortMode);
     }
 
@@ -775,6 +793,16 @@ else
         } else {
             filtered = allMembers.filter(m => !(m.memberGroups || []).some(isSheriff));
         }
+
+        // Apply search filter
+        if (currentSearchQuery) {
+            const q = currentSearchQuery.toLowerCase();
+            filtered = filtered.filter(m =>
+                (m.name || '').toLowerCase().includes(q) ||
+                (m.email || '').toLowerCase().includes(q)
+            );
+        }
+
         const members = sortMembers(filtered, sort);
 
         if (!members || members.length === 0) {
@@ -912,6 +940,12 @@ else
             var modal = document.getElementById('assign-modal');
             if (modal && !modal.classList.contains('hidden')) closeAssignModal();
         }
+    });
+
+    // Search input in assign modal
+    document.getElementById('assign-search').addEventListener('input', function() {
+        currentSearchQuery = this.value.trim();
+        loadCrewMembers(currentSortMode);
     });
 
     // ── Init ──────────────────────────────────────────────────────────────
