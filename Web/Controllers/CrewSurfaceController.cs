@@ -253,6 +253,66 @@ public class CrewSurfaceController : SurfaceController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DismissMember(int memberId, int crewId, string reason, string returnUrl)
+    {
+        var currentMember = await _memberManager.GetCurrentMemberAsync();
+        if (currentMember == null)
+        {
+            TempData["CrewError"] = "Du skal være logget ind.";
+            return Redirect(returnUrl ?? "/");
+        }
+
+        var viewMode = await _crewService.GetMemberCrewViewModeAsync(currentMember.Email!, crewId);
+        if (viewMode == CrewViewMode.Volunteer)
+        {
+            TempData["CrewError"] = "Du har ikke tilladelse til at afvise ansøgere.";
+            return Redirect(returnUrl ?? "/");
+        }
+
+        var member = _memberService.GetById(memberId);
+        if (member == null)
+        {
+            TempData["CrewError"] = "Medlem blev ikke fundet.";
+            return Redirect(returnUrl ?? "/");
+        }
+
+        member.SetValue("accept2026", false);
+        member.SetValue("rejected", true);
+        member.SetValue("rejectedBy", currentMember.Email);
+        member.SetValue("rejectionReason", reason);
+        _memberService.Save(member);
+
+        if (!string.IsNullOrWhiteSpace(reason) && !string.IsNullOrEmpty(member.Email))
+        {
+            var crewContent = _contentService.GetById(crewId);
+            var crewName = crewContent?.Name ?? "crewet";
+            var firstName = member.GetValue<string>("firstName") ?? member.Name ?? "Frivillig";
+            var htmlBody = $@"<p>Kære {System.Net.WebUtility.HtmlEncode(firstName)},</p>
+<p>Vi har desværre ikke mulighed for at tildele dig en vagt i {System.Net.WebUtility.HtmlEncode(crewName)}.</p>
+<p><strong>Begrundelse:</strong></p>
+<p>{System.Net.WebUtility.HtmlEncode(reason)}</p>
+<p>Venlig hilsen,<br>Blue Bridge Festival</p>";
+
+            try
+            {
+                await _memberEmailService.SendCustomEmailAsync(
+                    member.Email,
+                    $"Svar på din ansøgning til {crewName}",
+                    htmlBody,
+                    new Code.Services.MemberEmailData { FirstName = firstName, Email = member.Email });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send dismissal email to {Email}", member.Email);
+            }
+        }
+
+        TempData["CrewSuccess"] = $"{member.Name} er blevet afvist og har modtaget en besked.";
+        return Redirect(returnUrl ?? "/");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteMessage(int messageId, int crewId, string returnUrl)
     {
         var currentMember = await _memberManager.GetCurrentMemberAsync();
