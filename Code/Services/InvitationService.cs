@@ -526,7 +526,7 @@ public class InvitationService : IInvitationService
 
         foreach (var member in members)
         {
-            var wishesValue = member.GetValue<string>("crewWishes");
+            var wishesValue = member.GetValue<string>("crews");
             if (string.IsNullOrWhiteSpace(wishesValue))
                 continue;
 
