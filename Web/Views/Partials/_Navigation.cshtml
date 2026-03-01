@@ -90,14 +90,15 @@
                         var navUrl = navItem.Url();
                         var navName = navItem.Name;
 
-                        // Check if this is the applications page (requires admin/scheduler)
+                        // Check if this is the applications or member list page (requires admin/scheduler)
                         var isApplicationsPage = navItem.ContentType.Alias == "bbvApplications"
                             || navUrl?.ToLowerInvariant().Contains("ansoegninger") == true
                             || navUrl?.ToLowerInvariant().Contains("ansogninger") == true;
+                        var isMemberListPage = navItem.ContentType.Alias == "bbvMemberList";
 
-                        if (isApplicationsPage && !isAdminOrScheduler)
+                        if ((isApplicationsPage || isMemberListPage) && !isAdminOrScheduler)
                         {
-                            continue; // Skip applications link for non-admin/scheduler users
+                            continue; // Skip for non-admin/scheduler users
                         }
 
                         <a href="@navUrl" class="@(isActive ? "text-white font-semibold border-b-2 border-white pb-1" : "text-white/80 hover:text-white transition-colors")">@navName</a>
@@ -145,14 +146,15 @@
                     var navUrl = navItem.Url();
                     var navName = navItem.Name;
 
-                    // Check if this is the applications page (requires admin/scheduler)
+                    // Check if this is the applications or member list page (requires admin/scheduler)
                     var isApplicationsPage = navItem.ContentType.Alias == "bbvApplications"
                         || navUrl?.ToLowerInvariant().Contains("ansoegninger") == true
                         || navUrl?.ToLowerInvariant().Contains("ansogninger") == true;
+                    var isMemberListPage = navItem.ContentType.Alias == "bbvMemberList";
 
-                    if (isApplicationsPage && !isAdminOrScheduler)
+                    if ((isApplicationsPage || isMemberListPage) && !isAdminOrScheduler)
                     {
-                        continue; // Skip applications link for non-admin/scheduler users
+                        continue; // Skip for non-admin/scheduler users
                     }
 
                     <a href="@navUrl" class="@(isActive ? "text-white font-semibold" : "text-white/80 hover:text-white") text-sm">@navName</a>
