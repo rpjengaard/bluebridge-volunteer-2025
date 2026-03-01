@@ -1,4 +1,4 @@
-@model Web.ViewModels.MemberListViewModel
+﻿@model Web.ViewModels.MemberListViewModel
 @using Umbraco.Cms.Core.Security
 @inject IMemberManager MemberManager
 @{
@@ -164,6 +164,26 @@
 
     @await Html.PartialAsync("Partials/_Footer")
 
+    <!-- Member detail modal -->
+    <div id="memberModal" class="fixed inset-0 z-50 hidden">
+        <div id="modalBackdrop" class="absolute inset-0 bg-black/60"></div>
+        <div class="relative flex items-center justify-center h-full p-4">
+            <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col">
+                <button
+                    id="modalClose"
+                    type="button"
+                    class="absolute top-3 right-3 z-10 flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                    aria-label="Luk"
+                >
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                <iframe id="modalFrame" src="" class="w-full flex-1 rounded-xl border-0" title="Medlemsprofil"></iframe>
+            </div>
+        </div>
+    </div>
+
     <script>
         (function () {
             const searchInput = document.getElementById('searchInput');
@@ -235,6 +255,37 @@
                 groupFilter.value = '';
                 applyFilters();
                 searchInput.focus();
+            });
+
+            // Modal
+            const modal = document.getElementById('memberModal');
+            const modalFrame = document.getElementById('modalFrame');
+            const modalClose = document.getElementById('modalClose');
+            const modalBackdrop = document.getElementById('modalBackdrop');
+
+            function openModal(url) {
+                modalFrame.src = url;
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeModal() {
+                modal.classList.add('hidden');
+                modalFrame.src = '';
+                document.body.style.overflow = '';
+            }
+
+            memberList.addEventListener('click', function (e) {
+                const card = e.target.closest('.member-card');
+                if (!card) return;
+                e.preventDefault();
+                openModal(card.href + '&embed=1');
+            });
+
+            modalClose.addEventListener('click', closeModal);
+            modalBackdrop.addEventListener('click', closeModal);
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeModal();
             });
         })();
     </script>

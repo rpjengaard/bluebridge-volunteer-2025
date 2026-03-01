@@ -64,8 +64,12 @@
     }
     else
     {
+        var isEmbed = Context.Request.Query.ContainsKey("embed");
         <div class="min-h-screen">
-            @await Html.PartialAsync("Partials/_Navigation")
+            @if (!isEmbed)
+            {
+                @await Html.PartialAsync("Partials/_Navigation")
+            }
 
             <!-- Header -->
             <header class="bg-blue-bridge text-white shadow-lg">
@@ -413,7 +417,10 @@
                 </div>
             </main>
 
-            @await Html.PartialAsync("Partials/_Footer")
+            @if (!isEmbed)
+            {
+                @await Html.PartialAsync("Partials/_Footer")
+            }
         </div>
     }
 </body>
