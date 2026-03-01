@@ -524,8 +524,15 @@ public class InvitationService : IInvitationService
         var wishCounts = new Dictionary<int, int>();
         var members = _memberService.GetAllMembers();
 
+        var frivilligGroup = _memberGroupService.GetByName(MemberGroupName);
+        var frivilligGroupName = frivilligGroup?.Name ?? MemberGroupName;
+
         foreach (var member in members)
         {
+            var memberRoles = _memberService.GetAllRoles(member.Id);
+            if (!memberRoles.Contains(frivilligGroupName))
+                continue;
+
             var wishesValue = member.GetValue<string>("crews");
             if (string.IsNullOrWhiteSpace(wishesValue))
                 continue;
