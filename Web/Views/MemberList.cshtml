@@ -84,6 +84,17 @@
                         <option value="__none_group__">Ingen gruppe</option>
                     </select>
                 </div>
+                <div class="sm:w-48">
+                    <select
+                        id="sortSelect"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent bg-white"
+                    >
+                        <option value="name">Sorter: Navn A-Z</option>
+                        <option value="name-desc">Sorter: Navn Z-A</option>
+                        <option value="date-desc">Sorter: Sidst tilmeldt</option>
+                        <option value="date-asc">Sorter: Først tilmeldt</option>
+                    </select>
+                </div>
                 <button
                     id="resetBtn"
                     type="button"
@@ -113,6 +124,7 @@
                     data-has-crew="@(member.Crews.Any() ? "1" : "0")"
                     data-groups="@groupDataAttr"
                     data-has-group="@(member.Groups.Any() ? "1" : "0")"
+                    data-date="@member.SignupDate.ToString("yyyy-MM-dd")"
                 >
                     <div class="flex items-center gap-3">
                         <div class="h-10 w-10 rounded-lg bg-blue-bridge flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
@@ -189,6 +201,7 @@
             const searchInput = document.getElementById('searchInput');
             const crewFilter = document.getElementById('crewFilter');
             const groupFilter = document.getElementById('groupFilter');
+            const sortSelect = document.getElementById('sortSelect');
             const resetBtn = document.getElementById('resetBtn');
             const memberList = document.getElementById('memberList');
             const noResults = document.getElementById('noResults');
@@ -243,16 +256,32 @@
                 noResults.classList.toggle('hidden', visibleCount > 0);
                 memberList.classList.toggle('hidden', visibleCount === 0);
                 memberCountBadge.textContent = visibleCount + ' frivillige';
+
+                applySort();
+            }
+
+            function applySort() {
+                const sort = sortSelect.value;
+                const sorted = Array.from(memberList.querySelectorAll('.member-card')).sort(function (a, b) {
+                    if (sort === 'name') return a.dataset.name.localeCompare(b.dataset.name, 'da');
+                    if (sort === 'name-desc') return b.dataset.name.localeCompare(a.dataset.name, 'da');
+                    if (sort === 'date-desc') return b.dataset.date.localeCompare(a.dataset.date);
+                    if (sort === 'date-asc') return a.dataset.date.localeCompare(b.dataset.date);
+                    return 0;
+                });
+                sorted.forEach(function (card) { memberList.appendChild(card); });
             }
 
             searchInput.addEventListener('input', applyFilters);
             crewFilter.addEventListener('change', applyFilters);
             groupFilter.addEventListener('change', applyFilters);
+            sortSelect.addEventListener('change', applySort);
 
             resetBtn.addEventListener('click', function () {
                 searchInput.value = '';
                 crewFilter.value = '';
                 groupFilter.value = '';
+                sortSelect.value = 'name';
                 applyFilters();
                 searchInput.focus();
             });

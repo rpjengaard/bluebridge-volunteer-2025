@@ -83,7 +83,7 @@ public class MemberListService : IMemberListService
 
         var result = new MemberListData
         {
-            Members = items.OrderBy(m => m.FullName).ToList(),
+            Members = items,
             AllCrewNames = allCrewNames.OrderBy(c => c).ToList(),
             AllGroupNames = allGroupNames.OrderBy(g => g).ToList()
         };
