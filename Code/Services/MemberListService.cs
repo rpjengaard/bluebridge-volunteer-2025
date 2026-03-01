@@ -75,7 +75,7 @@ public class MemberListService : IMemberListService
                 MemberKey = member.Key,
                 FullName = fullName,
                 Email = member.Email ?? string.Empty,
-                SignupDate = member.CreateDate,
+                SignupDate = member.GetValue<DateTime?>("acceptedDate") ?? member.CreateDate,
                 CrewNames = crewNames,
                 MemberGroups = memberGroups
             });
