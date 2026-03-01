@@ -24,6 +24,7 @@ builder.Services.AddScoped<IMemberImpersonationService, MemberImpersonationServi
 builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 builder.Services.AddScoped<ICrewMessageService, CrewMessageService>();
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
+builder.Services.AddScoped<IMemberListService, MemberListService>();
 builder.Services.AddSingleton<IEmailLogService>(sp =>
 {
     var env = sp.GetRequiredService<IWebHostEnvironment>();
