@@ -253,7 +253,7 @@ public class CrewSurfaceController : SurfaceController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DismissMember(int memberId, int crewId, string reason, string returnUrl)
+    public async Task<IActionResult> DismissMember(int memberId, int crewId, string reason, string returnUrl, bool sendEmail = false)
     {
         var currentMember = await _memberManager.GetCurrentMemberAsync();
         if (currentMember == null)
@@ -289,15 +289,19 @@ public class CrewSurfaceController : SurfaceController
         member.SetValue("rejectionReason", reason);
         _memberService.Save(member);
 
-        if (!string.IsNullOrWhiteSpace(reason) && !string.IsNullOrEmpty(member.Email))
+        if (sendEmail && !string.IsNullOrEmpty(member.Email))
         {
             var crewContent = _contentService.GetById(crewId);
             var crewName = crewContent?.Name ?? "crewet";
             var firstName = member.GetValue<string>("firstName") ?? member.Name ?? "Frivillig";
-            var htmlBody = $@"<p>Kære {System.Net.WebUtility.HtmlEncode(firstName)},</p>
+            var htmlBody = string.IsNullOrWhiteSpace(reason)
+                ? $@"<p>Kære {System.Net.WebUtility.HtmlEncode(firstName)},</p>
+<p>Vi har desværre ikke mulighed for at tildele dig en vagt i {System.Net.WebUtility.HtmlEncode(crewName)}.</p>
+<p>Venlig hilsen,<br>Blue Bridge Festival</p>"
+                : $@"<p>Kære {System.Net.WebUtility.HtmlEncode(firstName)},</p>
 <p>Vi har desværre ikke mulighed for at tildele dig en vagt i {System.Net.WebUtility.HtmlEncode(crewName)}.</p>
 <p><strong>Begrundelse:</strong></p>
-<p>{System.Net.WebUtility.HtmlEncode(reason)}</p>
+<p>{System.Net.WebUtility.HtmlEncode(reason).Replace("\r\n", "<br>").Replace("\n", "<br>")}</p>
 <p>Venlig hilsen,<br>Blue Bridge Festival</p>";
 
             try
@@ -314,7 +318,9 @@ public class CrewSurfaceController : SurfaceController
             }
         }
 
-        TempData["CrewSuccess"] = $"{member.Name} er blevet afvist og har modtaget en besked.";
+        TempData["CrewSuccess"] = sendEmail
+            ? $"{member.Name} er blevet afvist og har modtaget en besked."
+            : $"{member.Name} er blevet afvist.";
         return Redirect(returnUrl ?? "/");
     }
 
