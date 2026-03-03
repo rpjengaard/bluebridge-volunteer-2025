@@ -34,7 +34,7 @@
     // Get all available crews for the multi-select, filtering out full crews
     var crewsData = await CrewService.GetCrewsForMemberAsync("", true);
     var availableCrews = crewsData.Crews
-        .Where(c => !c.MaxVoluntiers.HasValue || c.MaxVoluntiers.Value == 0 || c.WishCount < c.MaxVoluntiers.Value)
+        .Where(c => !c.MaxVoluntiers.HasValue || c.MaxVoluntiers.Value == 0 || c.AssignedCount < c.MaxVoluntiers.Value)
         .OrderBy(c => c.Name).ToList();
 
     // Load timeslot options from datatype

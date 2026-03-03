@@ -51,6 +51,7 @@ public class CrewService : ICrewService
                 {
                     crew.MemberCount = stats.MemberCount;
                     crew.WishCount = stats.WishCount;
+                    crew.AssignedCount = stats.AssignedCount;
                     crew.SupervisorCount = stats.SupervisorCount;
                 }
                 result.Crews.Add(crew);
@@ -507,6 +508,7 @@ public class CrewService : ICrewService
     {
         public int MemberCount;
         public int WishCount;
+        public int AssignedCount;
         public int SupervisorCount;
     }
 
@@ -542,10 +544,7 @@ public class CrewService : ICrewService
 
         foreach (var member in allMembers)
         {
-            var accepted = member.GetValue<bool>("accept2026");
-            if (!accepted)
-                continue;
-
+            // Rejected members count toward nothing
             if (member.GetValue<bool>("rejected"))
                 continue;
 
@@ -556,10 +555,24 @@ public class CrewService : ICrewService
 
             var isVolunteer = volunteerGroupName != null && roles.Contains(volunteerGroupName);
             var isSupervisor = roles.Any(r => supervisorGroupNames.Contains(r));
-
-            // Parse crew assignments
             var crewsValue = member.GetValue<string>("crews");
             var assignedCrewIds = ParseCrewIdsWithCache(crewsValue, crewGuidToIdCache);
+
+            // AssignedCount: Frivillige + assigned + not rejected (no accept2026 gate)
+            if (isVolunteer && assignedCrewIds.Any())
+            {
+                foreach (var crewId in assignedCrewIds)
+                {
+                    if (!stats.ContainsKey(crewId)) continue;
+                    var entry = stats[crewId];
+                    entry.AssignedCount++;
+                    stats[crewId] = entry;
+                }
+            }
+
+            // MemberCount, WishCount, SupervisorCount require accept2026=true
+            if (!member.GetValue<bool>("accept2026"))
+                continue;
 
             if (assignedCrewIds.Any())
             {

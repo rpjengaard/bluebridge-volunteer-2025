@@ -32,6 +32,7 @@ public class CrewListItem
     public int? MaxVoluntiers { get; set; }
     public int MemberCount { get; set; }
     public int WishCount { get; set; }
+    public int AssignedCount { get; set; }  // Frivillige + assigned to crew + not rejected
     public int SupervisorCount { get; set; }
     public bool IsMemberAssigned { get; set; }
 }

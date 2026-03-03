@@ -533,6 +533,9 @@ public class InvitationService : IInvitationService
             if (!memberRoles.Contains(frivilligGroupName))
                 continue;
 
+            if (member.GetValue<bool>("rejected"))
+                continue;
+
             var wishesValue = member.GetValue<string>("crews");
             if (string.IsNullOrWhiteSpace(wishesValue))
                 continue;

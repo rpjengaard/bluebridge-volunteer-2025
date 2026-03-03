@@ -65,7 +65,7 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString Description => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "description");
 
 		///<summary>
-		/// Antal frivillige: Det antal af frivillige som crewet mener at skulle bruge.
+		/// Antal frivillige: Det antal af frivillige som crewet mener at skulle bruge. Dette tal er frivillige eksl. sheriffer og vice sheriffer
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
 		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
