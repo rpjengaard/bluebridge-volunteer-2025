@@ -85,7 +85,8 @@ public class MemberListService : IMemberListService
         {
             Members = items,
             AllCrewNames = allCrewNames.OrderBy(c => c).ToList(),
-            AllGroupNames = allGroupNames.OrderBy(g => g).ToList()
+            AllGroupNames = allGroupNames.OrderBy(g => g).ToList(),
+            IsAdmin = isAdmin
         };
 
         return Task.FromResult<MemberListData?>(result);

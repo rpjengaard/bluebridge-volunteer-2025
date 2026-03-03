@@ -36,9 +36,21 @@
                     <h1 class="text-3xl font-bold text-gray-900">Frivilligliste</h1>
                     <p class="mt-2 text-gray-600">Alle frivillige for Blue Bridge Festival 2026.</p>
                 </div>
-                <span id="memberCount" class="flex items-center bg-blue-bridge text-white text-sm px-4 py-2 rounded-full font-medium">
-                    @Model.Members.Count frivillige
-                </span>
+                <div class="flex items-center gap-2">
+                    <span id="memberCount" class="flex items-center bg-blue-bridge text-white text-sm px-4 py-2 rounded-full font-medium">
+                        @Model.Members.Count frivillige
+                    </span>
+                    @if (Model.IsAdmin)
+                    {
+                        <button id="openEmailModal" type="button"
+                            class="flex items-center gap-2 bg-blue-bridge text-white text-sm px-4 py-2 rounded-full font-medium hover:opacity-90 transition-opacity">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                            </svg>
+                            Send email (<span id="emailRecipientCount">@Model.Members.Count</span>)
+                        </button>
+                    }
+                </div>
             </div>
         </div>
 
@@ -176,6 +188,70 @@
 
     @await Html.PartialAsync("Partials/_Footer")
 
+    @if (Model.IsAdmin)
+    {
+        <!-- Hidden antiforgery form for AJAX -->
+        <form id="antiForgeryForm" style="display:none">@Html.AntiForgeryToken()</form>
+
+        <!-- Email compose modal -->
+        <div id="emailModal" class="fixed inset-0 z-50 hidden">
+            <div id="emailModalBackdrop" class="absolute inset-0 bg-black/60"></div>
+            <div class="relative flex items-center justify-center h-full p-4">
+                <div class="relative bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col" style="max-height:90vh;">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                        <h2 class="text-lg font-bold text-gray-900">Send email til <span id="emailModalCount">0</span> modtagere</h2>
+                        <button id="emailModalClose" type="button"
+                            class="flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                            aria-label="Luk">
+                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="px-6 py-4 overflow-y-auto flex-1 space-y-4">
+                        <div>
+                            <label for="emailSubject" class="block text-sm font-medium text-gray-700 mb-1">Emne</label>
+                            <input id="emailSubject" type="text" placeholder="Emne..."
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent" />
+                        </div>
+                        <div>
+                            <label for="emailBody" class="block text-sm font-medium text-gray-700 mb-1">Besked (HTML)</label>
+                            <textarea id="emailBody" rows="10" placeholder="Skriv din besked her..."
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-bridge focus:border-transparent font-mono"></textarea>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500 mb-2">Klik på en variabel for at indsætte den ved markørens position:</p>
+                            <div class="flex flex-wrap gap-2" id="variableChips">
+                                @foreach (var variable in new[] { "firstName", "lastName", "email", "phone", "currentCrews", "portalUrl", "invitationUrl" })
+                                {
+                                    <button type="button"
+                                        class="variable-chip text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1 rounded hover:bg-blue-100 transition-colors font-mono"
+                                        data-variable="{{ @variable }}">
+                                        {{ @variable }}
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                        <div id="emailStatus" class="hidden"></div>
+                    </div>
+                    <div class="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+                        <button id="emailCancelBtn" type="button"
+                            class="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                            Annuller
+                        </button>
+                        <button id="emailSendBtn" type="button"
+                            class="flex items-center gap-2 px-4 py-2 text-sm bg-blue-bridge text-white rounded-md hover:opacity-90 transition-opacity disabled:opacity-50">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                            </svg>
+                            Send
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
     <!-- Member detail modal -->
     <div id="memberModal" class="fixed inset-0 z-50 hidden">
         <div id="modalBackdrop" class="absolute inset-0 bg-black/60"></div>
@@ -206,6 +282,7 @@
             const memberList = document.getElementById('memberList');
             const noResults = document.getElementById('noResults');
             const memberCountBadge = document.getElementById('memberCount');
+            const emailRecipientCount = document.getElementById('emailRecipientCount');
 
             const cards = Array.from(memberList.querySelectorAll('.member-card'));
 
@@ -256,6 +333,7 @@
                 noResults.classList.toggle('hidden', visibleCount > 0);
                 memberList.classList.toggle('hidden', visibleCount === 0);
                 memberCountBadge.textContent = visibleCount + ' frivillige';
+                if (emailRecipientCount) emailRecipientCount.textContent = visibleCount;
 
                 applySort();
             }
@@ -286,7 +364,7 @@
                 searchInput.focus();
             });
 
-            // Modal
+            // Member detail modal
             const modal = document.getElementById('memberModal');
             const modalFrame = document.getElementById('modalFrame');
             const modalClose = document.getElementById('modalClose');
@@ -314,8 +392,129 @@
             modalClose.addEventListener('click', closeModal);
             modalBackdrop.addEventListener('click', closeModal);
             document.addEventListener('keydown', function (e) {
-                if (e.key === 'Escape') closeModal();
+                if (e.key === 'Escape') {
+                    closeModal();
+                    closeEmailModal();
+                }
             });
+
+            // Email modal
+            const openEmailModalBtn = document.getElementById('openEmailModal');
+            const emailModal = document.getElementById('emailModal');
+            if (openEmailModalBtn && emailModal) {
+                const emailModalBackdrop = document.getElementById('emailModalBackdrop');
+                const emailModalClose = document.getElementById('emailModalClose');
+                const emailCancelBtn = document.getElementById('emailCancelBtn');
+                const emailSendBtn = document.getElementById('emailSendBtn');
+                const emailSubject = document.getElementById('emailSubject');
+                const emailBody = document.getElementById('emailBody');
+                const emailModalCount = document.getElementById('emailModalCount');
+                const emailStatus = document.getElementById('emailStatus');
+
+                function getVisibleEmails() {
+                    return Array.from(memberList.querySelectorAll('.member-card'))
+                        .filter(function (c) { return c.style.display !== 'none'; })
+                        .map(function (c) { return c.dataset.email; })
+                        .filter(Boolean);
+                }
+
+                function openEmailModal() {
+                    const count = getVisibleEmails().length;
+                    emailModalCount.textContent = count;
+                    emailStatus.classList.add('hidden');
+                    emailStatus.textContent = '';
+                    emailModal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                    emailSubject.focus();
+                }
+
+                function closeEmailModal() {
+                    if (!emailModal) return;
+                    emailModal.classList.add('hidden');
+                    document.body.style.overflow = '';
+                }
+
+                function getAntiForgeryToken() {
+                    const form = document.getElementById('antiForgeryForm');
+                    if (!form) return '';
+                    const input = form.querySelector('input[name="__RequestVerificationToken"]');
+                    return input ? input.value : '';
+                }
+
+                openEmailModalBtn.addEventListener('click', openEmailModal);
+                emailModalClose.addEventListener('click', closeEmailModal);
+                emailModalBackdrop.addEventListener('click', closeEmailModal);
+                emailCancelBtn.addEventListener('click', closeEmailModal);
+
+                // Variable chips — insert at cursor
+                document.getElementById('variableChips').addEventListener('click', function (e) {
+                    const chip = e.target.closest('.variable-chip');
+                    if (!chip) return;
+                    const variable = chip.dataset.variable;
+                    const start = emailBody.selectionStart;
+                    const end = emailBody.selectionEnd;
+                    const value = emailBody.value;
+                    emailBody.value = value.slice(0, start) + variable + value.slice(end);
+                    emailBody.selectionStart = emailBody.selectionEnd = start + variable.length;
+                    emailBody.focus();
+                });
+
+                emailSendBtn.addEventListener('click', async function () {
+                    const subject = emailSubject.value.trim();
+                    const body = emailBody.value.trim();
+                    const emails = getVisibleEmails();
+
+                    if (!subject || !body) {
+                        emailStatus.className = 'p-3 rounded bg-red-50 text-red-700 text-sm';
+                        emailStatus.textContent = 'Udfyld både emne og besked.';
+                        emailStatus.classList.remove('hidden');
+                        return;
+                    }
+                    if (emails.length === 0) {
+                        emailStatus.className = 'p-3 rounded bg-red-50 text-red-700 text-sm';
+                        emailStatus.textContent = 'Ingen synlige modtagere.';
+                        emailStatus.classList.remove('hidden');
+                        return;
+                    }
+
+                    emailSendBtn.disabled = true;
+                    emailSendBtn.textContent = 'Sender...';
+                    emailStatus.classList.add('hidden');
+
+                    try {
+                        const response = await fetch('/umbraco/surface/MemberEmailSurface/SendBulk', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'RequestVerificationToken': getAntiForgeryToken()
+                            },
+                            body: JSON.stringify({ emails, subject, body })
+                        });
+
+                        const result = await response.json();
+
+                        if (result.success) {
+                            emailStatus.className = 'p-3 rounded bg-green-50 text-green-700 text-sm';
+                            emailStatus.textContent = 'E-mail sendt til ' + result.sentCount + ' modtagere.';
+                        } else {
+                            let msg = 'Sendt til ' + result.sentCount + ' modtagere. ' + result.errorCount + ' fejl.';
+                            if (result.errors && result.errors.length > 0) {
+                                msg += '\n' + result.errors.slice(0, 5).join('\n');
+                            }
+                            emailStatus.className = 'p-3 rounded bg-yellow-50 text-yellow-800 text-sm whitespace-pre-line';
+                            emailStatus.textContent = msg;
+                        }
+                        emailStatus.classList.remove('hidden');
+                    } catch (err) {
+                        emailStatus.className = 'p-3 rounded bg-red-50 text-red-700 text-sm';
+                        emailStatus.textContent = 'Afsendelse mislykkedes: ' + err.message;
+                        emailStatus.classList.remove('hidden');
+                    } finally {
+                        emailSendBtn.disabled = false;
+                        emailSendBtn.innerHTML = '<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg> Send';
+                    }
+                });
+            }
         })();
     </script>
 </body>

@@ -39,7 +39,8 @@ public class MemberListController : Controller
                 Groups = m.MemberGroups
             }).ToList(),
             AllCrews = data.AllCrewNames,
-            AllGroups = data.AllGroupNames
+            AllGroups = data.AllGroupNames,
+            IsAdmin = data.IsAdmin
         };
 
         return View("~/Views/MemberList.cshtml", viewModel);

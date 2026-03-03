@@ -168,6 +168,13 @@ public class MemberEmailService : IMemberEmailService
     {
         var processedSubject = ReplaceMemberPlaceholders(subject, memberData);
         var processedBody = ReplaceMemberPlaceholders(htmlBody, memberData);
+
+        // Convert plain-text line breaks to <br> unless the body is already a full HTML document
+        if (!processedBody.TrimStart().StartsWith("<html", StringComparison.OrdinalIgnoreCase))
+        {
+            processedBody = processedBody.Replace("\r\n", "\n").Replace("\n", "<br>\n");
+        }
+
         processedBody = WrapInHtml(processedBody);
         await SendEmailAsync(email, processedSubject, processedBody, useBroadcast: true);
     }
@@ -276,6 +283,7 @@ public class MemberEmailService : IMemberEmailService
         result = ReplacePlaceholder(result, "zipcode", memberData.Zipcode);
         result = ReplacePlaceholder(result, "tidligereArbejdssteder", memberData.TidligereArbejdssteder);
         result = ReplacePlaceholder(result, "selectedCrews", memberData.SelectedCrews);
+        result = ReplacePlaceholder(result, "currentCrews", memberData.CurrentCrews);
         result = ReplacePlaceholder(result, "memberWish", memberData.MemberWish);
         result = ReplacePlaceholder(result, "timeslotWishes", memberData.TimeslotWishes);
 

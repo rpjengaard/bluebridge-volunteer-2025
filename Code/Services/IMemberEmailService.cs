@@ -32,4 +32,5 @@ public class MemberEmailData
 
     // For custom emails
     public string InvitationUrl { get; set; } = string.Empty;
+    public string CurrentCrews { get; set; } = string.Empty;
 }

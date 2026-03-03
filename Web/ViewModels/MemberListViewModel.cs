@@ -5,6 +5,7 @@ public class MemberListViewModel
     public List<MemberListItemViewModel> Members { get; set; } = new();
     public List<string> AllCrews { get; set; } = new();
     public List<string> AllGroups { get; set; } = new();
+    public bool IsAdmin { get; set; }
 }
 
 public class MemberListItemViewModel

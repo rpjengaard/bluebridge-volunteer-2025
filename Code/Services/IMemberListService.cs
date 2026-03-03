@@ -10,6 +10,7 @@ public class MemberListData
     public List<MemberListItem> Members { get; set; } = new();
     public List<string> AllCrewNames { get; set; } = new();
     public List<string> AllGroupNames { get; set; } = new();
+    public bool IsAdmin { get; set; }
 }
 
 public class MemberListItem
