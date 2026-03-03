@@ -582,7 +582,7 @@ public class CrewService : ICrewService
                         continue;
 
                     var entry = stats[crewId];
-                    if (isVolunteer)
+                    if (isVolunteer && !isSupervisor)
                         entry.MemberCount++;
                     if (isSupervisor)
                         entry.SupervisorCount++;
