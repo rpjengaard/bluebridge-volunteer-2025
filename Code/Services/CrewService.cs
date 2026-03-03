@@ -403,6 +403,8 @@ public class CrewService : ICrewService
             if (string.IsNullOrEmpty(fullName))
                 fullName = member.Name ?? member.Email ?? "Unknown";
 
+            var acceptedDateVal = member.GetValue<DateTime?>("acceptedDate");
+
             wishlistMembers.Add(new CrewMemberInfo
             {
                 MemberId = member.Id,
@@ -411,6 +413,8 @@ public class CrewService : ICrewService
                 Email = member.Email ?? string.Empty,
                 Phone = member.GetValue<string>("phone"),
                 HasAccepted2026 = member.GetValue<bool>("accept2026"),
+                AcceptedDate = acceptedDateVal > DateTime.MinValue ? acceptedDateVal : null,
+                SignupDate = member.CreateDate,
                 CrewWishes = ParseCrewReferences(wishlistValue)
             });
         }
@@ -418,7 +422,7 @@ public class CrewService : ICrewService
         sw.Stop();
         _logger.LogInformation("GetWishlistMembersNotAssigned for crewId {CrewId} took {ElapsedMilliseconds} ms and found {MemberCount} members", crewId, sw.ElapsedMilliseconds, wishlistMembers.Count);
 
-        return wishlistMembers.OrderBy(m => m.FullName).ToList();
+        return wishlistMembers.OrderBy(m => m.AcceptedDate ?? m.SignupDate).ToList();
     }
 
     private bool IsMemberInAdminGroup(int memberId)

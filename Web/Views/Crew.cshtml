@@ -281,6 +281,9 @@ else
                                                         }
                                                     </div>
                                                     <div class="text-sm text-gray-500 truncate">@member.Email</div>
+                                                    <div class="text-xs text-gray-400 mt-0.5">
+                                                        Tilmeldt: @((member.AcceptedDate ?? member.SignupDate).ToString("d. MMM yyyy", new System.Globalization.CultureInfo("da-DK")))
+                                                    </div>
                                                     @if (member.CrewWishes.Any())
                                                     {
                                                         <div class="flex flex-wrap gap-1 mt-1">
