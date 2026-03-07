@@ -129,7 +129,7 @@
                     : "";
                 <a
                     href="/member?key=@member.MemberKey"
-                    class="member-card block bg-white shadow rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                    class="member-card block bg-white shadow rounded-lg p-4 hover:bg-gray-50 transition-colors @(!member.Crews.Any() ? "opacity-50 grayscale" : "")"
                     data-name="@member.FullName.ToLowerInvariant()"
                     data-email="@member.Email.ToLowerInvariant()"
                     data-crews="@crewDataAttr"
