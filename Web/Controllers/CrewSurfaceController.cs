@@ -1,6 +1,7 @@
 using Code.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.Logging;
 using Umbraco.Cms.Core.Models.ContentPublishing;
@@ -22,6 +23,7 @@ public class CrewSurfaceController : SurfaceController
     private readonly ICrewService _crewService;
     private readonly ICrewMessageService _crewMessageService;
     private readonly IMemberEmailService _memberEmailService;
+    private readonly IPublishedContentQuery _publishedContentQuery;
     private readonly ILogger<CrewSurfaceController> _logger;
     private readonly AppCaches _appCaches;
 
@@ -39,6 +41,7 @@ public class CrewSurfaceController : SurfaceController
         ICrewService crewService,
         ICrewMessageService crewMessageService,
         IMemberEmailService memberEmailService,
+        IPublishedContentQuery publishedContentQuery,
         ILogger<CrewSurfaceController> logger)
         : base(umbracoContextAccessor, databaseFactory, services, appCaches, profilingLogger, publishedUrlProvider)
     {
@@ -49,6 +52,7 @@ public class CrewSurfaceController : SurfaceController
         _crewService = crewService;
         _crewMessageService = crewMessageService;
         _memberEmailService = memberEmailService;
+        _publishedContentQuery = publishedContentQuery;
         _logger = logger;
         _appCaches = appCaches;
     }
@@ -173,34 +177,27 @@ public class CrewSurfaceController : SurfaceController
         {
             try
             {
-                var siteSettingsContent = FindSiteSettingsContent();
-                if (siteSettingsContent != null && UmbracoContextAccessor.TryGetUmbracoContext(out var ctx))
+                var siteSettings = _publishedContentQuery.ContentAtRoot()
+                    .FirstOrDefault(x => x.ContentType.Alias == "bbvSiteSettings");
+                if (siteSettings != null)
                 {
-                    var siteSettings = ctx.Content?.GetById(siteSettingsContent.Key);
-                    if (siteSettings != null)
+                    var subjectTemplate = siteSettings.Value<string>("acceptetEmailSubject") ?? string.Empty;
+                    var bodyTemplate = siteSettings.Value<Umbraco.Cms.Core.Strings.IHtmlEncodedString>("acceptedEmailTemplate")?.ToHtmlString() ?? string.Empty;
+                    var ticketUrl = siteSettings.Value<string>("singleTicketUrl") ?? string.Empty;
+
+                    var emailData = new Code.Services.MemberEmailData
                     {
-                        var subjectTemplate = siteSettings.Value<string>("acceptetEmailSubject") ?? string.Empty;
-                        var bodyTemplate = siteSettings.Value<Umbraco.Cms.Core.Strings.IHtmlEncodedString>("acceptedEmailTemplate")?.ToHtmlString() ?? string.Empty;
-                        var ticketUrl = siteSettings.Value<string>("singleTicketUrl") ?? string.Empty;
+                        Email = member.Email,
+                        Username = member.Username,
+                        FirstName = member.GetValue<string>("firstName") ?? member.Name ?? string.Empty,
+                        LastName = member.GetValue<string>("lastName") ?? string.Empty,
+                        Phone = member.GetValue<string>("phone") ?? string.Empty,
+                        PortalUrl = $"{Request.Scheme}://{Request.Host}",
+                        SingleTicketUrl = ticketUrl,
+                    };
 
-                        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-                        var firstName = member.GetValue<string>("firstName") ?? member.Name ?? string.Empty;
-                        var lastName = member.GetValue<string>("lastName") ?? string.Empty;
-
-                        var emailData = new Code.Services.MemberEmailData
-                        {
-                            Email = member.Email,
-                            Username = member.Username,
-                            FirstName = firstName,
-                            LastName = lastName,
-                            Phone = member.GetValue<string>("phone") ?? string.Empty,
-                            PortalUrl = baseUrl,
-                            SingleTicketUrl = ticketUrl,
-                        };
-
-                        await _memberEmailService.SendCrewAssignmentEmailAsync(
-                            member.Email, emailData, crewContent.Name!, subjectTemplate, bodyTemplate);
-                    }
+                    await _memberEmailService.SendCrewAssignmentEmailAsync(
+                        member.Email, emailData, crewContent.Name!, subjectTemplate, bodyTemplate);
                 }
             }
             catch (Exception ex)
@@ -213,29 +210,6 @@ public class CrewSurfaceController : SurfaceController
             ? $"{member.Name} er nu tildelt dette crew og har modtaget en velkomst-email."
             : $"{member.Name} er nu tildelt dette crew. Husk selv at informere dem om tildelingen.";
         return Redirect(returnUrl ?? "/");
-    }
-
-    private const string SiteSettingsAlias = "bbvSiteSettings";
-
-    private Umbraco.Cms.Core.Models.IContent? FindSiteSettingsContent()
-    {
-        foreach (var content in _contentService.GetRootContent())
-        {
-            var found = FindSiteSettingsRecursive(content);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
-    private Umbraco.Cms.Core.Models.IContent? FindSiteSettingsRecursive(Umbraco.Cms.Core.Models.IContent content)
-    {
-        if (content.ContentType.Alias == SiteSettingsAlias) return content;
-        foreach (var child in _contentService.GetPagedChildren(content.Id, 0, int.MaxValue, out _))
-        {
-            var found = FindSiteSettingsRecursive(child);
-            if (found != null) return found;
-        }
-        return null;
     }
 
     [HttpPost]

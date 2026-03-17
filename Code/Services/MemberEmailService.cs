@@ -168,8 +168,11 @@ public class MemberEmailService : IMemberEmailService
     {
         memberData.CrewName = crewName;
 
-        var subject = ProcessCrewAssignmentTemplate(subjectTemplate, memberData);
-        var body = ProcessCrewAssignmentTemplate(bodyTemplate, memberData);
+        var subject = ReplaceMemberPlaceholders(subjectTemplate, memberData);
+        subject = ReplacePlaceholder(subject, "crewName", crewName);
+
+        var body = ReplaceMemberPlaceholders(bodyTemplate, memberData);
+        body = ReplacePlaceholder(body, "crewName", crewName);
         body = WrapInHtml(body);
 
         await SendEmailAsync(email, subject, body);
@@ -261,16 +264,6 @@ public class MemberEmailService : IMemberEmailService
 
         // Replace member field placeholders {{ fieldName }}
         result = ReplaceMemberPlaceholders(result, memberData);
-
-        return result;
-    }
-
-    private string ProcessCrewAssignmentTemplate(string template, MemberEmailData memberData)
-    {
-        if (string.IsNullOrEmpty(template)) return template;
-
-        var result = ReplaceMemberPlaceholders(template, memberData);
-        result = ReplacePlaceholder(result, "crewName", memberData.CrewName);
 
         return result;
     }
