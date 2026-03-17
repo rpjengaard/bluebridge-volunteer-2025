@@ -117,7 +117,7 @@ public class CrewSurfaceController : SurfaceController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AcceptMember(int crewId, int memberId, string returnUrl)
+    public async Task<IActionResult> AcceptMember(int crewId, int memberId, string returnUrl, bool sendEmail = false)
     {
         var currentMember = await _memberManager.GetCurrentMemberAsync();
         if (currentMember == null)
@@ -169,8 +169,73 @@ public class CrewSurfaceController : SurfaceController
         // Save the member
         _memberService.Save(member);
 
-        TempData["CrewSuccess"] = $"{member.Name} er nu tildelt dette crew.";
+        if (sendEmail && !string.IsNullOrEmpty(member.Email))
+        {
+            try
+            {
+                var siteSettingsContent = FindSiteSettingsContent();
+                if (siteSettingsContent != null && UmbracoContextAccessor.TryGetUmbracoContext(out var ctx))
+                {
+                    var siteSettings = ctx.Content?.GetById(siteSettingsContent.Key);
+                    if (siteSettings != null)
+                    {
+                        var subjectTemplate = siteSettings.Value<string>("acceptetEmailSubject") ?? string.Empty;
+                        var bodyTemplate = siteSettings.Value<Umbraco.Cms.Core.Strings.IHtmlEncodedString>("acceptedEmailTemplate")?.ToHtmlString() ?? string.Empty;
+                        var ticketUrl = siteSettings.Value<string>("singleTicketUrl") ?? string.Empty;
+
+                        var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                        var firstName = member.GetValue<string>("firstName") ?? member.Name ?? string.Empty;
+                        var lastName = member.GetValue<string>("lastName") ?? string.Empty;
+
+                        var emailData = new Code.Services.MemberEmailData
+                        {
+                            Email = member.Email,
+                            Username = member.Username,
+                            FirstName = firstName,
+                            LastName = lastName,
+                            Phone = member.GetValue<string>("phone") ?? string.Empty,
+                            PortalUrl = baseUrl,
+                            SingleTicketUrl = ticketUrl,
+                        };
+
+                        await _memberEmailService.SendCrewAssignmentEmailAsync(
+                            member.Email, emailData, crewContent.Name!, subjectTemplate, bodyTemplate);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send crew assignment email to {Email}", member.Email);
+            }
+        }
+
+        TempData["CrewSuccess"] = sendEmail
+            ? $"{member.Name} er nu tildelt dette crew og har modtaget en velkomst-email."
+            : $"{member.Name} er nu tildelt dette crew. Husk selv at informere dem om tildelingen.";
         return Redirect(returnUrl ?? "/");
+    }
+
+    private const string SiteSettingsAlias = "bbvSiteSettings";
+
+    private Umbraco.Cms.Core.Models.IContent? FindSiteSettingsContent()
+    {
+        foreach (var content in _contentService.GetRootContent())
+        {
+            var found = FindSiteSettingsRecursive(content);
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private Umbraco.Cms.Core.Models.IContent? FindSiteSettingsRecursive(Umbraco.Cms.Core.Models.IContent content)
+    {
+        if (content.ContentType.Alias == SiteSettingsAlias) return content;
+        foreach (var child in _contentService.GetPagedChildren(content.Id, 0, int.MaxValue, out _))
+        {
+            var found = FindSiteSettingsRecursive(child);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     [HttpPost]

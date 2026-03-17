@@ -164,6 +164,17 @@ public class MemberEmailService : IMemberEmailService
         await SendEmailAsync(toEmail, subject, body, useBroadcast: true);
     }
 
+    public async Task SendCrewAssignmentEmailAsync(string email, MemberEmailData memberData, string crewName, string subjectTemplate, string bodyTemplate)
+    {
+        memberData.CrewName = crewName;
+
+        var subject = ProcessCrewAssignmentTemplate(subjectTemplate, memberData);
+        var body = ProcessCrewAssignmentTemplate(bodyTemplate, memberData);
+        body = WrapInHtml(body);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
     public async Task SendCustomEmailAsync(string email, string subject, string htmlBody, MemberEmailData memberData)
     {
         var processedSubject = ReplaceMemberPlaceholders(subject, memberData);
@@ -254,6 +265,16 @@ public class MemberEmailService : IMemberEmailService
         return result;
     }
 
+    private string ProcessCrewAssignmentTemplate(string template, MemberEmailData memberData)
+    {
+        if (string.IsNullOrEmpty(template)) return template;
+
+        var result = ReplaceMemberPlaceholders(template, memberData);
+        result = ReplacePlaceholder(result, "crewName", memberData.CrewName);
+
+        return result;
+    }
+
     private string ProcessSupervisorTemplate(string template, MemberEmailData memberData)
     {
         if (string.IsNullOrEmpty(template))
@@ -306,6 +327,19 @@ public class MemberEmailService : IMemberEmailService
             result = ReplacePlaceholder(result, "invitationUrl", string.Empty);
         }
 
+        // Replace {{ singleTicketUrl }} and {{ ticketUrl }} with a styled button (if present)
+        if (!string.IsNullOrEmpty(memberData.SingleTicketUrl))
+        {
+            var ticketButtonHtml = CreateStyledButton("Køb din billet", memberData.SingleTicketUrl);
+            result = ReplacePlaceholder(result, "singleTicketUrl", ticketButtonHtml);
+            result = ReplacePlaceholder(result, "ticketUrl", ticketButtonHtml);
+        }
+        else
+        {
+            result = ReplacePlaceholder(result, "singleTicketUrl", string.Empty);
+            result = ReplacePlaceholder(result, "ticketUrl", string.Empty);
+        }
+
         return result;
     }
 
@@ -318,6 +352,7 @@ public class MemberEmailService : IMemberEmailService
 
     private static string CreateStyledButton(string label, string url)
     {
+        url = url.Trim();
         return $@"<table border=""0"" cellpadding=""0"" cellspacing=""0"" role=""presentation"" style=""margin: 20px 0;"">
   <tr>
     <td align=""center"" bgcolor=""#007bff"" role=""presentation"" style=""border: none; border-radius: 6px; cursor: pointer; mso-padding-alt: 12px 24px;"">
