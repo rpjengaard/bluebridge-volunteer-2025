@@ -309,18 +309,14 @@ else
                                                     }
                                                 </div>
                                                 <div class="flex items-center gap-2 flex-shrink-0">
-                                                    <form method="post" action="/umbraco/surface/CrewSurface/AcceptMember" class="inline">
-                                                        @Html.AntiForgeryToken()
-                                                        <input type="hidden" name="crewId" value="@crewData.Id" />
-                                                        <input type="hidden" name="memberId" value="@member.MemberId" />
-                                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
-                                                        <button type="submit" class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                                                            <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                                                            </svg>
-                                                            Accepter
-                                                        </button>
-                                                    </form>
+                                                    <button type="button"
+                                                            onclick="openAcceptModal(@member.MemberId, '@Html.Raw(member.FullName.Replace("'", "\\'"))')"
+                                                            class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                                                        <svg class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                                                        </svg>
+                                                        Accepter
+                                                    </button>
                                                     <button type="button"
                                                             data-member-id="@member.MemberId"
                                                             data-member-name="@member.FullName"
@@ -726,6 +722,61 @@ else
             </div>
         </div>
 
+        <!-- Accept Modal -->
+        <div id="acceptModal" class="fixed inset-0 z-50 hidden overflow-y-auto" role="dialog" aria-modal="true">
+            <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeAcceptModal()"></div>
+                <div class="inline-block align-bottom bg-white rounded-lg px-4 pt-5 pb-4 text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full sm:p-6">
+                    <div class="absolute top-0 right-0 pt-4 pr-4">
+                        <button type="button" onclick="closeAcceptModal()" class="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none">
+                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-green-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                            <h3 class="text-lg font-semibold leading-6 text-gray-900">
+                                Accepter – <span id="acceptMemberName"></span>
+                            </h3>
+                            <div class="mt-3">
+                                <p class="text-sm text-gray-600">
+                                    Ønsker du at sende en velkomst-email til <strong><span id="acceptMemberNameRepeat"></span></strong> med link til billetsalget?
+                                </p>
+                            </div>
+                            <div class="mt-5 sm:mt-6 flex flex-col sm:flex-row-reverse gap-3">
+                                <form method="post" action="/umbraco/surface/CrewSurface/AcceptMember" class="inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" id="acceptMemberId" name="memberId" value="" />
+                                    <input type="hidden" name="crewId" value="@crewData.Id" />
+                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                    <input type="hidden" name="sendEmail" value="true" />
+                                    <button type="submit" class="w-full sm:w-auto inline-flex justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700">
+                                        Ja, send velkomst-email
+                                    </button>
+                                </form>
+                                <form method="post" action="/umbraco/surface/CrewSurface/AcceptMember" class="inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" id="acceptMemberIdNoEmail" name="memberId" value="" />
+                                    <input type="hidden" name="crewId" value="@crewData.Id" />
+                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                    <input type="hidden" name="sendEmail" value="false" />
+                                    <button type="submit" class="w-full sm:w-auto inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                        Nej, jeg tager selv kontakt
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Dismiss Modal -->
         <div id="dismissModal" class="fixed inset-0 z-50 hidden overflow-y-auto" role="dialog" aria-modal="true">
             <div class="flex min-h-screen items-end justify-center px-4 pt-4 pb-20 text-center sm:block sm:p-0">
@@ -797,6 +848,20 @@ else
                 document.body.style.overflow = 'auto';
             }
 
+            function openAcceptModal(memberId, memberName) {
+                document.getElementById('acceptMemberId').value = memberId;
+                document.getElementById('acceptMemberIdNoEmail').value = memberId;
+                document.getElementById('acceptMemberName').textContent = memberName;
+                document.getElementById('acceptMemberNameRepeat').textContent = memberName;
+                document.getElementById('acceptModal').classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeAcceptModal() {
+                document.getElementById('acceptModal').classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            }
+
             function openDismissModal(btn) {
                 document.getElementById('dismissMemberId').value = btn.dataset.memberId;
                 document.getElementById('dismissMemberName').textContent = btn.dataset.memberName;
@@ -814,6 +879,11 @@ else
             // Close modals on Escape key
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape') {
+                    var acceptModal = document.getElementById('acceptModal');
+                    if (acceptModal && !acceptModal.classList.contains('hidden')) {
+                        closeAcceptModal();
+                        return;
+                    }
                     var dismissModal = document.getElementById('dismissModal');
                     if (dismissModal && !dismissModal.classList.contains('hidden')) {
                         closeDismissModal();

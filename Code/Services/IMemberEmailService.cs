@@ -10,6 +10,7 @@ public interface IMemberEmailService
     Task SendSupervisorNotificationEmailAsync(string supervisorEmail, string supervisorName, MemberEmailData memberData, string crewName, string subjectTemplate, string bodyTemplate);
     Task SendCrewMessageNotificationAsync(string toEmail, string recipientName, string authorName, string crewName, string messageHtml, string crewUrl);
     Task SendCustomEmailAsync(string email, string subject, string htmlBody, MemberEmailData memberData);
+    Task SendCrewAssignmentEmailAsync(string email, MemberEmailData memberData, string crewName, string subjectTemplate, string bodyTemplate);
 }
 
 public class MemberEmailData
@@ -33,4 +34,7 @@ public class MemberEmailData
     // For custom emails
     public string InvitationUrl { get; set; } = string.Empty;
     public string CurrentCrews { get; set; } = string.Empty;
+
+    // For crew assignment email
+    public string SingleTicketUrl { get; set; } = string.Empty;
 }

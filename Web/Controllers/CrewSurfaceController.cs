@@ -1,6 +1,7 @@
 using Code.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.Logging;
 using Umbraco.Cms.Core.Models.ContentPublishing;
@@ -22,6 +23,7 @@ public class CrewSurfaceController : SurfaceController
     private readonly ICrewService _crewService;
     private readonly ICrewMessageService _crewMessageService;
     private readonly IMemberEmailService _memberEmailService;
+    private readonly IPublishedContentQuery _publishedContentQuery;
     private readonly ILogger<CrewSurfaceController> _logger;
     private readonly AppCaches _appCaches;
 
@@ -39,6 +41,7 @@ public class CrewSurfaceController : SurfaceController
         ICrewService crewService,
         ICrewMessageService crewMessageService,
         IMemberEmailService memberEmailService,
+        IPublishedContentQuery publishedContentQuery,
         ILogger<CrewSurfaceController> logger)
         : base(umbracoContextAccessor, databaseFactory, services, appCaches, profilingLogger, publishedUrlProvider)
     {
@@ -49,6 +52,7 @@ public class CrewSurfaceController : SurfaceController
         _crewService = crewService;
         _crewMessageService = crewMessageService;
         _memberEmailService = memberEmailService;
+        _publishedContentQuery = publishedContentQuery;
         _logger = logger;
         _appCaches = appCaches;
     }
@@ -117,7 +121,7 @@ public class CrewSurfaceController : SurfaceController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AcceptMember(int crewId, int memberId, string returnUrl)
+    public async Task<IActionResult> AcceptMember(int crewId, int memberId, string returnUrl, bool sendEmail = false)
     {
         var currentMember = await _memberManager.GetCurrentMemberAsync();
         if (currentMember == null)
@@ -169,7 +173,42 @@ public class CrewSurfaceController : SurfaceController
         // Save the member
         _memberService.Save(member);
 
-        TempData["CrewSuccess"] = $"{member.Name} er nu tildelt dette crew.";
+        if (sendEmail && !string.IsNullOrEmpty(member.Email))
+        {
+            try
+            {
+                var siteSettings = _publishedContentQuery.ContentAtRoot()
+                    .FirstOrDefault(x => x.ContentType.Alias == "bbvSiteSettings");
+                if (siteSettings != null)
+                {
+                    var subjectTemplate = siteSettings.Value<string>("acceptetEmailSubject") ?? string.Empty;
+                    var bodyTemplate = siteSettings.Value<Umbraco.Cms.Core.Strings.IHtmlEncodedString>("acceptedEmailTemplate")?.ToHtmlString() ?? string.Empty;
+                    var ticketUrl = siteSettings.Value<string>("singleTicketUrl") ?? string.Empty;
+
+                    var emailData = new Code.Services.MemberEmailData
+                    {
+                        Email = member.Email,
+                        Username = member.Username,
+                        FirstName = member.GetValue<string>("firstName") ?? member.Name ?? string.Empty,
+                        LastName = member.GetValue<string>("lastName") ?? string.Empty,
+                        Phone = member.GetValue<string>("phone") ?? string.Empty,
+                        PortalUrl = $"{Request.Scheme}://{Request.Host}",
+                        SingleTicketUrl = ticketUrl,
+                    };
+
+                    await _memberEmailService.SendCrewAssignmentEmailAsync(
+                        member.Email, emailData, crewContent.Name!, subjectTemplate, bodyTemplate);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send crew assignment email to {Email}", member.Email);
+            }
+        }
+
+        TempData["CrewSuccess"] = sendEmail
+            ? $"{member.Name} er nu tildelt dette crew og har modtaget en velkomst-email."
+            : $"{member.Name} er nu tildelt dette crew. Husk selv at informere dem om tildelingen.";
         return Redirect(returnUrl ?? "/");
     }
 
