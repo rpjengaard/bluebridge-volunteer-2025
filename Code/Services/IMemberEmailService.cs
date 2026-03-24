@@ -11,6 +11,7 @@ public interface IMemberEmailService
     Task SendCrewMessageNotificationAsync(string toEmail, string recipientName, string authorName, string crewName, string messageHtml, string crewUrl);
     Task SendCustomEmailAsync(string email, string subject, string htmlBody, MemberEmailData memberData);
     Task SendCrewAssignmentEmailAsync(string email, MemberEmailData memberData, string crewName, string subjectTemplate, string bodyTemplate);
+    Task SendCancelationNotificationAsync(string toEmail, string crewName, string memberFullName, string memberEmail, IEnumerable<string> removedShiftDescriptions);
 }
 
 public class MemberEmailData

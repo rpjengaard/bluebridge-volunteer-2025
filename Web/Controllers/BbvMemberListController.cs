@@ -50,7 +50,8 @@ public class BbvMemberListController : RenderController
                 Email = m.Email,
                 SignupDate = m.SignupDate,
                 Crews = m.CrewNames,
-                Groups = m.MemberGroups
+                Groups = m.MemberGroups,
+                IsCanceled = m.IsCanceled
             }).ToList(),
             AllCrews = data.AllCrewNames,
             AllGroups = data.AllGroupNames,

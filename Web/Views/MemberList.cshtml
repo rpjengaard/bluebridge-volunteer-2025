@@ -129,7 +129,7 @@
                     : "";
                 <a
                     href="/member?key=@member.MemberKey"
-                    class="member-card block bg-white shadow rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                    class="member-card block bg-white shadow rounded-lg p-4 hover:bg-gray-50 transition-colors@(member.IsCanceled ? " opacity-50" : "")"
                     data-name="@member.FullName.ToLowerInvariant()"
                     data-email="@member.Email.ToLowerInvariant()"
                     data-crews="@crewDataAttr"
@@ -137,13 +137,20 @@
                     data-groups="@groupDataAttr"
                     data-has-group="@(member.Groups.Any() ? "1" : "0")"
                     data-date="@member.SignupDate.ToString("yyyy-MM-dd")"
+                    data-canceled="@(member.IsCanceled ? "1" : "0")"
                 >
                     <div class="flex items-center gap-3">
                         <div class="h-10 w-10 rounded-lg bg-blue-bridge flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                             @(member.FullName.Length > 0 ? member.FullName[0].ToString().ToUpper() : "?")
                         </div>
                         <div class="flex-1 min-w-0">
-                            <div class="font-medium text-gray-900 truncate">@member.FullName</div>
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium text-gray-900 truncate">@member.FullName</span>
+                                @if (member.IsCanceled)
+                                {
+                                    <span class="inline-block text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded flex-shrink-0">Afmeldt</span>
+                                }
+                            </div>
                             <div class="text-sm text-gray-500 truncate">@member.Email</div>
                             @if (member.Crews.Any() || member.Groups.Any())
                             {

@@ -21,4 +21,5 @@ public class MemberListItem
     public DateTime SignupDate { get; set; }
     public List<string> CrewNames { get; set; } = new();
     public List<string> MemberGroups { get; set; } = new();
+    public bool IsCanceled { get; set; }
 }

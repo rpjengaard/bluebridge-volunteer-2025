@@ -384,6 +384,10 @@ public class CrewService : ICrewService
             if (member.GetValue<bool>("rejected"))
                 continue;
 
+            // Skip canceled members
+            if (member.GetValue<bool>("cancelation"))
+                continue;
+
             // Check if crew is on their wishlist
             var wishlistValue = member.GetValue<string>("crewWishes");
             var wishlistIds = ParseCrewIdsWithCache(wishlistValue, crewGuidToIdCache);
@@ -546,6 +550,10 @@ public class CrewService : ICrewService
         {
             // Rejected members count toward nothing
             if (member.GetValue<bool>("rejected"))
+                continue;
+
+            // Canceled members count toward nothing
+            if (member.GetValue<bool>("cancelation"))
                 continue;
 
             var roles = _memberService.GetAllRoles(member.Id);
@@ -762,6 +770,10 @@ public class CrewService : ICrewService
 
             // Skip rejected members
             if (member.GetValue<bool>("rejected"))
+                continue;
+
+            // Skip canceled members
+            if (member.GetValue<bool>("cancelation"))
                 continue;
 
             var crewsValue = member.GetValue<string>("crews");

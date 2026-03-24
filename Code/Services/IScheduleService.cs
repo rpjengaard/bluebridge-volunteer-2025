@@ -72,5 +72,6 @@ public interface IScheduleService
     Task PublishScheduleAsync(int scheduleId);
     Task UnpublishScheduleAsync(int scheduleId);
     Task<List<ScheduleShiftData>> GetShiftsForMemberAsync(Guid memberKey);
+    Task<List<ScheduleShiftData>> GetAllShiftsForMemberAsync(Guid memberKey);
     Task<List<ScheduleData>> GetPublishedSchedulesForCrewAsync(int crewId);
 }

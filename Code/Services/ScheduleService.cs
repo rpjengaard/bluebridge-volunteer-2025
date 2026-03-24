@@ -239,6 +239,37 @@ public class ScheduleService : IScheduleService
         return Task.FromResult(shifts);
     }
 
+    public Task<List<ScheduleShiftData>> GetAllShiftsForMemberAsync(Guid memberKey)
+    {
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
+
+        // Includes both published and draft schedules — used for administrative operations like cancelation
+        var rows = db.Fetch<dynamic>(@"
+            SELECT sh.Id, sh.ScheduleId, sh.StartTime, sh.EndTime,
+                   sh.AssignedMemberKey, sh.AssignedMemberName,
+                   sc.Name AS ScheduleName, sc.ScheduleDate,
+                   sc.CrewId, sc.CrewKey
+            FROM BbvShift sh
+            INNER JOIN BbvSchedule sc ON sh.ScheduleId = sc.Id
+            WHERE sh.AssignedMemberKey = @0
+            ORDER BY sc.ScheduleDate ASC, sh.StartTime ASC", memberKey);
+
+        var shifts = rows.Select(r => new ScheduleShiftData
+        {
+            Id = (int)r.Id,
+            ScheduleId = (int)r.ScheduleId,
+            StartTime = (string)r.StartTime,
+            EndTime = (string)r.EndTime,
+            AssignedMemberKey = (Guid?)r.AssignedMemberKey,
+            AssignedMemberName = (string?)r.AssignedMemberName,
+            ScheduleName = (string)r.ScheduleName,
+            ScheduleDate = (DateTime)r.ScheduleDate
+        }).ToList();
+
+        return Task.FromResult(shifts);
+    }
+
     public Task<List<ScheduleData>> GetPublishedSchedulesForCrewAsync(int crewId)
     {
         using var scope = _scopeProvider.CreateScope(autoComplete: true);

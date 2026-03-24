@@ -1,6 +1,7 @@
 using Code.Services;
 using Microsoft.AspNetCore.Mvc;
 using Umbraco.Cms.Core.Security;
+using Umbraco.Cms.Core.Services;
 
 namespace Web.Controllers;
 
@@ -17,15 +18,18 @@ public class ScheduleController : Controller
     private readonly IMemberManager _memberManager;
     private readonly ICrewService _crewService;
     private readonly IScheduleService _scheduleService;
+    private readonly IMemberService _memberService;
 
     public ScheduleController(
         IMemberManager memberManager,
         ICrewService crewService,
-        IScheduleService scheduleService)
+        IScheduleService scheduleService,
+        IMemberService memberService)
     {
         _memberManager = memberManager;
         _crewService = crewService;
         _scheduleService = scheduleService;
+        _memberService = memberService;
     }
 
     // ── GET endpoints ─────────────────────────────────────────────────────────
@@ -213,6 +217,10 @@ public class ScheduleController : Controller
 
         if (!Guid.TryParse(req.MemberKey, out var memberKey))
             return Json(new { success = false, error = "Ugyldig member-nøgle." });
+
+        var member = _memberService.GetByKey(memberKey);
+        if (member != null && member.GetValue<bool>("cancelation"))
+            return Json(new { success = false, error = "Dette medlem er afmeldt og kan ikke tildeles vagter." });
 
         var assigned = await _scheduleService.AssignMemberToShiftAsync(req.ShiftId, memberKey, req.MemberName);
         if (!assigned)

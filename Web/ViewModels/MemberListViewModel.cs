@@ -16,4 +16,5 @@ public class MemberListItemViewModel
     public DateTime SignupDate { get; set; }
     public List<string> Crews { get; set; } = new();
     public List<string> Groups { get; set; } = new();
+    public bool IsCanceled { get; set; }
 }

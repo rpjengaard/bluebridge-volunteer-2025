@@ -178,6 +178,65 @@ public class MemberEmailService : IMemberEmailService
         await SendEmailAsync(email, subject, body);
     }
 
+    public async Task SendCancelationNotificationAsync(string toEmail, string crewName, string memberFullName, string memberEmail, IEnumerable<string> removedShiftDescriptions)
+    {
+        var subject = $"Afmelding: {memberFullName} er afmeldt fra {crewName}";
+
+        var shiftRows = string.Join("", removedShiftDescriptions.Select(s =>
+            $@"<tr><td style=""padding: 6px 0; font-size: 14px; color: #334155; border-bottom: 1px solid #f1f5f9;"">{s}</td></tr>"));
+
+        var shiftSection = shiftRows.Length > 0
+            ? $@"<p style=""margin: 16px 0 8px; font-size: 15px; color: #334155;"">Følgende vagter er frigivet:</p>
+              <table width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""margin-bottom: 24px;"">
+                {shiftRows}
+              </table>"
+            : @"<p style=""margin: 16px 0 24px; font-size: 14px; color: #64748b;"">Medlemmet havde ingen tildelte vagter.</p>";
+
+        var body = $@"
+<html>
+<body style=""margin: 0; padding: 0; background-color: #f1f5f9; font-family: Arial, sans-serif;"">
+  <table width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""background-color: #f1f5f9; padding: 32px 0;"">
+    <tr>
+      <td align=""center"">
+        <table width=""600"" cellpadding=""0"" cellspacing=""0"" style=""max-width: 600px; width: 100%;"">
+          <!-- Header -->
+          <tr>
+            <td style=""background-color: #23297A; padding: 24px 32px; text-align: center;"">
+              <span style=""color: #ffffff; font-size: 22px; font-weight: bold; letter-spacing: 1px;"">BLUE BRIDGE</span>
+              <span style=""color: #EE746D; font-size: 12px; font-weight: 300; letter-spacing: 3px; text-transform: uppercase; margin-left: 8px;"">Frivillig</span>
+            </td>
+          </tr>
+          <tr><td style=""background-color: #EE746D; height: 4px; font-size: 0; line-height: 0;"">&nbsp;</td></tr>
+          <!-- Body -->
+          <tr>
+            <td style=""background-color: #ffffff; padding: 32px;"">
+              <p style=""margin: 0 0 16px; font-size: 16px; color: #1e293b;"">
+                <strong>{memberFullName}</strong> ({memberEmail}) er blevet markeret som <strong>afmeldt</strong> fra årets festival.
+              </p>
+              <p style=""margin: 0 0 16px; font-size: 15px; color: #334155;"">
+                Vedkommende var tilknyttet dit crew: <strong>{crewName}</strong>.
+              </p>
+              {shiftSection}
+              <p style=""margin: 0; font-size: 13px; color: #94a3b8;"">De frigivne vagter skal muligvis besættes igen. Log ind på frivilligportalen for at opdatere vagtplanen.</p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style=""background-color: #23297A; padding: 20px 32px; text-align: center;"">
+              <p style=""margin: 0; font-size: 12px; color: #94a3b8;"">Du modtager denne email, fordi du er vagtplanlægger eller tilsynsførende for {crewName}.</p>
+              <p style=""margin: 8px 0 0; font-size: 11px; color: #64748b;"">Blue Bridge Festival</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>";
+
+        await SendEmailAsync(toEmail, subject, body);
+    }
+
     public async Task SendCustomEmailAsync(string email, string subject, string htmlBody, MemberEmailData memberData)
     {
         var processedSubject = ReplaceMemberPlaceholders(subject, memberData);

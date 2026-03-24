@@ -71,6 +71,13 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual global::System.DateTime Birthdate => this.Value<global::System.DateTime>(_publishedValueFallback, "birthdate");
 
 		///<summary>
+		/// Afmeldt: Kryds her hvis den frivillige har meldt sig fra årests bb festival. Angiv evt. årsag under Øvrige noter.
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
+		[ImplementPropertyType("cancelation")]
+		public virtual bool Cancelation => this.Value<bool>(_publishedValueFallback, "cancelation");
+
+		///<summary>
 		/// Crew(s)
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]

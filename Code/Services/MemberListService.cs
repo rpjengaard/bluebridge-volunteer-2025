@@ -77,7 +77,8 @@ public class MemberListService : IMemberListService
                 Email = member.Email ?? string.Empty,
                 SignupDate = member.GetValue<DateTime?>("acceptedDate") ?? member.CreateDate,
                 CrewNames = crewNames,
-                MemberGroups = memberGroups
+                MemberGroups = memberGroups,
+                IsCanceled = member.GetValue<bool>("cancelation")
             });
         }
 
