@@ -73,8 +73,16 @@ public class MemberAuthSurfaceController : SurfaceController
                 return Redirect(returnUrl);
             }
 
-            var dashboardUrl = GetDashboardUrl();
-            return Redirect(dashboardUrl ?? "/");
+            try
+            {
+                var dashboardUrl = GetDashboardUrl();
+                return Redirect(dashboardUrl ?? "/");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resolving dashboard URL after login for {Email}, falling back to /", model.Email);
+                return Redirect("/");
+            }
         }
 
         TempData["LoginError"] = result.ErrorMessage ?? "Der opstod en fejl.";
@@ -355,7 +363,9 @@ public class MemberAuthSurfaceController : SurfaceController
             var loginFrontpage = siteSettings.Value<Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent>("loginFrontpage");
             if (loginFrontpage != null)
             {
-                return loginFrontpage.Url();
+                var url = loginFrontpage.Url(PublishedUrlProvider);
+                if (!string.IsNullOrEmpty(url) && url != "#")
+                    return url;
             }
         }
 
