@@ -1,5 +1,6 @@
 using Code.Services;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +43,13 @@ builder.CreateUmbracoBuilder()
 WebApplication app = builder.Build();
 
 await app.BootUmbracoAsync();
+
+// Trust X-Forwarded-For / X-Forwarded-Proto from the reverse proxy so that
+// HTTPS is detected correctly and antiforgery token validation doesn't fail.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 app.UseHttpsRedirection();
 

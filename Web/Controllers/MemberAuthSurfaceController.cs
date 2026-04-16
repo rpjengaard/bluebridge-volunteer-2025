@@ -365,7 +365,13 @@ public class MemberAuthSurfaceController : SurfaceController
             {
                 var url = loginFrontpage.Url(PublishedUrlProvider);
                 if (!string.IsNullOrEmpty(url) && url != "#")
+                {
+                    // Return only the path to avoid cross-domain redirects when
+                    // UmbracoApplicationUrl differs from the actual serving domain.
+                    if (Uri.TryCreate(url, UriKind.Absolute, out var absoluteUri))
+                        return absoluteUri.PathAndQuery;
                     return url;
+                }
             }
         }
 
