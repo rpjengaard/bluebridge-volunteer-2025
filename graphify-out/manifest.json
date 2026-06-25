@@ -1,0 +1,657 @@
+{
+  ".claude/launch.json": {
+    "mtime": 1771791657.3169289,
+    "ast_hash": "cf6b60a1122e6848b46b5701da026077",
+    "semantic_hash": "cf6b60a1122e6848b46b5701da026077"
+  },
+  ".claude/settings.local.json": {
+    "mtime": 1771871065.4687188,
+    "ast_hash": "e587b79aa72d1e23e9986dd886fc3def",
+    "semantic_hash": "e587b79aa72d1e23e9986dd886fc3def"
+  },
+  "Blue Bridge Voluntier.slnx": {
+    "mtime": 1771235962.9743483,
+    "ast_hash": "4a904db0f3b74fd9916aa7ce83a540d1",
+    "semantic_hash": "4a904db0f3b74fd9916aa7ce83a540d1"
+  },
+  "Code/Code.csproj": {
+    "mtime": 1771710149.8336482,
+    "ast_hash": "ecd470606fefb5645503b6cc1e7eb95c",
+    "semantic_hash": "ecd470606fefb5645503b6cc1e7eb95c"
+  },
+  "Code/Migrations/AddCrewMessageTableMigration.cs": {
+    "mtime": 1771278521.8510504,
+    "ast_hash": "fb96ddef7d930f953ad5068f33f8a4ed",
+    "semantic_hash": "fb96ddef7d930f953ad5068f33f8a4ed"
+  },
+  "Code/Migrations/AddScheduleTablesMigration.cs": {
+    "mtime": 1771791657.3173606,
+    "ast_hash": "6cbb9f65df9662185b57639ade72a177",
+    "semantic_hash": "6cbb9f65df9662185b57639ade72a177"
+  },
+  "Code/Notifications/MemberCancelationComposer.cs": {
+    "mtime": 1774339438.8855414,
+    "ast_hash": "eed1fdab1c44f317df3b8d9c05ec696e",
+    "semantic_hash": "eed1fdab1c44f317df3b8d9c05ec696e"
+  },
+  "Code/Notifications/MemberCancelationHandler.cs": {
+    "mtime": 1774340530.437365,
+    "ast_hash": "a032f68fb6f3e486ba596dc3db003e88",
+    "semantic_hash": "a032f68fb6f3e486ba596dc3db003e88"
+  },
+  "Code/Services/ApplicationsService.cs": {
+    "mtime": 1771450808.6316555,
+    "ast_hash": "f203213b66a635ec4b7d561e32c0609a",
+    "semantic_hash": "f203213b66a635ec4b7d561e32c0609a"
+  },
+  "Code/Services/CrewMessageService.cs": {
+    "mtime": 1771277797.8578553,
+    "ast_hash": "548d1e00a57fdea8454c74735c7a4e83",
+    "semantic_hash": "548d1e00a57fdea8454c74735c7a4e83"
+  },
+  "Code/Services/CrewService.cs": {
+    "mtime": 1774338653.2054038,
+    "ast_hash": "3c68c390298d2554b634da766abd487a",
+    "semantic_hash": "3c68c390298d2554b634da766abd487a"
+  },
+  "Code/Services/DashboardService.cs": {
+    "mtime": 1771791657.3181138,
+    "ast_hash": "c9ae179d7b31912aa075d9630b69a1ed",
+    "semantic_hash": "c9ae179d7b31912aa075d9630b69a1ed"
+  },
+  "Code/Services/EmailLogService.cs": {
+    "mtime": 1771871065.469337,
+    "ast_hash": "938094ac52d6ebf20d645dcccf8652cb",
+    "semantic_hash": "938094ac52d6ebf20d645dcccf8652cb"
+  },
+  "Code/Services/EmailSettings.cs": {
+    "mtime": 1771235962.975446,
+    "ast_hash": "50bbd9de0dfeeb9a529e7ed95453a633",
+    "semantic_hash": "50bbd9de0dfeeb9a529e7ed95453a633"
+  },
+  "Code/Services/IApplicationsService.cs": {
+    "mtime": 1771450255.528983,
+    "ast_hash": "334dfcd0f47e504362a82ee343ea7ac8",
+    "semantic_hash": "334dfcd0f47e504362a82ee343ea7ac8"
+  },
+  "Code/Services/ICrewMessageService.cs": {
+    "mtime": 1771277797.8580866,
+    "ast_hash": "9ca31b76f17f59b6d65531bda7115f6e",
+    "semantic_hash": "9ca31b76f17f59b6d65531bda7115f6e"
+  },
+  "Code/Services/ICrewService.cs": {
+    "mtime": 1774338640.068597,
+    "ast_hash": "e8d40089fd6fed64fb462f757b107dbf",
+    "semantic_hash": "e8d40089fd6fed64fb462f757b107dbf"
+  },
+  "Code/Services/IDashboardService.cs": {
+    "mtime": 1771791657.3186107,
+    "ast_hash": "be3b995e598b7cb60f89109381a2f282",
+    "semantic_hash": "be3b995e598b7cb60f89109381a2f282"
+  },
+  "Code/Services/IEmailLogService.cs": {
+    "mtime": 1771871065.469532,
+    "ast_hash": "b0729219539cf9123443325a8d8227ec",
+    "semantic_hash": "b0729219539cf9123443325a8d8227ec"
+  },
+  "Code/Services/IInvitationService.cs": {
+    "mtime": 1771258841.9658785,
+    "ast_hash": "cd671bc7dca2ed1e8d9ae52891ecf820",
+    "semantic_hash": "cd671bc7dca2ed1e8d9ae52891ecf820"
+  },
+  "Code/Services/IMemberAuthService.cs": {
+    "mtime": 1772200246.2254786,
+    "ast_hash": "9a0742145d399a747836d839bc386dff",
+    "semantic_hash": "9a0742145d399a747836d839bc386dff"
+  },
+  "Code/Services/IMemberEmailService.cs": {
+    "mtime": 1774339395.7868264,
+    "ast_hash": "cb663371c0a6292e7398fe7384c55b13",
+    "semantic_hash": "cb663371c0a6292e7398fe7384c55b13"
+  },
+  "Code/Services/IMemberImpersonationService.cs": {
+    "mtime": 1771235962.976184,
+    "ast_hash": "c9a605ae765758c4bcf7d6f8e7a93401",
+    "semantic_hash": "c9a605ae765758c4bcf7d6f8e7a93401"
+  },
+  "Code/Services/IMemberListService.cs": {
+    "mtime": 1774338609.5479193,
+    "ast_hash": "99acc92920f7ddd90dd00865d3da0992",
+    "semantic_hash": "99acc92920f7ddd90dd00865d3da0992"
+  },
+  "Code/Services/IScheduleService.cs": {
+    "mtime": 1774340133.5076249,
+    "ast_hash": "bb5fb410082a5a113d01a750b8397f2e",
+    "semantic_hash": "bb5fb410082a5a113d01a750b8397f2e"
+  },
+  "Code/Services/InvitationService.cs": {
+    "mtime": 1772552419.6861997,
+    "ast_hash": "53cd9141ff98ee6729943bb4c0bb8ce4",
+    "semantic_hash": "53cd9141ff98ee6729943bb4c0bb8ce4"
+  },
+  "Code/Services/MemberAuthService.cs": {
+    "mtime": 1772202503.7042344,
+    "ast_hash": "a2a16dee505103c81609962ba794adc5",
+    "semantic_hash": "a2a16dee505103c81609962ba794adc5"
+  },
+  "Code/Services/MemberEmailService.cs": {
+    "mtime": 1774339413.750016,
+    "ast_hash": "df0506e5b27dbc16c37c017caaf25fa9",
+    "semantic_hash": "df0506e5b27dbc16c37c017caaf25fa9"
+  },
+  "Code/Services/MemberImpersonationService.cs": {
+    "mtime": 1771235962.976783,
+    "ast_hash": "33c02e3ea2148a263f3e397c31746868",
+    "semantic_hash": "33c02e3ea2148a263f3e397c31746868"
+  },
+  "Code/Services/MemberListService.cs": {
+    "mtime": 1774338614.2149098,
+    "ast_hash": "7f565a3268fd0d4c9f1566415b6ce9ee",
+    "semantic_hash": "7f565a3268fd0d4c9f1566415b6ce9ee"
+  },
+  "Code/Services/ScheduleService.cs": {
+    "mtime": 1774340151.2807524,
+    "ast_hash": "4b70e6ffed3f85a80d0f012f5f447f21",
+    "semantic_hash": "4b70e6ffed3f85a80d0f012f5f447f21"
+  },
+  "Code/appsettings-schema.Umbraco.Cms.json": {
+    "mtime": 1771480912.0,
+    "ast_hash": "f360bd55a54b076137767f35d6d5db88",
+    "semantic_hash": "f360bd55a54b076137767f35d6d5db88"
+  },
+  "Code/appsettings-schema.json": {
+    "mtime": 1776331716.9540443,
+    "ast_hash": "845c2f45099bffbc44d9e99f74a1e5ac",
+    "semantic_hash": "845c2f45099bffbc44d9e99f74a1e5ac"
+  },
+  "Code/umbraco-package-schema.json": {
+    "mtime": 1771480924.0,
+    "ast_hash": "fed60399da17e840e504340cf2f1762c",
+    "semantic_hash": "fed60399da17e840e504340cf2f1762c"
+  },
+  "Web/App_Plugins/MemberEmailDashboard/member-email-dashboard.js": {
+    "mtime": 1771871065.4705627,
+    "ast_hash": "d2568d3017c4ef991ff2c8aabc61e3de",
+    "semantic_hash": "d2568d3017c4ef991ff2c8aabc61e3de"
+  },
+  "Web/App_Plugins/MemberEmailDashboard/umbraco-package.json": {
+    "mtime": 1771871065.4707925,
+    "ast_hash": "3847cbefbcff7aabaf5b7efe8197cf86",
+    "semantic_hash": "3847cbefbcff7aabaf5b7efe8197cf86"
+  },
+  "Web/App_Plugins/MemberImpersonation/member-impersonation-dashboard.js": {
+    "mtime": 1771235962.97868,
+    "ast_hash": "fd43e2824f48ad955575d97170089a8f",
+    "semantic_hash": "fd43e2824f48ad955575d97170089a8f"
+  },
+  "Web/App_Plugins/MemberImpersonation/umbraco-package.json": {
+    "mtime": 1771235962.978798,
+    "ast_hash": "1f834a65aa74a62f4d198e0dd9f43eda",
+    "semantic_hash": "1f834a65aa74a62f4d198e0dd9f43eda"
+  },
+  "Web/App_Plugins/MemberImporter/member-importer-dashboard.js": {
+    "mtime": 1771235962.9790626,
+    "ast_hash": "32d8c31d7472a103f1f30c28835b69b4",
+    "semantic_hash": "32d8c31d7472a103f1f30c28835b69b4"
+  },
+  "Web/App_Plugins/MemberImporter/umbraco-package.json": {
+    "mtime": 1771235962.9791787,
+    "ast_hash": "408879836e618cacca739d1955008dac",
+    "semantic_hash": "408879836e618cacca739d1955008dac"
+  },
+  "Web/App_Plugins/MemberInvitation/member-invitation-dashboard.js": {
+    "mtime": 1771235962.97944,
+    "ast_hash": "822f11925daa8d43f294abab09ff47bf",
+    "semantic_hash": "822f11925daa8d43f294abab09ff47bf"
+  },
+  "Web/App_Plugins/MemberInvitation/umbraco-package.json": {
+    "mtime": 1771235962.9795437,
+    "ast_hash": "5bbbe432dbb195473cade6b4c89dfa63",
+    "semantic_hash": "5bbbe432dbb195473cade6b4c89dfa63"
+  },
+  "Web/Controllers/BbvCrewPageController.cs": {
+    "mtime": 1771791657.3208272,
+    "ast_hash": "e52891d2173a6ec6168f2af92d0b2cd3",
+    "semantic_hash": "e52891d2173a6ec6168f2af92d0b2cd3"
+  },
+  "Web/Controllers/BbvMemberListController.cs": {
+    "mtime": 1774338622.6745164,
+    "ast_hash": "ecc37a549f7e4ffa11a725ec5a70ab5b",
+    "semantic_hash": "ecc37a549f7e4ffa11a725ec5a70ab5b"
+  },
+  "Web/Controllers/CrewSurfaceController.cs": {
+    "mtime": 1773779185.0639327,
+    "ast_hash": "7c3968cbb2fdc87563bce6b437af246c",
+    "semantic_hash": "7c3968cbb2fdc87563bce6b437af246c"
+  },
+  "Web/Controllers/ImpersonationSurfaceController.cs": {
+    "mtime": 1771235962.9797986,
+    "ast_hash": "693f6dcb3133bff0ac11706f43544bdf",
+    "semantic_hash": "693f6dcb3133bff0ac11706f43544bdf"
+  },
+  "Web/Controllers/InvitationSurfaceController.cs": {
+    "mtime": 1771235962.9799087,
+    "ast_hash": "8833c0bc6fcaa11e588f25d7d73fb9b4",
+    "semantic_hash": "8833c0bc6fcaa11e588f25d7d73fb9b4"
+  },
+  "Web/Controllers/MemberAuthSurfaceController.cs": {
+    "mtime": 1776331299.4641652,
+    "ast_hash": "03cedadc1756fbf45bbd214b97cdc2ef",
+    "semantic_hash": "03cedadc1756fbf45bbd214b97cdc2ef"
+  },
+  "Web/Controllers/MemberController.cs": {
+    "mtime": 1771350514.9946175,
+    "ast_hash": "8a9af8da428d4a16125659d2aa89f89a",
+    "semantic_hash": "8a9af8da428d4a16125659d2aa89f89a"
+  },
+  "Web/Controllers/MemberEmailDashboardController.cs": {
+    "mtime": 1771871065.4711232,
+    "ast_hash": "5c600fc33cc537139b4e925df47bc10c",
+    "semantic_hash": "5c600fc33cc537139b4e925df47bc10c"
+  },
+  "Web/Controllers/MemberEmailSurfaceController.cs": {
+    "mtime": 1772565973.671981,
+    "ast_hash": "b2e8dbe46ccb7a94f92afcd5a72e4884",
+    "semantic_hash": "b2e8dbe46ccb7a94f92afcd5a72e4884"
+  },
+  "Web/Controllers/MemberImpersonationController.cs": {
+    "mtime": 1771791657.322145,
+    "ast_hash": "3ad8852c3c386e0943e5f392b41c856e",
+    "semantic_hash": "3ad8852c3c386e0943e5f392b41c856e"
+  },
+  "Web/Controllers/MemberImportController.cs": {
+    "mtime": 1771235962.9804182,
+    "ast_hash": "ac06c9684fc16a99cb2da050605eb8be",
+    "semantic_hash": "ac06c9684fc16a99cb2da050605eb8be"
+  },
+  "Web/Controllers/MemberInvitationController.cs": {
+    "mtime": 1771235962.9805152,
+    "ast_hash": "047d0f5ee4a708eb70e2111fc8ea8252",
+    "semantic_hash": "047d0f5ee4a708eb70e2111fc8ea8252"
+  },
+  "Web/Controllers/MemberListController.cs": {
+    "mtime": 1772565101.570893,
+    "ast_hash": "c77ce3552e5477445a05189546eeab64",
+    "semantic_hash": "c77ce3552e5477445a05189546eeab64"
+  },
+  "Web/Controllers/PasswordResetController.cs": {
+    "mtime": 1771272118.1708589,
+    "ast_hash": "c6ee496f5b3bd4500b560917471bf31e",
+    "semantic_hash": "c6ee496f5b3bd4500b560917471bf31e"
+  },
+  "Web/Controllers/ScheduleGetController.cs": {
+    "mtime": 1774338669.1429617,
+    "ast_hash": "826ce12b32076ba0f4e61c40462d365f",
+    "semantic_hash": "826ce12b32076ba0f4e61c40462d365f"
+  },
+  "Web/Program.cs": {
+    "mtime": 1776331307.3442166,
+    "ast_hash": "9a7d2a306bb55ddbd150c1a3b148b999",
+    "semantic_hash": "9a7d2a306bb55ddbd150c1a3b148b999"
+  },
+  "Web/Properties/launchSettings.json": {
+    "mtime": 1771235962.9807384,
+    "ast_hash": "5952a33831bc87009ba7250f95277a77",
+    "semantic_hash": "5952a33831bc87009ba7250f95277a77"
+  },
+  "Web/ViewModels/AcceptInvitationViewModel.cs": {
+    "mtime": 1771235962.9808896,
+    "ast_hash": "99b232b8888f489ad073f7e8b6393d3b",
+    "semantic_hash": "99b232b8888f489ad073f7e8b6393d3b"
+  },
+  "Web/ViewModels/ApplicationsViewModel.cs": {
+    "mtime": 1771450256.989899,
+    "ast_hash": "30ece9ecf9348d0405bdd5f3483ac1a8",
+    "semantic_hash": "30ece9ecf9348d0405bdd5f3483ac1a8"
+  },
+  "Web/ViewModels/CrewsPageViewModel.cs": {
+    "mtime": 1771451666.7894526,
+    "ast_hash": "760370ea49ea18eca44eec0c0a2fb611",
+    "semantic_hash": "760370ea49ea18eca44eec0c0a2fb611"
+  },
+  "Web/ViewModels/DashboardViewModel.cs": {
+    "mtime": 1771791657.3229864,
+    "ast_hash": "bc95ddfaed0442a4bbc1ca63e1513048",
+    "semantic_hash": "bc95ddfaed0442a4bbc1ca63e1513048"
+  },
+  "Web/ViewModels/ForgotPasswordViewModel.cs": {
+    "mtime": 1771235962.9812326,
+    "ast_hash": "5b781877525904c65ac88f79ffddc3cc",
+    "semantic_hash": "5b781877525904c65ac88f79ffddc3cc"
+  },
+  "Web/ViewModels/LoginViewModel.cs": {
+    "mtime": 1771235962.9813328,
+    "ast_hash": "ded4c5aa26cb11ba636af47d42e90f5c",
+    "semantic_hash": "ded4c5aa26cb11ba636af47d42e90f5c"
+  },
+  "Web/ViewModels/MemberListViewModel.cs": {
+    "mtime": 1774338618.4513953,
+    "ast_hash": "957243fdd5100617b247001300cbfd7f",
+    "semantic_hash": "957243fdd5100617b247001300cbfd7f"
+  },
+  "Web/ViewModels/ResetPasswordViewModel.cs": {
+    "mtime": 1771235962.9814503,
+    "ast_hash": "121b5f48b9352bceda6dc480dd6f3d3e",
+    "semantic_hash": "121b5f48b9352bceda6dc480dd6f3d3e"
+  },
+  "Web/ViewModels/SignupViewModel.cs": {
+    "mtime": 1772200748.2000678,
+    "ast_hash": "92fd4fe9c85ef1e848e8a0c338ce1d49",
+    "semantic_hash": "92fd4fe9c85ef1e848e8a0c338ce1d49"
+  },
+  "Web/Views/AcceptInvitation.cshtml": {
+    "mtime": 1771235962.9818895,
+    "ast_hash": "b1118e0da55dea99db17dfd3f1b8b2bd",
+    "semantic_hash": "b1118e0da55dea99db17dfd3f1b8b2bd"
+  },
+  "Web/Views/Applications.cshtml": {
+    "mtime": 1771450287.6640067,
+    "ast_hash": "39c52e5b74dcab8c039cd51a65d0cf89",
+    "semantic_hash": "39c52e5b74dcab8c039cd51a65d0cf89"
+  },
+  "Web/Views/Artikel.cshtml": {
+    "mtime": 1772203275.8830779,
+    "ast_hash": "65bf7bdbc47702305927d60e8dfae288",
+    "semantic_hash": "65bf7bdbc47702305927d60e8dfae288"
+  },
+  "Web/Views/Crew.cshtml": {
+    "mtime": 1773777960.687065,
+    "ast_hash": "0ac99ffea1fb3ea98f04b56acc3aa06f",
+    "semantic_hash": "0ac99ffea1fb3ea98f04b56acc3aa06f"
+  },
+  "Web/Views/CrewListe.cshtml": {
+    "mtime": 1771946199.049245,
+    "ast_hash": "cbd3592ebb01aae6a0a4259baaa86bc0",
+    "semantic_hash": "cbd3592ebb01aae6a0a4259baaa86bc0"
+  },
+  "Web/Views/CrewSchedule.cshtml": {
+    "mtime": 1772399342.88522,
+    "ast_hash": "9087d451df84a82fdf1c5ef0eab48546",
+    "semantic_hash": "9087d451df84a82fdf1c5ef0eab48546"
+  },
+  "Web/Views/Dashboard.cshtml": {
+    "mtime": 1771791657.323862,
+    "ast_hash": "334884ad252bfa16f2ec5d416216e2d9",
+    "semantic_hash": "334884ad252bfa16f2ec5d416216e2d9"
+  },
+  "Web/Views/Frontpage.cshtml": {
+    "mtime": 1771235962.9829755,
+    "ast_hash": "7420cecff7ab66483644a90eda09d9d1",
+    "semantic_hash": "7420cecff7ab66483644a90eda09d9d1"
+  },
+  "Web/Views/InvitationConfirmation.cshtml": {
+    "mtime": 1771271535.6290877,
+    "ast_hash": "eb6a552058dfc1abab82cbb69e7beef8",
+    "semantic_hash": "eb6a552058dfc1abab82cbb69e7beef8"
+  },
+  "Web/Views/Member.cshtml": {
+    "mtime": 1772350652.1143866,
+    "ast_hash": "585b02e497db60551f9a70c67933a1f1",
+    "semantic_hash": "585b02e497db60551f9a70c67933a1f1"
+  },
+  "Web/Views/MemberList.cshtml": {
+    "mtime": 1774338635.6559505,
+    "ast_hash": "cdf7815ff3bdb41a0cf41488e5c52fcf",
+    "semantic_hash": "cdf7815ff3bdb41a0cf41488e5c52fcf"
+  },
+  "Web/Views/Partials/Member/_ForgotPasswordForm.cshtml": {
+    "mtime": 1771235962.9834797,
+    "ast_hash": "d90404bc6dc778e4d3a23606dad97414",
+    "semantic_hash": "d90404bc6dc778e4d3a23606dad97414"
+  },
+  "Web/Views/Partials/_Footer.cshtml": {
+    "mtime": 1771263379.1004717,
+    "ast_hash": "76afa5195e60727d7de0a456b810968d",
+    "semantic_hash": "76afa5195e60727d7de0a456b810968d"
+  },
+  "Web/Views/Partials/_ImpersonationBanner.cshtml": {
+    "mtime": 1771235962.9835684,
+    "ast_hash": "4ebe6b65cab83af56263306fd718a9c3",
+    "semantic_hash": "4ebe6b65cab83af56263306fd718a9c3"
+  },
+  "Web/Views/Partials/_MemberModal.cshtml": {
+    "mtime": 1771350521.646186,
+    "ast_hash": "cf847d392b2f41ef8cbdb114a80d2f8d",
+    "semantic_hash": "cf847d392b2f41ef8cbdb114a80d2f8d"
+  },
+  "Web/Views/Partials/_Navigation.cshtml": {
+    "mtime": 1772351812.2814531,
+    "ast_hash": "91189a90e6c6b3c23401bbbad595e970",
+    "semantic_hash": "91189a90e6c6b3c23401bbbad595e970"
+  },
+  "Web/Views/Partials/blockgrid/area.cshtml": {
+    "mtime": 1771235962.98398,
+    "ast_hash": "20119f7139f5597bb6d461e75ef2be62",
+    "semantic_hash": "20119f7139f5597bb6d461e75ef2be62"
+  },
+  "Web/Views/Partials/blockgrid/areas.cshtml": {
+    "mtime": 1771235962.9840808,
+    "ast_hash": "07a1534b4cada75fe6aaa160943615e4",
+    "semantic_hash": "07a1534b4cada75fe6aaa160943615e4"
+  },
+  "Web/Views/Partials/blockgrid/default.cshtml": {
+    "mtime": 1771235962.9841614,
+    "ast_hash": "ac188875b69bbbaa7e52a32cadcd9cc0",
+    "semantic_hash": "ac188875b69bbbaa7e52a32cadcd9cc0"
+  },
+  "Web/Views/Partials/blockgrid/items.cshtml": {
+    "mtime": 1771235962.9842675,
+    "ast_hash": "8a843765baf7b7c548c119d90b91758f",
+    "semantic_hash": "8a843765baf7b7c548c119d90b91758f"
+  },
+  "Web/Views/Partials/blocklist/default.cshtml": {
+    "mtime": 1771235962.9844065,
+    "ast_hash": "0617fbff94b76ef8a96fd522a515b9b7",
+    "semantic_hash": "0617fbff94b76ef8a96fd522a515b9b7"
+  },
+  "Web/Views/Partials/singleblock/default.cshtml": {
+    "mtime": 1771235962.9845426,
+    "ast_hash": "912885e6ea8982e2e43351678756dcf0",
+    "semantic_hash": "912885e6ea8982e2e43351678756dcf0"
+  },
+  "Web/Views/ResetPassword.cshtml": {
+    "mtime": 1771272146.3701496,
+    "ast_hash": "4ac5d430ad227d66866aacc86e1cb4ba",
+    "semantic_hash": "4ac5d430ad227d66866aacc86e1cb4ba"
+  },
+  "Web/Views/ResetPasswordConfirmation.cshtml": {
+    "mtime": 1771272126.741692,
+    "ast_hash": "e01be021b1b9ca02e55739832a4d731c",
+    "semantic_hash": "e01be021b1b9ca02e55739832a4d731c"
+  },
+  "Web/Views/Shared/_MasterLayout.cshtml": {
+    "mtime": 1771235962.9848852,
+    "ast_hash": "0508b092dd5a80c5fe3e0b4c910467ea",
+    "semantic_hash": "0508b092dd5a80c5fe3e0b4c910467ea"
+  },
+  "Web/Views/Shared/_ProtectedLayout.cshtml": {
+    "mtime": 1771235962.9849756,
+    "ast_hash": "13611106316998ce4a7c99718b59298a",
+    "semantic_hash": "13611106316998ce4a7c99718b59298a"
+  },
+  "Web/Views/SignupConfirmation.cshtml": {
+    "mtime": 1772200360.5671566,
+    "ast_hash": "899725d23f3ddd8252074100a92343e5",
+    "semantic_hash": "899725d23f3ddd8252074100a92343e5"
+  },
+  "Web/Views/Site.cshtml": {
+    "mtime": 1771235962.985068,
+    "ast_hash": "5cb1516866834edd02af9d5a17572380",
+    "semantic_hash": "5cb1516866834edd02af9d5a17572380"
+  },
+  "Web/Views/_ViewImports.cshtml": {
+    "mtime": 1771235962.9851823,
+    "ast_hash": "665ec7911e80c46241c88db8394aab65",
+    "semantic_hash": "665ec7911e80c46241c88db8394aab65"
+  },
+  "Web/Views/login.cshtml": {
+    "mtime": 1771271604.3847928,
+    "ast_hash": "907f27acc158bed8ac1e426609875d3d",
+    "semantic_hash": "907f27acc158bed8ac1e426609875d3d"
+  },
+  "Web/Views/signup.cshtml": {
+    "mtime": 1772552424.3065372,
+    "ast_hash": "286f46e1bb918c3a396665125006fb17",
+    "semantic_hash": "286f46e1bb918c3a396665125006fb17"
+  },
+  "Web/Web.csproj": {
+    "mtime": 1771710149.8338776,
+    "ast_hash": "b007622c8ea4d0502f79706eb464b83e",
+    "semantic_hash": "b007622c8ea4d0502f79706eb464b83e"
+  },
+  "Web/Web.sln": {
+    "mtime": 1771235962.985605,
+    "ast_hash": "4a1dc15dca3d376b94227abda7275aee",
+    "semantic_hash": "4a1dc15dca3d376b94227abda7275aee"
+  },
+  "Web/appsettings-schema.Umbraco.Cms.json": {
+    "mtime": 1771480912.0,
+    "ast_hash": "f360bd55a54b076137767f35d6d5db88",
+    "semantic_hash": "f360bd55a54b076137767f35d6d5db88"
+  },
+  "Web/appsettings-schema.json": {
+    "mtime": 1776331718.5975838,
+    "ast_hash": "dc01576dde35eb867b977770aa0a44d9",
+    "semantic_hash": "dc01576dde35eb867b977770aa0a44d9"
+  },
+  "Web/appsettings-schema.usync.json": {
+    "mtime": 1768218892.0,
+    "ast_hash": "24981bc869ac98c857650170a7fd305d",
+    "semantic_hash": "24981bc869ac98c857650170a7fd305d"
+  },
+  "Web/appsettings.Development.json": {
+    "mtime": 1773781419.8493023,
+    "ast_hash": "5f5a9a244655dc79667d44f496236090",
+    "semantic_hash": "5f5a9a244655dc79667d44f496236090"
+  },
+  "Web/appsettings.json": {
+    "mtime": 1776331312.9471664,
+    "ast_hash": "5b62b2dc516ced7bc143029f6744173f",
+    "semantic_hash": "5b62b2dc516ced7bc143029f6744173f"
+  },
+  "Web/umbraco-package-schema.json": {
+    "mtime": 1771480924.0,
+    "ast_hash": "fed60399da17e840e504340cf2f1762c",
+    "semantic_hash": "fed60399da17e840e504340cf2f1762c"
+  },
+  "Web/umbraco/models/BbvApplicationsPage.generated.cs": {
+    "mtime": 1772202989.8723426,
+    "ast_hash": "0cd45d56b99f65124bb323fa17068ae5",
+    "semantic_hash": "0cd45d56b99f65124bb323fa17068ae5"
+  },
+  "Web/umbraco/models/BbvArticlePage.generated.cs": {
+    "mtime": 1772202989.8726509,
+    "ast_hash": "9c84ac40af010666d93f2f41f27c4254",
+    "semantic_hash": "9c84ac40af010666d93f2f41f27c4254"
+  },
+  "Web/umbraco/models/BbvAvailableJobs.generated.cs": {
+    "mtime": 1772202989.8724964,
+    "ast_hash": "a40c64231ea39b9e320fb2d05628f1da",
+    "semantic_hash": "a40c64231ea39b9e320fb2d05628f1da"
+  },
+  "Web/umbraco/models/BbvCrewList.generated.cs": {
+    "mtime": 1772202989.8717666,
+    "ast_hash": "7778f1d80ad4aeb1dc258c61ff8eaaaa",
+    "semantic_hash": "7778f1d80ad4aeb1dc258c61ff8eaaaa"
+  },
+  "Web/umbraco/models/BbvCrewPage.generated.cs": {
+    "mtime": 1772552623.4938283,
+    "ast_hash": "9da2bbdc63134be58e7e4ecb308dfcce",
+    "semantic_hash": "9da2bbdc63134be58e7e4ecb308dfcce"
+  },
+  "Web/umbraco/models/BbvDashboard.generated.cs": {
+    "mtime": 1772202989.8715472,
+    "ast_hash": "abc7b8326a414a5975ce62c90ac856e9",
+    "semantic_hash": "abc7b8326a414a5975ce62c90ac856e9"
+  },
+  "Web/umbraco/models/BbvFrontpage.generated.cs": {
+    "mtime": 1772202989.871325,
+    "ast_hash": "2f847d93a7442ae9b93e697adba02a10",
+    "semantic_hash": "2f847d93a7442ae9b93e697adba02a10"
+  },
+  "Web/umbraco/models/BbvLoginPage.generated.cs": {
+    "mtime": 1772202989.8709705,
+    "ast_hash": "b74be294fc0481067c9447ca53c46cf6",
+    "semantic_hash": "b74be294fc0481067c9447ca53c46cf6"
+  },
+  "Web/umbraco/models/BbvMember.generated.cs": {
+    "mtime": 1774337408.967571,
+    "ast_hash": "a2bb846494b9ec6b5842a0ec1c161e06",
+    "semantic_hash": "a2bb846494b9ec6b5842a0ec1c161e06"
+  },
+  "Web/umbraco/models/BbvMemberList.generated.cs": {
+    "mtime": 1772287335.697778,
+    "ast_hash": "2d091aebd3f7360566b4567948b02e08",
+    "semantic_hash": "2d091aebd3f7360566b4567948b02e08"
+  },
+  "Web/umbraco/models/BbvSignUp.generated.cs": {
+    "mtime": 1772202989.8711522,
+    "ast_hash": "aa09ecd75448ce0f348012d5654dbc6e",
+    "semantic_hash": "aa09ecd75448ce0f348012d5654dbc6e"
+  },
+  "Web/umbraco/models/BbvSiteSettings.generated.cs": {
+    "mtime": 1772202989.8705587,
+    "ast_hash": "87a47b9426754601e22cd51e97a7c088",
+    "semantic_hash": "87a47b9426754601e22cd51e97a7c088"
+  },
+  "Web/umbraco/models/File.generated.cs": {
+    "mtime": 1772202989.873264,
+    "ast_hash": "e09b18fd03c470636d97e6acbad2f5ec",
+    "semantic_hash": "e09b18fd03c470636d97e6acbad2f5ec"
+  },
+  "Web/umbraco/models/Folder.generated.cs": {
+    "mtime": 1772202989.8728068,
+    "ast_hash": "e677e533661210be9f27d767c1b96203",
+    "semantic_hash": "e677e533661210be9f27d767c1b96203"
+  },
+  "Web/umbraco/models/Image.generated.cs": {
+    "mtime": 1772202989.873058,
+    "ast_hash": "dcfd6939985d0e4d48b56ae6f558a8ad",
+    "semantic_hash": "dcfd6939985d0e4d48b56ae6f558a8ad"
+  },
+  "Web/umbraco/models/Member.generated.cs": {
+    "mtime": 1772202989.8740726,
+    "ast_hash": "323b422053ab652313f3d829d2dea7c9",
+    "semantic_hash": "323b422053ab652313f3d829d2dea7c9"
+  },
+  "Web/umbraco/models/UmbracoMediaArticle.generated.cs": {
+    "mtime": 1772202989.873747,
+    "ast_hash": "c4ef8c6e46c13bfcc0f6b76f6800c41a",
+    "semantic_hash": "c4ef8c6e46c13bfcc0f6b76f6800c41a"
+  },
+  "Web/umbraco/models/UmbracoMediaAudio.generated.cs": {
+    "mtime": 1772202989.8736174,
+    "ast_hash": "9b7c257568e8f3d83e28338a72638bcc",
+    "semantic_hash": "9b7c257568e8f3d83e28338a72638bcc"
+  },
+  "Web/umbraco/models/UmbracoMediaVectorGraphics.generated.cs": {
+    "mtime": 1772202989.873912,
+    "ast_hash": "2090189d05c425fa0e81c2498d0714c4",
+    "semantic_hash": "2090189d05c425fa0e81c2498d0714c4"
+  },
+  "Web/umbraco/models/UmbracoMediaVideo.generated.cs": {
+    "mtime": 1772202989.8734298,
+    "ast_hash": "2a5920e29199805fa6c093dcf8df7e09",
+    "semantic_hash": "2a5920e29199805fa6c093dcf8df7e09"
+  },
+  "Web/wwwroot/js/member-modal.js": {
+    "mtime": 1771350524.1050334,
+    "ast_hash": "f53d6104330b295fff6a9a5cb34b477e",
+    "semantic_hash": "f53d6104330b295fff6a9a5cb34b477e"
+  },
+  "CLAUDE.md": {
+    "mtime": 1771710149.8333645,
+    "ast_hash": "e0aea05f1dabdc82b0f93e7819df0459",
+    "semantic_hash": "e0aea05f1dabdc82b0f93e7819df0459"
+  },
+  "README.md": {
+    "mtime": 1771235962.9782531,
+    "ast_hash": "2f8a2601d2f6f533a45544d3ba04fde3",
+    "semantic_hash": "2f8a2601d2f6f533a45544d3ba04fde3"
+  },
+  "azure-pipelines.yml": {
+    "mtime": 1771235962.9985695,
+    "ast_hash": "640aa95ab05db785074589adfe27c011",
+    "semantic_hash": "640aa95ab05db785074589adfe27c011"
+  }
+}
