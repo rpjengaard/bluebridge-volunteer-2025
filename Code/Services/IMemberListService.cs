@@ -3,6 +3,21 @@ namespace Code.Services;
 public interface IMemberListService
 {
     Task<MemberListData?> GetAllMembersAsync(string requestingMemberEmail);
+
+    // [CHANGE: member export API endpoint] Related: MemberListService.cs, Web/Controllers/MemberExportApiController.cs
+    Task<List<MemberExportItem>> GetMemberExportAsync(string? groupFilter);
+}
+
+public class MemberExportItem
+{
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public List<string> Crews { get; set; } = new();
+    public List<string> MemberGroups { get; set; } = new();
+    public DateTime SignupDate { get; set; }
+    public bool IsCanceled { get; set; }
+    public bool Accepted2026 { get; set; }
 }
 
 public class MemberListData

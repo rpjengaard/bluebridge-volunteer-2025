@@ -10,6 +10,7 @@ A volunteer ("frivillig") management system built with **Umbraco CMS v17.0.2** o
 - **CSV Import**: Bulk import volunteers from CSV files via backoffice dashboard
 - **Member Invitation System**: Send email invitations to new volunteers
 - **Dashboard**: Personalized dashboard for logged-in volunteers
+- **Member Export API**: API key-protected JSON endpoint for extracting member data to external systems
 
 ## Tech Stack
 
@@ -116,6 +117,82 @@ The Member CSV Importer expects the following columns:
 | `Efternavn` | Last name | No |
 | `Telefon` | Phone number | No |
 | `Arbejdssteder` | Previous workplaces | No |
+
+## Member Export API
+
+A JSON API for extracting member data to external systems (scripts, Excel/Power BI, integrations).
+
+### Endpoint
+
+```
+GET /api/members/export
+```
+
+### Authentication
+
+Requires an API key sent in the `X-Api-Key` header. The key is configured under `MemberExportApi:ApiKey`:
+
+- **Development**: set in `appsettings.Development.json`
+- **Production**: set via environment variable `MemberExportApi__ApiKey` (never commit the real key)
+
+If no key is configured, the endpoint is disabled and returns `403`.
+
+### Query Parameters
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| `group` | Filter by member group (role) name, e.g. `Admin`. Exact match, case-insensitive. Omit to return all members. Unknown group returns an empty list. | No |
+
+### Response
+
+All members are returned in one response (no pagination). Canceled and non-accepted members are included and flagged so consumers can filter themselves.
+
+```json
+{
+  "meta": {
+    "count": 421,
+    "statusCode": 200,
+    "durationMs": 1114
+  },
+  "members": [
+    {
+      "firstName": "Anna",
+      "lastName": "Jensen",
+      "email": "anna@example.dk",
+      "crews": ["Bar", "Scene"],
+      "memberGroups": ["Frivillige"],
+      "signupDate": "2026-02-16T17:31:59Z",
+      "isCanceled": false,
+      "accepted2026": true
+    }
+  ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `firstName` / `lastName` | From the member's `firstName`/`lastName` properties |
+| `email` | Member email |
+| `crews` | Names of assigned crews |
+| `memberGroups` | Member group (role) names |
+| `signupDate` | `acceptedDate` property, falling back to the Umbraco record's create date (same logic as the `/members` page) |
+| `isCanceled` | `true` if the member has canceled |
+| `accepted2026` | `true` if the member has accepted for 2026 |
+
+Error responses use the same envelope with an `error` message instead of `members`:
+
+| Status | Meaning |
+|--------|---------|
+| `401` | Missing or invalid `X-Api-Key` |
+| `403` | No API key configured (endpoint disabled) |
+
+### Example
+
+```bash
+curl -H "X-Api-Key: <your-key>" "https://<host>/api/members/export?group=Frivillige"
+```
+
+**Implementation**: `Web/Controllers/MemberExportApiController.cs` + `IMemberListService.GetMemberExportAsync` in `Code/Services`.
 
 ## Development Notes
 

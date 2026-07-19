@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Services;
 
 namespace Code.Services;
@@ -52,22 +53,18 @@ public class MemberListService : IMemberListService
 
         foreach (var member in allMembers)
         {
-            if (!member.GetValue<bool>("accept2026"))
+            var core = ReadMemberCore(member, crewNameCache);
+            if (!core.Accepted2026)
                 continue;
 
-            var firstName = member.GetValue<string>("firstName") ?? string.Empty;
-            var lastName = member.GetValue<string>("lastName") ?? string.Empty;
-            var fullName = $"{firstName} {lastName}".Trim();
+            var fullName = $"{core.FirstName} {core.LastName}".Trim();
             if (string.IsNullOrEmpty(fullName))
                 fullName = member.Name ?? member.Email ?? "Unknown";
 
-            var crewsValue = member.GetValue<string>("crews");
-            var crewNames = ResolveCrewNames(crewsValue, crewNameCache);
-            foreach (var name in crewNames)
+            foreach (var name in core.CrewNames)
                 allCrewNames.Add(name);
 
-            var memberGroups = _memberService.GetAllRoles(member.Id).ToList();
-            foreach (var group in memberGroups)
+            foreach (var group in core.MemberGroups)
                 allGroupNames.Add(group);
 
             items.Add(new MemberListItem
@@ -75,10 +72,10 @@ public class MemberListService : IMemberListService
                 MemberKey = member.Key,
                 FullName = fullName,
                 Email = member.Email ?? string.Empty,
-                SignupDate = member.GetValue<DateTime?>("acceptedDate") ?? member.CreateDate,
-                CrewNames = crewNames,
-                MemberGroups = memberGroups,
-                IsCanceled = member.GetValue<bool>("cancelation")
+                SignupDate = core.SignupDate,
+                CrewNames = core.CrewNames,
+                MemberGroups = core.MemberGroups,
+                IsCanceled = core.IsCanceled
             });
         }
 
@@ -92,6 +89,59 @@ public class MemberListService : IMemberListService
 
         return Task.FromResult<MemberListData?>(result);
     }
+
+    // [CHANGE: member export API endpoint] Related: IMemberListService.cs, Web/Controllers/MemberExportApiController.cs
+    // No permission check here by design: the API key check in MemberExportApiController is the gate.
+    public Task<List<MemberExportItem>> GetMemberExportAsync(string? groupFilter)
+    {
+        var allMembers = _memberService.GetAllMembers();
+        var crewNameCache = new Dictionary<Guid, string>();
+        var items = new List<MemberExportItem>();
+
+        foreach (var member in allMembers)
+        {
+            var core = ReadMemberCore(member, crewNameCache);
+
+            if (!string.IsNullOrWhiteSpace(groupFilter) &&
+                !core.MemberGroups.Contains(groupFilter, StringComparer.OrdinalIgnoreCase))
+                continue;
+
+            items.Add(new MemberExportItem
+            {
+                FirstName = core.FirstName,
+                LastName = core.LastName,
+                Email = member.Email ?? string.Empty,
+                Crews = core.CrewNames,
+                MemberGroups = core.MemberGroups,
+                SignupDate = core.SignupDate,
+                IsCanceled = core.IsCanceled,
+                Accepted2026 = core.Accepted2026
+            });
+        }
+
+        return Task.FromResult(items);
+    }
+
+    private MemberCore ReadMemberCore(IMember member, Dictionary<Guid, string> crewNameCache)
+    {
+        return new MemberCore(
+            member.GetValue<string>("firstName") ?? string.Empty,
+            member.GetValue<string>("lastName") ?? string.Empty,
+            ResolveCrewNames(member.GetValue<string>("crews"), crewNameCache),
+            _memberService.GetAllRoles(member.Id).ToList(),
+            member.GetValue<DateTime?>("acceptedDate") ?? member.CreateDate,
+            member.GetValue<bool>("cancelation"),
+            member.GetValue<bool>("accept2026"));
+    }
+
+    private sealed record MemberCore(
+        string FirstName,
+        string LastName,
+        List<string> CrewNames,
+        List<string> MemberGroups,
+        DateTime SignupDate,
+        bool IsCanceled,
+        bool Accepted2026);
 
     private List<string> ResolveCrewNames(string? udiString, Dictionary<Guid, string> cache)
     {
