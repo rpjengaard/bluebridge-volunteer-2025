@@ -4,8 +4,8 @@ public interface IMemberListService
 {
     Task<MemberListData?> GetAllMembersAsync(string requestingMemberEmail);
 
-    // [CHANGE: member export API endpoint] Related: MemberListService.cs, Web/Controllers/MemberExportApiController.cs
-    Task<List<MemberExportItem>> GetMemberExportAsync(string? groupFilter);
+    // [CHANGE: hasShift filter on member export] Related: MemberListService.cs, IScheduleService.cs, Web/Controllers/MemberExportApiController.cs
+    Task<List<MemberExportItem>> GetMemberExportAsync(string? groupFilter, bool hasShift = false);
 }
 
 public class MemberExportItem

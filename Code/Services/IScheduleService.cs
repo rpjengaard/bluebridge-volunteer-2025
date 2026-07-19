@@ -73,5 +73,7 @@ public interface IScheduleService
     Task UnpublishScheduleAsync(int scheduleId);
     Task<List<ScheduleShiftData>> GetShiftsForMemberAsync(Guid memberKey);
     Task<List<ScheduleShiftData>> GetAllShiftsForMemberAsync(Guid memberKey);
+    // [CHANGE: hasShift filter on member export] Related: ScheduleService.cs, IMemberListService.cs, MemberListService.cs, Web/Controllers/MemberExportApiController.cs
+    Task<HashSet<Guid>> GetAssignedMemberKeysAsync();
     Task<List<ScheduleData>> GetPublishedSchedulesForCrewAsync(int crewId);
 }

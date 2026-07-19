@@ -270,6 +270,19 @@ public class ScheduleService : IScheduleService
         return Task.FromResult(shifts);
     }
 
+    // [CHANGE: hasShift filter on member export] Related: IScheduleService.cs, MemberListService.cs, Web/Controllers/MemberExportApiController.cs
+    // Draft and published schedules both count — any assignment means the member "has a shift".
+    public Task<HashSet<Guid>> GetAssignedMemberKeysAsync()
+    {
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
+
+        var keys = db.Fetch<Guid>(
+            "SELECT DISTINCT AssignedMemberKey FROM BbvShift WHERE AssignedMemberKey IS NOT NULL");
+
+        return Task.FromResult(new HashSet<Guid>(keys));
+    }
+
     public Task<List<ScheduleData>> GetPublishedSchedulesForCrewAsync(int crewId)
     {
         using var scope = _scopeProvider.CreateScope(autoComplete: true);

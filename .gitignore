@@ -332,3 +332,4 @@ yarn-error.log*
 nul
 NUL
 Web/App_Data/email-dashboard-logs.json
+/Web/appsettings.Development.json

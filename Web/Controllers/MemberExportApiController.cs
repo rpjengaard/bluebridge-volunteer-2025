@@ -24,8 +24,9 @@ public class MemberExportApiController : ControllerBase
         _configuration = configuration;
     }
 
+    // [CHANGE: hasShift filter on member export] Related: Code/Services/IMemberListService.cs, Code/Services/MemberListService.cs, Code/Services/IScheduleService.cs, Code/Services/ScheduleService.cs
     [HttpGet("/api/members/export")]
-    public async Task<IActionResult> Export([FromQuery] string? group = null)
+    public async Task<IActionResult> Export([FromQuery] string? group = null, [FromQuery] bool hasShift = false)
     {
         var stopwatch = Stopwatch.StartNew();
 
@@ -43,7 +44,7 @@ public class MemberExportApiController : ControllerBase
                 "Invalid or missing API key", stopwatch);
         }
 
-        var members = await _memberListService.GetMemberExportAsync(group);
+        var members = await _memberListService.GetMemberExportAsync(group, hasShift);
         stopwatch.Stop();
 
         return Ok(new

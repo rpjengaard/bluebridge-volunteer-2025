@@ -9,6 +9,8 @@ public class MemberListService : IMemberListService
     private readonly IMemberService _memberService;
     private readonly IMemberGroupService _memberGroupService;
     private readonly IContentService _contentService;
+    // [CHANGE: hasShift filter on member export] Related: IMemberListService.cs, IScheduleService.cs, ScheduleService.cs, Web/Controllers/MemberExportApiController.cs
+    private readonly IScheduleService _scheduleService;
     private readonly ILogger<MemberListService> _logger;
 
     private static readonly Guid AdminGroupKey = Guid.Parse("99e1edbb-8181-421d-a74b-e66a2f1e1148");
@@ -18,11 +20,13 @@ public class MemberListService : IMemberListService
         IMemberService memberService,
         IMemberGroupService memberGroupService,
         IContentService contentService,
+        IScheduleService scheduleService,
         ILogger<MemberListService> logger)
     {
         _memberService = memberService;
         _memberGroupService = memberGroupService;
         _contentService = contentService;
+        _scheduleService = scheduleService;
         _logger = logger;
     }
 
@@ -92,14 +96,22 @@ public class MemberListService : IMemberListService
 
     // [CHANGE: member export API endpoint] Related: IMemberListService.cs, Web/Controllers/MemberExportApiController.cs
     // No permission check here by design: the API key check in MemberExportApiController is the gate.
-    public Task<List<MemberExportItem>> GetMemberExportAsync(string? groupFilter)
+    public async Task<List<MemberExportItem>> GetMemberExportAsync(string? groupFilter, bool hasShift = false)
     {
         var allMembers = _memberService.GetAllMembers();
         var crewNameCache = new Dictionary<Guid, string>();
         var items = new List<MemberExportItem>();
 
+        // [CHANGE: hasShift filter on member export] Related: IMemberListService.cs, IScheduleService.cs, ScheduleService.cs, Web/Controllers/MemberExportApiController.cs
+        var assignedMemberKeys = hasShift
+            ? await _scheduleService.GetAssignedMemberKeysAsync()
+            : null;
+
         foreach (var member in allMembers)
         {
+            if (assignedMemberKeys != null && !assignedMemberKeys.Contains(member.Key))
+                continue;
+
             var core = ReadMemberCore(member, crewNameCache);
 
             if (!string.IsNullOrWhiteSpace(groupFilter) &&
@@ -119,7 +131,7 @@ public class MemberListService : IMemberListService
             });
         }
 
-        return Task.FromResult(items);
+        return items;
     }
 
     private MemberCore ReadMemberCore(IMember member, Dictionary<Guid, string> crewNameCache)
