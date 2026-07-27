@@ -6,6 +6,8 @@ public interface IMemberEmailService
     Task SendWelcomeEmailAsync(string email, string firstName, string? memberWish = null, string? timeslotWishes = null);
     Task SendSignupConfirmationEmailAsync(string email, MemberEmailData memberData, IEnumerable<string> selectedCrewNames, string subjectTemplate, string bodyTemplate);
     Task SendInvitationEmailAsync(string email, MemberEmailData memberData, string invitationUrl, string subjectTemplate, string bodyTemplate);
+    // [CHANGE: crew invitation feature] Related: Code/Services/CrewInvitationService.cs, Code/Services/MemberEmailService.cs
+    Task SendCrewInvitationEmailAsync(string email, string firstName, string crewName, string inviterName, string invitationUrl, string subjectTemplate, string bodyTemplate);
     Task SendAcceptanceConfirmationEmailAsync(string email, MemberEmailData memberData, IEnumerable<string> selectedCrewNames, string subjectTemplate, string bodyTemplate);
     Task SendSupervisorNotificationEmailAsync(string supervisorEmail, string supervisorName, MemberEmailData memberData, string crewName, string subjectTemplate, string bodyTemplate);
     Task SendCrewMessageNotificationAsync(string toEmail, string recipientName, string authorName, string crewName, string messageHtml, string crewUrl);

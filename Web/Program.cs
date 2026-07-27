@@ -19,6 +19,8 @@ builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("Emai
 builder.Services.AddScoped<IMemberEmailService, MemberEmailService>();
 builder.Services.AddScoped<IMemberAuthService, MemberAuthService>();
 builder.Services.AddScoped<IInvitationService, InvitationService>();
+// [CHANGE: crew invitation feature] Related: Code/Services/CrewInvitationService.cs, Web/Controllers/CrewInvitationSurfaceController.cs
+builder.Services.AddScoped<ICrewInvitationService, CrewInvitationService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ICrewService, CrewService>();
 builder.Services.AddScoped<IMemberImpersonationService, MemberImpersonationService>();

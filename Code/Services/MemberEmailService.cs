@@ -90,6 +90,38 @@ public class MemberEmailService : IMemberEmailService
         await SendEmailAsync(email, subject, body, useBroadcast: true);
     }
 
+    // [CHANGE: crew invitation feature] Related: Code/Services/CrewInvitationService.cs, Code/Services/IMemberEmailService.cs
+    public async Task SendCrewInvitationEmailAsync(string email, string firstName, string crewName, string inviterName, string invitationUrl, string subjectTemplate, string bodyTemplate)
+    {
+        var memberData = new MemberEmailData
+        {
+            Email = email,
+            FirstName = firstName,
+            CrewName = crewName,
+            InvitationUrl = invitationUrl
+        };
+
+        var subject = ProcessCrewInvitationTemplate(subjectTemplate, memberData, inviterName);
+        var body = ProcessCrewInvitationTemplate(bodyTemplate, memberData, inviterName);
+        body = WrapInHtml(body);
+
+        await SendEmailAsync(email, subject, body);
+    }
+
+    private string ProcessCrewInvitationTemplate(string template, MemberEmailData memberData, string inviterName)
+    {
+        if (string.IsNullOrEmpty(template))
+        {
+            return template;
+        }
+
+        var result = ReplaceMemberPlaceholders(template, memberData);
+        result = ReplacePlaceholder(result, "crewName", memberData.CrewName);
+        result = ReplacePlaceholder(result, "inviterName", inviterName);
+
+        return result;
+    }
+
     public async Task SendAcceptanceConfirmationEmailAsync(string email, MemberEmailData memberData, IEnumerable<string> selectedCrewNames, string subjectTemplate, string bodyTemplate)
     {
         memberData.SelectedCrews = string.Join(", ", selectedCrewNames);

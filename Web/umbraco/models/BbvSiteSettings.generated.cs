@@ -74,6 +74,22 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual string CopyrightText => this.Value<string>(_publishedValueFallback, "copyrightText");
 
 		///<summary>
+		/// Email emne
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("crewInvitationEmailSubject")]
+		public virtual string CrewInvitationEmailSubject => this.Value<string>(_publishedValueFallback, "crewInvitationEmailSubject");
+
+		///<summary>
+		/// Email template
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("crewInvitationEmailTemplate")]
+		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString CrewInvitationEmailTemplate => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "crewInvitationEmailTemplate");
+
+		///<summary>
 		/// Navigation
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
