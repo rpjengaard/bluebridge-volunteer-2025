@@ -82,7 +82,7 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual string CrewInvitationEmailSubject => this.Value<string>(_publishedValueFallback, "crewInvitationEmailSubject");
 
 		///<summary>
-		/// Email template
+		/// Email template: - {{ firstName }} — invitee's first name - {{ email }} — invitee's email - {{ crewName }} — the inviting crew - {{ inviterName }} — the shiftadmin's full name - {{ invitationUrl }} — rendered as styled button "Tilmeld mig som frivillig"
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
 		[global::System.Diagnostics.CodeAnalysis.MaybeNull]

@@ -158,11 +158,11 @@ public class ScheduleService : IScheduleService
         using var scope = _scopeProvider.CreateScope(autoComplete: true);
         var db = scope.Database;
 
-        // Only delete shifts that are NOT booked
+        // Only delete shifts that are NOT booked (neither by a member nor internally)
         var placeholders = string.Join(",", ids.Select((_, i) => $"@{i}"));
         var args = ids.Cast<object>().ToArray();
         db.Execute(
-            $"DELETE FROM BbvShift WHERE Id IN ({placeholders}) AND AssignedMemberKey IS NULL",
+            $"DELETE FROM BbvShift WHERE Id IN ({placeholders}) AND AssignedMemberKey IS NULL AND IsInternal = 0",
             args);
 
         return Task.CompletedTask;
@@ -173,10 +173,36 @@ public class ScheduleService : IScheduleService
         using var scope = _scopeProvider.CreateScope(autoComplete: true);
         var db = scope.Database;
 
-        // Only assign if shift exists and is not already booked
+        // Only assign if shift exists and is not already booked (by a member or internally)
         var rows = db.Execute(
-            "UPDATE BbvShift SET AssignedMemberKey = @0, AssignedMemberName = @1 WHERE Id = @2 AND AssignedMemberKey IS NULL",
+            "UPDATE BbvShift SET AssignedMemberKey = @0, AssignedMemberName = @1 WHERE Id = @2 AND AssignedMemberKey IS NULL AND IsInternal = 0",
             memberKey, memberName, shiftId);
+
+        return Task.FromResult(rows > 0);
+    }
+
+    // [CHANGE: internal bookings without a member] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
+    public Task<bool> BookInternalShiftAsync(int shiftId, string title)
+    {
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
+
+        // Race-safe like assign: only book if the shift is still free
+        var rows = db.Execute(
+            "UPDATE BbvShift SET IsInternal = 1, Title = @0 WHERE Id = @1 AND AssignedMemberKey IS NULL AND IsInternal = 0",
+            title, shiftId);
+
+        return Task.FromResult(rows > 0);
+    }
+
+    public Task<bool> UnbookInternalShiftAsync(int shiftId)
+    {
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
+
+        var rows = db.Execute(
+            "UPDATE BbvShift SET IsInternal = 0, Title = NULL WHERE Id = @0",
+            shiftId);
 
         return Task.FromResult(rows > 0);
     }
@@ -372,7 +398,9 @@ public class ScheduleService : IScheduleService
         StartTime = s.StartTime,
         EndTime = s.EndTime,
         AssignedMemberKey = s.AssignedMemberKey,
-        AssignedMemberName = s.AssignedMemberName
+        AssignedMemberName = s.AssignedMemberName,
+        IsInternal = s.IsInternal,
+        Title = s.Title
     };
 
     private static int TimeToMinutes(string time)

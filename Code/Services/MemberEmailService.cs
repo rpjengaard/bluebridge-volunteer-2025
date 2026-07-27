@@ -429,9 +429,14 @@ public class MemberEmailService : IMemberEmailService
 
     private static string ReplacePlaceholder(string template, string fieldName, string value)
     {
-        // Match {{ fieldName }} with optional whitespace
-        var pattern = @"\{\{\s*" + Regex.Escape(fieldName) + @"\s*\}\}";
-        return Regex.Replace(template, pattern, value ?? string.Empty, RegexOptions.IgnoreCase);
+        // Match {{ fieldName }} with optional whitespace. RTE-authored templates can wrap
+        // placeholder parts in markup, so also tolerate &nbsp; entities and HTML tags
+        // between the braces and the field name.
+        var filler = @"(?:\s|&nbsp;|<[^>]*>)*";
+        var pattern = @"\{\{" + filler + Regex.Escape(fieldName) + filler + @"\}\}";
+        // Escape $ so URLs/HTML in the value are inserted literally, not as regex substitutions
+        var replacement = (value ?? string.Empty).Replace("$", "$$");
+        return Regex.Replace(template, pattern, replacement, RegexOptions.IgnoreCase);
     }
 
     private static string CreateStyledButton(string label, string url)

@@ -244,6 +244,45 @@ public class ScheduleController : Controller
         return Json(new { success = true });
     }
 
+    // [CHANGE: internal bookings without a member] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, ScheduleService.cs, Web/Views/CrewSchedule.cshtml
+    // POST /umbraco/surface/schedule/bookInternal
+    [HttpPost("bookInternal")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> BookInternal([FromBody] BookInternalRequest req)
+    {
+        var schedule = await _scheduleService.GetScheduleAsync(req.ScheduleId);
+        if (schedule == null) return Json(new { success = false, error = "Vagtplan ikke fundet." });
+
+        var (authorized, errorResult) = await AuthorizeCrewEditorAsync(schedule.CrewId);
+        if (!authorized) return errorResult!;
+
+        var title = (req.Title ?? string.Empty).Trim();
+        if (title.Length == 0) title = "Internt";
+        if (title.Length > 100)
+            return Json(new { success = false, error = "Titlen må højst være 100 tegn." });
+
+        var booked = await _scheduleService.BookInternalShiftAsync(req.ShiftId, title);
+        if (!booked)
+            return Json(new { success = false, error = "Vagten er allerede booket eller findes ikke." });
+
+        return Json(new { success = true });
+    }
+
+    // POST /umbraco/surface/schedule/unbookInternal
+    [HttpPost("unbookInternal")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UnbookInternal([FromBody] UnbookInternalRequest req)
+    {
+        var schedule = await _scheduleService.GetScheduleAsync(req.ScheduleId);
+        if (schedule == null) return Json(new { success = false, error = "Vagtplan ikke fundet." });
+
+        var (authorized, errorResult) = await AuthorizeCrewEditorAsync(schedule.CrewId);
+        if (!authorized) return errorResult!;
+
+        await _scheduleService.UnbookInternalShiftAsync(req.ShiftId);
+        return Json(new { success = true });
+    }
+
     // POST /umbraco/surface/schedule/publish
     [HttpPost("publish")]
     [ValidateAntiForgeryToken]
@@ -334,6 +373,8 @@ public class ScheduleController : Controller
         endTime = sh.EndTime,
         assignedMemberKey = sh.AssignedMemberKey,
         assignedMemberName = sh.AssignedMemberName,
+        isInternal = sh.IsInternal,
+        title = sh.Title,
         isAvailable = sh.IsAvailable,
         formattedTime = sh.FormattedTime,
         duration = sh.Duration
@@ -348,4 +389,6 @@ public record AddSmartShiftRequest(int ScheduleId, string FirstStart, string Las
 public record DeleteShiftsRequest(int ScheduleId, IEnumerable<int> ShiftIds);
 public record AssignRequest(int ScheduleId, int ShiftId, string MemberKey, string MemberName);
 public record UnassignRequest(int ScheduleId, int ShiftId);
+public record BookInternalRequest(int ScheduleId, int ShiftId, string? Title);
+public record UnbookInternalRequest(int ScheduleId, int ShiftId);
 public record IdRequest(int Id);

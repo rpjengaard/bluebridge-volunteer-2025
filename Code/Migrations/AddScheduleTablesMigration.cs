@@ -60,6 +60,13 @@ public class ShiftSchema
     [Column("AssignedMemberName")]
     public string? AssignedMemberName { get; set; }
 
+    // [CHANGE: internal bookings without a member] Related: IScheduleService.cs, ScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
+    [Column("IsInternal")]
+    public bool IsInternal { get; set; }
+
+    [Column("Title")]
+    public string? Title { get; set; }
+
     [Column("CreatedUtc")]
     public DateTime CreatedUtc { get; set; }
 }
@@ -111,6 +118,23 @@ public class AddScheduleTablesMigration : MigrationBase
     }
 }
 
+// [CHANGE: internal bookings without a member] Related: IScheduleService.cs, ScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
+// AssignedMemberKey stays NULL for internal bookings so member exports/queries ignore them.
+public class AddInternalBookingColumnsMigration : MigrationBase
+{
+    public AddInternalBookingColumnsMigration(IMigrationContext context) : base(context)
+    {
+    }
+
+    protected override void Migrate()
+    {
+        Execute.Sql(@"
+            ALTER TABLE dbo.BbvShift ADD
+                IsInternal BIT NOT NULL CONSTRAINT DF_BbvShift_IsInternal DEFAULT 0,
+                Title NVARCHAR(100) NULL").Do();
+    }
+}
+
 public class ScheduleMigrationComposer : IComposer
 {
     public void Compose(IUmbracoBuilder builder)
@@ -146,7 +170,8 @@ public class ScheduleMigrationComponent : IComponent
 
         var migrationPlan = new MigrationPlan("BbvSchedule");
         migrationPlan.From(string.Empty)
-            .To<AddScheduleTablesMigration>("bbv-schedule-001");
+            .To<AddScheduleTablesMigration>("bbv-schedule-001")
+            .To<AddInternalBookingColumnsMigration>("bbv-schedule-002");
 
         var upgrader = new Upgrader(migrationPlan);
         upgrader.Execute(_migrationPlanExecutor, _coreScopeProvider, _keyValueService);

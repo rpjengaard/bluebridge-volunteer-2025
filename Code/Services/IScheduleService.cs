@@ -20,7 +20,10 @@ public class ScheduleShiftData
     public string EndTime { get; set; } = string.Empty;
     public Guid? AssignedMemberKey { get; set; }
     public string? AssignedMemberName { get; set; }
-    public bool IsAvailable => AssignedMemberKey == null;
+    // [CHANGE: internal bookings without a member] Related: AddScheduleTablesMigration.cs, ScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
+    public bool IsInternal { get; set; }
+    public string? Title { get; set; }
+    public bool IsAvailable => AssignedMemberKey == null && !IsInternal;
 
     // Dashboard-only fields (populated by GetShiftsForMemberAsync)
     public string? CrewName { get; set; }
@@ -69,6 +72,9 @@ public interface IScheduleService
     Task DeleteShiftsAsync(IEnumerable<int> shiftIds);
     Task<bool> AssignMemberToShiftAsync(int shiftId, Guid memberKey, string memberName);
     Task<bool> UnassignMemberFromShiftAsync(int shiftId);
+    // [CHANGE: internal bookings without a member] Related: AddScheduleTablesMigration.cs, ScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
+    Task<bool> BookInternalShiftAsync(int shiftId, string title);
+    Task<bool> UnbookInternalShiftAsync(int shiftId);
     Task PublishScheduleAsync(int scheduleId);
     Task UnpublishScheduleAsync(int scheduleId);
     Task<List<ScheduleShiftData>> GetShiftsForMemberAsync(Guid memberKey);
