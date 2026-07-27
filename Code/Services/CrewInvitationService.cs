@@ -82,6 +82,25 @@ public class CrewInvitationService : ICrewInvitationService
             }
 
             var reinviteResult = await _invitationService.SendInvitationAsync(existingMember.Id, baseUrl);
+
+            // Record the re-invite so it shows up with a status in the crew's invitation list.
+            // Status for these rows is derived from the member's accept2026 flag (the old accept
+            // flow doesn't know about this table).
+            if (reinviteResult.Success)
+            {
+                var reinviter = _memberService.GetByEmail(inviterEmail);
+                UpsertInvitationRow(
+                    email,
+                    existingMember.GetValue<string>("firstName") ?? firstName,
+                    existingMember.GetValue<string>("lastName") ?? lastName,
+                    crewId,
+                    crewContent.Key,
+                    // Placeholder token; the member accepts via the old flow using their own member token
+                    $"member-{existingMember.Key:N}",
+                    inviterEmail,
+                    GetMemberFullName(reinviter) ?? inviterEmail);
+            }
+
             return new CrewInvitationSendResult
             {
                 Success = reinviteResult.Success,
@@ -96,42 +115,7 @@ public class CrewInvitationService : ICrewInvitationService
 
         var token = Guid.NewGuid().ToString("N");
 
-        using (var scope = _scopeProvider.CreateScope(autoComplete: true))
-        {
-            var db = scope.Database;
-
-            // Replace any previous non-accepted invitation for the same email + crew
-            var existing = db.SingleOrDefault<CrewInvitationSchema>(
-                "SELECT * FROM BbvCrewInvitation WHERE Email = @0 AND CrewId = @1 AND AcceptedDate IS NULL", email, crewId);
-
-            if (existing != null)
-            {
-                existing.FirstName = firstName;
-                existing.LastName = lastName;
-                existing.Token = token;
-                existing.InvitedByEmail = inviterEmail;
-                existing.InvitedByName = inviterName;
-                existing.SentDate = DateTime.Now;
-                existing.CanceledDate = null;
-                db.Update(existing);
-            }
-            else
-            {
-                db.Insert(new CrewInvitationSchema
-                {
-                    Email = email,
-                    FirstName = firstName,
-                    LastName = lastName,
-                    CrewId = crewId,
-                    CrewKey = crewContent.Key,
-                    Token = token,
-                    InvitedByEmail = inviterEmail,
-                    InvitedByName = inviterName,
-                    SentDate = DateTime.Now,
-                    CreatedUtc = DateTime.UtcNow
-                });
-            }
-        }
+        UpsertInvitationRow(email, firstName, lastName, crewId, crewContent.Key, token, inviterEmail, inviterName);
 
         try
         {
@@ -147,23 +131,77 @@ public class CrewInvitationService : ICrewInvitationService
         return new CrewInvitationSendResult { Success = true, Message = $"Invitationen er sendt til {email}." };
     }
 
-    public Task<List<CrewInvitationItem>> GetInvitationsForCrewAsync(int crewId)
+    private void UpsertInvitationRow(string email, string firstName, string lastName, int crewId, Guid crewKey, string token, string inviterEmail, string inviterName)
     {
         using var scope = _scopeProvider.CreateScope(autoComplete: true);
         var db = scope.Database;
 
-        var rows = db.Fetch<CrewInvitationSchema>(
-            "SELECT * FROM BbvCrewInvitation WHERE CrewId = @0 ORDER BY SentDate DESC", crewId);
+        // Replace any previous non-accepted invitation for the same email + crew
+        var existing = db.SingleOrDefault<CrewInvitationSchema>(
+            "SELECT * FROM BbvCrewInvitation WHERE Email = @0 AND CrewId = @1 AND AcceptedDate IS NULL", email, crewId);
 
-        var items = rows.Select(r => new CrewInvitationItem
+        if (existing != null)
         {
-            Id = r.Id,
-            Email = r.Email,
-            FullName = $"{r.FirstName} {r.LastName}".Trim(),
-            InvitedByName = r.InvitedByName,
-            SentDate = r.SentDate,
-            AcceptedDate = r.AcceptedDate,
-            Status = GetStatus(r)
+            existing.FirstName = firstName;
+            existing.LastName = lastName;
+            existing.Token = token;
+            existing.InvitedByEmail = inviterEmail;
+            existing.InvitedByName = inviterName;
+            existing.SentDate = DateTime.Now;
+            existing.CanceledDate = null;
+            db.Update(existing);
+        }
+        else
+        {
+            db.Insert(new CrewInvitationSchema
+            {
+                Email = email,
+                FirstName = firstName,
+                LastName = lastName,
+                CrewId = crewId,
+                CrewKey = crewKey,
+                Token = token,
+                InvitedByEmail = inviterEmail,
+                InvitedByName = inviterName,
+                SentDate = DateTime.Now,
+                CreatedUtc = DateTime.UtcNow
+            });
+        }
+    }
+
+    public Task<List<CrewInvitationItem>> GetInvitationsForCrewAsync(int crewId)
+    {
+        List<CrewInvitationSchema> rows;
+        using (var scope = _scopeProvider.CreateScope(autoComplete: true))
+        {
+            rows = scope.Database.Fetch<CrewInvitationSchema>(
+                "SELECT * FROM BbvCrewInvitation WHERE CrewId = @0 ORDER BY SentDate DESC", crewId);
+        }
+
+        var items = rows.Select(r =>
+        {
+            // Re-invited existing members accept via the old member flow which never stamps
+            // AcceptedDate here - derive their status from the member's accept2026 flag instead.
+            var status = GetStatus(r);
+            if (r.AcceptedDate == null && status is "Pending" or "Expired")
+            {
+                var member = _memberService.GetByEmail(r.Email);
+                if (member != null && member.GetValue<bool>("accept2026"))
+                {
+                    status = "Accepted";
+                }
+            }
+
+            return new CrewInvitationItem
+            {
+                Id = r.Id,
+                Email = r.Email,
+                FullName = $"{r.FirstName} {r.LastName}".Trim(),
+                InvitedByName = r.InvitedByName,
+                SentDate = r.SentDate,
+                AcceptedDate = r.AcceptedDate,
+                Status = status
+            };
         }).ToList();
 
         return Task.FromResult(items);
@@ -189,11 +227,39 @@ public class CrewInvitationService : ICrewInvitationService
             {
                 return new CrewInvitationSendResult { Success = false, Message = "Invitationen er allerede accepteret." };
             }
+        }
 
-            row.Token = token;
-            row.SentDate = DateTime.Now;
-            row.CanceledDate = null;
-            db.Update(row);
+        // Existing members must be re-invited via the old member flow - the crew accept
+        // flow would reject them because the account already exists.
+        var rowMember = _memberService.GetByEmail(row.Email);
+        if (rowMember != null)
+        {
+            if (rowMember.GetValue<bool>("accept2026"))
+            {
+                return new CrewInvitationSendResult { Success = false, Message = $"{row.Email} er allerede tilmeldt som frivillig." };
+            }
+
+            var reinviteResult = await _invitationService.SendInvitationAsync(rowMember.Id, baseUrl);
+            if (reinviteResult.Success)
+            {
+                using var scope = _scopeProvider.CreateScope(autoComplete: true);
+                scope.Database.Execute(
+                    "UPDATE BbvCrewInvitation SET SentDate = @0, CanceledDate = NULL WHERE Id = @1", DateTime.Now, row.Id);
+            }
+
+            return new CrewInvitationSendResult
+            {
+                Success = reinviteResult.Success,
+                Message = reinviteResult.Success
+                    ? $"Gen-invitationen er gensendt til {row.Email}."
+                    : $"Kunne ikke gensende til {row.Email}: {reinviteResult.Message}"
+            };
+        }
+
+        using (var scope = _scopeProvider.CreateScope(autoComplete: true))
+        {
+            scope.Database.Execute(
+                "UPDATE BbvCrewInvitation SET Token = @0, SentDate = @1, CanceledDate = NULL WHERE Id = @2", token, DateTime.Now, row.Id);
         }
 
         var crewContent = _contentService.GetById(row.CrewId);
@@ -224,7 +290,9 @@ public class CrewInvitationService : ICrewInvitationService
 
     public Task<CrewInvitationInfo?> GetByTokenAsync(string token)
     {
-        if (string.IsNullOrWhiteSpace(token))
+        // Placeholder tokens ("member-...") mark re-invited existing members who accept
+        // via the old member flow - they must never resolve to the crew accept form.
+        if (string.IsNullOrWhiteSpace(token) || token.StartsWith("member-", StringComparison.OrdinalIgnoreCase))
             return Task.FromResult<CrewInvitationInfo?>(null);
 
         CrewInvitationSchema? row;
