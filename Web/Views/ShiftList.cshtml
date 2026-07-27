@@ -66,6 +66,34 @@
     }
 
     var totalAvailable = crewGroups.Sum(g => g.Schedules.Sum(s => s.Shifts.Count(sh => sh.IsAvailable)));
+
+    // Plain-text version of all available shifts for pasting into an e-mail
+    var emailText = new System.Text.StringBuilder();
+    foreach (var (crew, schedules) in crewGroups)
+    {
+        var crewLines = new System.Text.StringBuilder();
+        foreach (var schedule in schedules)
+        {
+            var available = schedule.Shifts.Where(sh => sh.IsAvailable).OrderBy(sh => sh.StartTime).ToList();
+            if (!available.Any()) { continue; }
+
+            crewLines.Append(schedule.Name)
+                .Append(" – ")
+                .Append(schedule.ScheduleDate.ToString("dddd d. MMMM yyyy", da));
+            if (!schedule.IsPublished) { crewLines.Append(" (ikke publiceret)"); }
+            crewLines.AppendLine();
+
+            foreach (var shift in available)
+            {
+                crewLines.AppendLine($"- {shift.FormattedTime} ({shift.Duration})");
+            }
+            crewLines.AppendLine();
+        }
+
+        if (crewLines.Length == 0) { continue; }
+        emailText.AppendLine(crew.Name?.ToUpper(da));
+        emailText.Append(crewLines);
+    }
 }
 <!DOCTYPE html>
 <html lang="da" class="h-full bg-slate-50">
@@ -119,15 +147,24 @@ else
 
     <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <!-- Header -->
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900">Ledige vagter</h1>
-            <p class="mt-2 text-gray-600">
-                Overblik over ledige vagter på tværs af alle crews.
-                @if (totalAvailable > 0)
-                {
-                    <span class="font-semibold">@totalAvailable @(totalAvailable == 1 ? "ledig vagt" : "ledige vagter") i alt.</span>
-                }
-            </p>
+        <div class="mb-8 flex flex-wrap items-start justify-between gap-3">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Ledige vagter</h1>
+                <p class="mt-2 text-gray-600">
+                    Overblik over ledige vagter på tværs af alle crews.
+                    @if (totalAvailable > 0)
+                    {
+                        <span class="font-semibold">@totalAvailable @(totalAvailable == 1 ? "ledig vagt" : "ledige vagter") i alt.</span>
+                    }
+                </p>
+            </div>
+            @if (totalAvailable > 0)
+            {
+                <button type="button" id="openEmailDialog"
+                        class="bg-accent-yellow text-blue-bridge px-5 py-3 rounded-md font-bold uppercase tracking-wider text-sm hover:opacity-90">
+                    Kopiér til e-mail
+                </button>
+            }
         </div>
 
         @if (!crewGroups.Any())
@@ -198,6 +235,52 @@ else
             </div>
         }
     </main>
+
+    <!-- E-mail dialog -->
+    <dialog id="emailDialog" class="rounded-lg shadow-xl w-full max-w-2xl p-0 backdrop:bg-black/50">
+        <div class="px-6 py-4 bg-blue-bridge flex items-center justify-between">
+            <h2 class="text-lg font-bold text-white">Ledige vagter til e-mail</h2>
+            <button type="button" id="closeEmailDialog" class="text-white/80 hover:text-white text-2xl leading-none" aria-label="Luk">&times;</button>
+        </div>
+        <div class="p-6">
+            <p class="text-sm text-gray-600 mb-3">Kopiér teksten herunder og sæt den ind i din e-mail.</p>
+            <textarea id="emailText" readonly rows="18"
+                      class="w-full border border-gray-300 rounded-md p-3 font-mono text-sm text-gray-900 bg-slate-50">@emailText.ToString().TrimEnd()</textarea>
+            <div class="mt-4 flex items-center gap-3">
+                <button type="button" id="copyEmailText"
+                        class="bg-accent-yellow text-blue-bridge px-5 py-2 rounded-md font-bold uppercase tracking-wider text-sm hover:opacity-90">
+                    Kopiér
+                </button>
+                <span id="copyFeedback" class="hidden text-sm font-semibold text-green-700">Kopieret!</span>
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+        (function () {
+            const dialog = document.getElementById('emailDialog');
+            const openBtn = document.getElementById('openEmailDialog');
+            if (!dialog || !openBtn) return;
+
+            openBtn.addEventListener('click', () => dialog.showModal());
+            document.getElementById('closeEmailDialog').addEventListener('click', () => dialog.close());
+            dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+
+            const textarea = document.getElementById('emailText');
+            const feedback = document.getElementById('copyFeedback');
+            document.getElementById('copyEmailText').addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(textarea.value);
+                } catch {
+                    // Clipboard API needs a secure context — fall back to selecting the text
+                    textarea.select();
+                    document.execCommand('copy');
+                }
+                feedback.classList.remove('hidden');
+                setTimeout(() => feedback.classList.add('hidden'), 2000);
+            });
+        })();
+    </script>
 
     @await Html.PartialAsync("Partials/_Footer")
 }
