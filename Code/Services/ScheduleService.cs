@@ -298,6 +298,23 @@ public class ScheduleService : IScheduleService
         return Task.FromResult(result);
     }
 
+    // [CHANGE: bbvShiftList cross-crew overview] Related: IScheduleService.cs, Web/Views/ShiftList.cshtml
+    // Drafts included on purpose — the shift list page is scheduler-facing and badges them.
+    public Task<List<ScheduleData>> GetUpcomingSchedulesAsync()
+    {
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
+
+        var schedules = db.Fetch<ScheduleSchema>(
+            "SELECT * FROM BbvSchedule WHERE ScheduleDate >= @0 ORDER BY ScheduleDate ASC, Name ASC",
+            DateTime.Today);
+
+        var result = schedules.Select(MapSchedule).ToList();
+        LoadShiftsForSchedules(db, result);
+
+        return Task.FromResult(result);
+    }
+
     /// <summary>
     /// Batch-loads shifts for a list of schedules in a single SQL query (avoids N+1).
     /// </summary>

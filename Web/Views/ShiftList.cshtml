@@ -1,0 +1,206 @@
+@using System.Globalization
+@using Umbraco.Cms.Web.Common.PublishedModels
+@using Umbraco.Cms.Core.Security
+@using Umbraco.Cms.Core.Services
+@using Code.Services
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<ContentModels.BbvShiftList>
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels;
+@inject IMemberManager MemberManager
+@inject IMemberService MemberService
+@inject IMemberGroupService MemberGroupService
+@inject IScheduleService ScheduleService
+@{
+    // [CHANGE: bbvShiftList cross-crew overview] Related: Code/Services/IScheduleService.cs, Code/Services/ScheduleService.cs
+    Layout = null;
+
+    var da = new CultureInfo("da-DK");
+    var currentMember = await MemberManager.GetCurrentMemberAsync();
+
+    // Same group keys as CrewService: Admin + Vagtplanlæggere
+    var adminGroupKey = Guid.Parse("99e1edbb-8181-421d-a74b-e66a2f1e1148");
+    var schedulerGroupKey = Guid.Parse("e6eef645-b13b-4edb-880b-7b3cdf5b6816");
+
+    var hasAccess = false;
+    Guid memberKey = Guid.Empty;
+
+    // All published crew pages — needed both for the per-crew supervisor gate and for grouping
+    var crewPages = Umbraco.ContentAtRoot()
+        .SelectMany(root => root.DescendantsOrSelf<BbvCrewPage>())
+        .ToList();
+
+    if (currentMember != null)
+    {
+        var member = MemberService.GetByEmail(currentMember.Email!);
+        if (member != null)
+        {
+            memberKey = member.Key;
+            var roles = MemberService.GetAllRoles(member.Id).ToList();
+
+            var adminGroup = MemberGroupService.GetById(adminGroupKey);
+            var schedulerGroup = MemberGroupService.GetById(schedulerGroupKey);
+
+            hasAccess =
+                (adminGroup != null && roles.Contains(adminGroup.Name)) ||
+                (schedulerGroup != null && roles.Contains(schedulerGroup.Name)) ||
+                roles.Contains("Sherif") ||
+                roles.Contains("Vice sherif") ||
+                // Members picked as schedule supervisor / supervisor on any crew node count as schedulers
+                crewPages.Any(c =>
+                    (c.ScheduleSupervisor?.Any(p => p.Key == member.Key) ?? false) ||
+                    (c.Supervisors?.Any(p => p.Key == member.Key) ?? false));
+        }
+    }
+
+    List<(BbvCrewPage Crew, List<ScheduleData> Schedules)> crewGroups = new();
+
+    if (hasAccess)
+    {
+        var schedules = await ScheduleService.GetUpcomingSchedulesAsync();
+        var byCrew = schedules.GroupBy(s => s.CrewId).ToDictionary(g => g.Key, g => g.ToList());
+
+        crewGroups = crewPages
+            .Where(c => byCrew.ContainsKey(c.Id))
+            .OrderBy(c => c.Name, StringComparer.Create(da, ignoreCase: true))
+            .Select(c => (Crew: c, Schedules: byCrew[c.Id]))
+            .ToList();
+    }
+
+    var totalAvailable = crewGroups.Sum(g => g.Schedules.Sum(s => s.Shifts.Count(sh => sh.IsAvailable)));
+}
+<!DOCTYPE html>
+<html lang="da" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ledige vagter - Blue Bridge - Frivillig</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Montserrat', sans-serif; }
+        h1, h2, h3 { font-family: 'Playfair Display', serif; }
+        .bg-blue-bridge { background-color: #23297A; }
+        .text-blue-bridge { color: #23297A; }
+        .bg-accent-yellow { background-color: #FFF000; }
+        .border-blue-bridge { border-color: #23297A; }
+    </style>
+</head>
+<body class="h-full">
+
+@if (currentMember == null)
+{
+    <!-- Not logged in -->
+    <div class="min-h-screen flex items-center justify-center bg-slate-50">
+        <div class="text-center">
+            <div class="h-12 w-auto bg-blue-bridge flex items-center justify-center text-white font-bold p-2 rounded mx-auto max-w-xs mb-8">
+                BLUE BRIDGE <span class="ml-2 font-light text-xs tracking-widest uppercase">Frivillig</span>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Du skal være logget ind</h2>
+            <p class="text-gray-600 mb-6">Log ind for at se ledige vagter</p>
+            <a href="/login" class="inline-block bg-accent-yellow text-blue-bridge px-6 py-3 rounded-md font-bold uppercase tracking-wider hover:opacity-90">
+                Log ind
+            </a>
+        </div>
+    </div>
+}
+else if (!hasAccess)
+{
+    <!-- Logged in but not admin/scheduler -->
+    <div class="min-h-screen flex items-center justify-center bg-slate-50">
+        <div class="text-center">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">Ingen adgang</h2>
+            <p class="text-gray-600 mb-6">Denne side er kun for administratorer og vagtplanlæggere.</p>
+            <a href="/" class="text-blue-bridge hover:opacity-80 font-semibold">Gå til forsiden</a>
+        </div>
+    </div>
+}
+else
+{
+    @await Html.PartialAsync("Partials/_Navigation")
+
+    <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Ledige vagter</h1>
+            <p class="mt-2 text-gray-600">
+                Overblik over ledige vagter på tværs af alle crews.
+                @if (totalAvailable > 0)
+                {
+                    <span class="font-semibold">@totalAvailable @(totalAvailable == 1 ? "ledig vagt" : "ledige vagter") i alt.</span>
+                }
+            </p>
+        </div>
+
+        @if (!crewGroups.Any())
+        {
+            <div class="bg-white rounded-lg shadow p-8 text-center">
+                <p class="text-gray-600">Der er ingen kommende vagtplaner.</p>
+            </div>
+        }
+        else
+        {
+            <div class="space-y-8">
+                @foreach (var group in crewGroups)
+                {
+                    var crewAvailable = group.Schedules.Sum(s => s.Shifts.Count(sh => sh.IsAvailable));
+                    <section class="bg-white rounded-lg shadow overflow-hidden">
+                        <!-- Crew heading links to the schedule planner -->
+                        <div class="bg-blue-bridge px-6 py-4 flex flex-wrap items-center justify-between gap-2">
+                            <a href="@(group.Crew.Url())?vagtskemaer" class="text-xl font-bold text-white hover:underline">
+                                @group.Crew.Name
+                            </a>
+                            <span class="text-sm text-white/80">
+                                @crewAvailable @(crewAvailable == 1 ? "ledig vagt" : "ledige vagter")
+                            </span>
+                        </div>
+
+                        <div class="divide-y divide-gray-100">
+                            @foreach (var schedule in group.Schedules)
+                            {
+                                var availableShifts = schedule.Shifts
+                                    .Where(sh => sh.IsAvailable)
+                                    .OrderBy(sh => sh.StartTime)
+                                    .ToList();
+
+                                <div class="px-6 py-4">
+                                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                                        <h3 class="font-semibold text-gray-900">@schedule.Name</h3>
+                                        <span class="text-sm text-gray-500">@schedule.ScheduleDate.ToString("dddd d. MMMM yyyy", da)</span>
+                                        @if (!schedule.IsPublished)
+                                        {
+                                            <span class="text-xs font-semibold uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200 rounded px-2 py-0.5">Ikke publiceret</span>
+                                        }
+                                        <span class="ml-auto text-sm @(availableShifts.Any() ? "text-blue-bridge font-semibold" : "text-green-700")">
+                                            @availableShifts.Count @(availableShifts.Count == 1 ? "ledig" : "ledige") af @schedule.Shifts.Count
+                                        </span>
+                                    </div>
+
+                                    @if (availableShifts.Any())
+                                    {
+                                        <ul class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                                            @foreach (var shift in availableShifts)
+                                            {
+                                                <li class="flex items-center justify-between border border-gray-200 rounded-md px-3 py-2">
+                                                    <span class="font-medium text-gray-900">@shift.FormattedTime</span>
+                                                    <span class="text-sm text-gray-500">@shift.Duration</span>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-sm text-green-700">Alle vagter er booket.</p>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </section>
+                }
+            </div>
+        }
+    </main>
+
+    @await Html.PartialAsync("Partials/_Footer")
+}
+
+</body>
+</html>

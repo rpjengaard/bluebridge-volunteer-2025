@@ -76,4 +76,6 @@ public interface IScheduleService
     // [CHANGE: hasShift filter on member export] Related: ScheduleService.cs, IMemberListService.cs, MemberListService.cs, Web/Controllers/MemberExportApiController.cs
     Task<HashSet<Guid>> GetAssignedMemberKeysAsync();
     Task<List<ScheduleData>> GetPublishedSchedulesForCrewAsync(int crewId);
+    // [CHANGE: bbvShiftList cross-crew overview] Related: ScheduleService.cs, Web/Views/ShiftList.cshtml
+    Task<List<ScheduleData>> GetUpcomingSchedulesAsync();
 }
