@@ -5,7 +5,6 @@
 @using System.Text.RegularExpressions
 @inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<BbvCrewPage>
 @inject IMemberManager MemberManager
-@inject IMemberService MemberService
 @inject ICrewService CrewService
 @inject ICrewMessageService CrewMessageService
 @* [CHANGE: crew invitation feature] Related: Web/Controllers/CrewInvitationSurfaceController.cs, Code/Services/CrewInvitationService.cs *@
@@ -88,30 +87,8 @@
         ? await CrewMessageService.GetMessagesAsync(Model.Id)
         : new List<CrewMessageData>();
 
-    // Load rejected members who wished for this crew
-    var rejectedMembers = new List<(string FullName, string Email, string RejectedBy, string RejectionReason)>();
-    if (canEdit && crewData != null)
-    {
-        var crewKeyNoDashes = Model.Key.ToString("N");
-        foreach (var m in MemberService.GetAllMembers())
-        {
-            if (!m.GetValue<bool>("rejected")) continue;
-            var wishes = m.GetValue<string>("crewWishes") ?? string.Empty;
-            if (!wishes.Contains(crewKeyNoDashes, StringComparison.OrdinalIgnoreCase)) continue;
-
-            var firstName = m.GetValue<string>("firstName") ?? string.Empty;
-            var lastName = m.GetValue<string>("lastName") ?? string.Empty;
-            var fullName = $"{firstName} {lastName}".Trim();
-            if (string.IsNullOrEmpty(fullName)) fullName = m.Name ?? m.Email ?? "Ukendt";
-
-            rejectedMembers.Add((
-                fullName,
-                m.Email ?? string.Empty,
-                m.GetValue<string>("rejectedBy") ?? string.Empty,
-                m.GetValue<string>("rejectionReason") ?? string.Empty
-            ));
-        }
-    }
+    @* [CHANGE: perf – rejected members now computed in CrewService's single member scan instead of a GetAllMembers loop here] Related: Code/Services/CrewService.cs, Code/Services/ICrewService.cs *@
+    var rejectedMembers = crewData?.RejectedMembers ?? new List<RejectedMemberInfo>();
 }
 <!DOCTYPE html>
 <html lang="da" class="h-full bg-slate-50">
@@ -458,25 +435,25 @@ else
                                 </span>
                             </div>
                             <div class="p-6 space-y-3">
-                                @foreach (var (fullName, email, rejectedBy, reason) in rejectedMembers)
+                                @foreach (var rejected in rejectedMembers)
                                 {
                                     <div class="bg-red-50 border border-red-200 rounded-lg p-4">
                                         <div class="flex items-start gap-3">
                                             <div class="h-10 w-10 rounded-lg bg-red-200 flex items-center justify-center text-red-700 text-sm font-bold flex-shrink-0">
-                                                @(fullName.Length > 0 ? fullName[0].ToString().ToUpper() : "?")
+                                                @(rejected.FullName.Length > 0 ? rejected.FullName[0].ToString().ToUpper() : "?")
                                             </div>
                                             <div class="flex-1 min-w-0">
-                                                <div class="font-medium text-gray-900">@fullName</div>
-                                                <div class="text-sm text-gray-500">@email</div>
-                                                @if (!string.IsNullOrEmpty(reason))
+                                                <div class="font-medium text-gray-900">@rejected.FullName</div>
+                                                <div class="text-sm text-gray-500">@rejected.Email</div>
+                                                @if (!string.IsNullOrEmpty(rejected.RejectionReason))
                                                 {
                                                     <div class="mt-2 text-sm text-gray-700">
-                                                        <span class="font-medium">Begrundelse:</span> @reason
+                                                        <span class="font-medium">Begrundelse:</span> @rejected.RejectionReason
                                                     </div>
                                                 }
-                                                @if (!string.IsNullOrEmpty(rejectedBy))
+                                                @if (!string.IsNullOrEmpty(rejected.RejectedBy))
                                                 {
-                                                    <div class="mt-1 text-xs text-gray-400">Afslået af: @rejectedBy</div>
+                                                    <div class="mt-1 text-xs text-gray-400">Afslået af: @rejected.RejectedBy</div>
                                                 }
                                             </div>
                                         </div>

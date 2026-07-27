@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Core.Services.Navigation;
 using Umbraco.Cms.Core.Web;
 
 namespace Code.Services;
@@ -12,6 +13,9 @@ public class CrewService : ICrewService
     private readonly IMemberGroupService _memberGroupService;
     private readonly IContentService _contentService;
     private readonly IUmbracoContextAccessor _umbracoContextAccessor;
+    // [CHANGE: perf – GUID→ID via Umbraco's IIdKeyMap cache instead of IContentService DB hits] Related: ICrewService.cs, Web/Views/Crew.cshtml
+    private readonly IIdKeyMap _idKeyMap;
+    private readonly IDocumentNavigationQueryService _navigationQueryService;
     private readonly ILogger<CrewService> _logger;
 
     private const string CrewContentTypeAlias = "bbvCrewPage";
@@ -26,13 +30,61 @@ public class CrewService : ICrewService
         IMemberGroupService memberGroupService,
         IContentService contentService,
         IUmbracoContextAccessor umbracoContextAccessor,
+        IIdKeyMap idKeyMap,
+        IDocumentNavigationQueryService navigationQueryService,
         ILogger<CrewService> logger)
     {
         _memberService = memberService;
         _memberGroupService = memberGroupService;
         _contentService = contentService;
         _umbracoContextAccessor = umbracoContextAccessor;
+        _idKeyMap = idKeyMap;
+        _navigationQueryService = navigationQueryService;
         _logger = logger;
+    }
+
+    /// <summary>
+    /// Per-request role membership lookup. Built with one GetMembersInRole query per
+    /// relevant group instead of one GetAllRoles query per member (N+1).
+    /// GroupsByMemberId only covers the groups listed here — the ones the UI acts on.
+    /// </summary>
+    private sealed record RoleData(
+        HashSet<int> AdminIds,
+        HashSet<int> VolunteerIds,
+        HashSet<int> SupervisorIds,
+        Dictionary<int, List<string>> GroupsByMemberId);
+
+    private RoleData BuildRoleData()
+    {
+        var adminName = _memberGroupService.GetById(AdminGroupKey)?.Name;
+        var volunteerName = _memberGroupService.GetById(VolunteerGroupKey)?.Name;
+        var schedulerName = _memberGroupService.GetById(SchedulerGroupKey)?.Name;
+
+        var groupsByMemberId = new Dictionary<int, List<string>>();
+
+        HashSet<int> IdsInGroup(string? groupName)
+        {
+            var ids = new HashSet<int>();
+            if (string.IsNullOrEmpty(groupName))
+                return ids;
+
+            foreach (var member in _memberService.GetMembersInRole(groupName))
+            {
+                ids.Add(member.Id);
+                if (!groupsByMemberId.TryGetValue(member.Id, out var list))
+                    groupsByMemberId[member.Id] = list = new List<string>();
+                list.Add(groupName);
+            }
+            return ids;
+        }
+
+        var adminIds = IdsInGroup(adminName);
+        var volunteerIds = IdsInGroup(volunteerName);
+        var supervisorIds = IdsInGroup(schedulerName);
+        supervisorIds.UnionWith(IdsInGroup("Sherif"));
+        supervisorIds.UnionWith(IdsInGroup("Vice sherif"));
+
+        return new RoleData(adminIds, volunteerIds, supervisorIds, groupsByMemberId);
     }
 
     public Task<CrewsPageData> GetCrewsForMemberAsync(string memberEmail, bool isAdmin)
@@ -280,15 +332,52 @@ public class CrewService : ICrewService
         // Get members assigned to this crew (admin and scheduler only)
         if (viewMode == CrewViewMode.Admin || viewMode == CrewViewMode.Scheduler)
         {
-            // Share caching across both method calls for better performance
-            var adminMemberIds = GetAdminMemberIds();   //TODO: This is to slow. Could we cache it on startup?
+            // [CHANGE: perf – one member scan + one role lookup shared by members/wishlist/rejected instead of 4 GetAllMembers scans with per-member GetAllRoles] Related: ICrewService.cs, Web/Views/Crew.cshtml
+            var allMembers = _memberService.GetAllMembers().ToList();
+            var roleData = BuildRoleData();
             var crewGuidToIdCache = new Dictionary<Guid, int>();
 
-            detail.Members = GetCrewMembers(crewId, adminMemberIds, crewGuidToIdCache);
-            detail.WishlistMembers = GetWishlistMembersNotAssigned(crewId, adminMemberIds, crewGuidToIdCache);
+            detail.Members = GetCrewMembers(crewId, allMembers, roleData, crewGuidToIdCache);
+            detail.WishlistMembers = GetWishlistMembersNotAssigned(crewId, allMembers, roleData.AdminIds, crewGuidToIdCache);
+            detail.RejectedMembers = GetRejectedMembersWishingCrew(content.Key, allMembers);
         }
 
         return Task.FromResult<CrewDetailData?>(detail);
+    }
+
+    /// <summary>
+    /// Rejected members who had this crew on their wishlist (previously computed inline in Crew.cshtml).
+    /// </summary>
+    private static List<RejectedMemberInfo> GetRejectedMembersWishingCrew(Guid crewKey, List<IMember> allMembers)
+    {
+        var result = new List<RejectedMemberInfo>();
+        var crewKeyNoDashes = crewKey.ToString("N");
+
+        foreach (var member in allMembers)
+        {
+            if (!member.GetValue<bool>("rejected"))
+                continue;
+
+            var wishes = member.GetValue<string>("crewWishes") ?? string.Empty;
+            if (!wishes.Contains(crewKeyNoDashes, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var firstName = member.GetValue<string>("firstName") ?? string.Empty;
+            var lastName = member.GetValue<string>("lastName") ?? string.Empty;
+            var fullName = $"{firstName} {lastName}".Trim();
+            if (string.IsNullOrEmpty(fullName))
+                fullName = member.Name ?? member.Email ?? "Ukendt";
+
+            result.Add(new RejectedMemberInfo
+            {
+                FullName = fullName,
+                Email = member.Email ?? string.Empty,
+                RejectedBy = member.GetValue<string>("rejectedBy") ?? string.Empty,
+                RejectionReason = member.GetValue<string>("rejectionReason") ?? string.Empty
+            });
+        }
+
+        return result;
     }
 
     private bool IsMemberInUdiList(Guid memberKey, string udiString)
@@ -367,10 +456,9 @@ public class CrewService : ICrewService
         return supervisors;
     }
 
-    private List<CrewMemberInfo> GetWishlistMembersNotAssigned(int crewId, HashSet<int> adminMemberIds, Dictionary<Guid, int> crewGuidToIdCache)
+    private List<CrewMemberInfo> GetWishlistMembersNotAssigned(int crewId, List<IMember> allMembers, HashSet<int> adminMemberIds, Dictionary<Guid, int> crewGuidToIdCache)
     {
         var wishlistMembers = new List<CrewMemberInfo>();
-        var allMembers = _memberService.GetAllMembers();
 
         Stopwatch sw = Stopwatch.StartNew();
 
@@ -430,37 +518,6 @@ public class CrewService : ICrewService
         return wishlistMembers.OrderBy(m => m.AcceptedDate ?? m.SignupDate).ToList();
     }
 
-    private bool IsMemberInAdminGroup(int memberId)
-    {
-        var memberGroups = _memberService.GetAllRoles(memberId);
-        var adminGroup = _memberGroupService.GetById(AdminGroupKey);
-        return adminGroup != null && memberGroups.Contains(adminGroup.Name);
-    }
-
-    /// <summary>
-    /// Gets all admin member IDs in a single operation to avoid repeated database queries
-    /// </summary>
-    private HashSet<int> GetAdminMemberIds()
-    {
-        var adminMemberIds = new HashSet<int>();
-        var adminGroup = _memberGroupService.GetById(AdminGroupKey);
-
-        if (adminGroup == null)
-            return adminMemberIds;
-
-        var allMembers = _memberService.GetAllMembers();
-        foreach (var member in allMembers)
-        {
-            var memberGroups = _memberService.GetAllRoles(member.Id);
-            if (memberGroups.Contains(adminGroup.Name))
-            {
-                adminMemberIds.Add(member.Id);
-            }
-        }
-
-        return adminMemberIds;
-    }
-
     /// <summary>
     /// Parses crew IDs with caching to minimize repeated _contentService.GetById calls
     /// </summary>
@@ -488,12 +545,12 @@ public class CrewService : ICrewService
                         }
                         else
                         {
-                            // Not in cache, fetch from content service
-                            var content = _contentService.GetById(contentGuid);
-                            if (content != null)
+                            // Not in cache — resolve via Umbraco's in-memory id/key map (no DB hit)
+                            var attempt = _idKeyMap.GetIdForKey(contentGuid, UmbracoObjectTypes.Document);
+                            if (attempt.Success)
                             {
-                                cache[contentGuid] = content.Id;
-                                ids.Add(content.Id);
+                                cache[contentGuid] = attempt.Result;
+                                ids.Add(attempt.Result);
                             }
                         }
                     }
@@ -528,21 +585,8 @@ public class CrewService : ICrewService
         foreach (var crew in allCrews)
             stats[crew.Id] = new CrewStatsEntry();
 
-        // Resolve group names once
-        var adminGroup = _memberGroupService.GetById(AdminGroupKey);
-        var volunteerGroup = _memberGroupService.GetById(VolunteerGroupKey);
-        var schedulerGroup = _memberGroupService.GetById(SchedulerGroupKey);
-
-        var adminGroupName = adminGroup?.Name;
-        var volunteerGroupName = volunteerGroup?.Name;
-        var schedulerGroupName = schedulerGroup?.Name;
-
-        var supervisorGroupNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var name in new[] { "Sherif", "Vice sherif" })
-            supervisorGroupNames.Add(name);
-        if (schedulerGroupName != null)
-            supervisorGroupNames.Add(schedulerGroupName);
-
+        // [CHANGE: perf – role membership via per-group GetMembersInRole sets instead of per-member GetAllRoles N+1] Related: ICrewService.cs, Web/Views/Crew.cshtml
+        var roleData = BuildRoleData();
         var crewGuidToIdCache = new Dictionary<Guid, int>();
         var allMembers = _memberService.GetAllMembers();
 
@@ -556,13 +600,11 @@ public class CrewService : ICrewService
             if (member.GetValue<bool>("cancelation"))
                 continue;
 
-            var roles = _memberService.GetAllRoles(member.Id);
-            var isAdmin = adminGroupName != null && roles.Contains(adminGroupName);
-            if (isAdmin)
+            if (roleData.AdminIds.Contains(member.Id))
                 continue;
 
-            var isVolunteer = volunteerGroupName != null && roles.Contains(volunteerGroupName);
-            var isSupervisor = roles.Any(r => supervisorGroupNames.Contains(r));
+            var isVolunteer = roleData.VolunteerIds.Contains(member.Id);
+            var isSupervisor = roleData.SupervisorIds.Contains(member.Id);
             var crewsValue = member.GetValue<string>("crews");
             var assignedCrewIds = ParseCrewIdsWithCache(crewsValue, crewGuidToIdCache);
 
@@ -621,9 +663,32 @@ public class CrewService : ICrewService
     private List<CrewListItem> GetAllCrews()
     {
         var crews = new List<CrewListItem>();
-        var rootContent = _contentService.GetRootContent();
 
-        foreach (var root in rootContent)
+        // [CHANGE: perf – read crews from the in-memory published cache instead of walking the tree with IContentService DB queries] Related: ICrewService.cs, Web/Views/Crew.cshtml
+        if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext) && umbracoContext.Content != null
+            && _navigationQueryService.TryGetRootKeys(out var rootKeys))
+        {
+            foreach (var root in rootKeys.Select(k => umbracoContext.Content.GetById(k)).Where(c => c != null).Select(c => c!))
+            {
+                foreach (var node in root.DescendantsOrSelf().Where(c => c.ContentType.Alias == CrewContentTypeAlias))
+                {
+                    crews.Add(new CrewListItem
+                    {
+                        Id = node.Id,
+                        Key = node.Key,
+                        Name = node.Name,
+                        Description = GetRteDescription(node, 150),
+                        AgeLimit = node.Value<int?>("ageLimit"),
+                        MaxVoluntiers = node.Value<int?>("maxVoluntiers"),
+                        Url = node.Url()
+                    });
+                }
+            }
+            return crews;
+        }
+
+        // Fallback outside a request context (no published cache available)
+        foreach (var root in _contentService.GetRootContent())
         {
             FindCrewsRecursive(root, crews);
         }
@@ -719,46 +784,10 @@ public class CrewService : ICrewService
         return description;
     }
 
-    private List<(int memberId, List<int> crewIds)> GetMemberCrewAssignments()
-    {
-        var assignments = new List<(int memberId, List<int> crewIds)>();
-        var members = _memberService.GetAllMembers();
-
-        foreach (var member in members)
-        {
-            var crewsValue = member.GetValue<string>("crews");
-            var crewIds = ParseCrewIds(crewsValue);
-            if (crewIds.Any())
-            {
-                assignments.Add((member.Id, crewIds));
-            }
-        }
-
-        return assignments;
-    }
-
-    private List<(int memberId, List<int> crewIds)> GetMemberWishAssignments()
-    {
-        var assignments = new List<(int memberId, List<int> crewIds)>();
-        var members = _memberService.GetAllMembers();
-
-        foreach (var member in members)
-        {
-            var wishesValue = member.GetValue<string>("crewWishes");
-            var crewIds = ParseCrewIds(wishesValue);
-            if (crewIds.Any())
-            {
-                assignments.Add((member.Id, crewIds));
-            }
-        }
-
-        return assignments;
-    }
-
-    private List<CrewMemberInfo> GetCrewMembers(int crewId, HashSet<int> adminMemberIds, Dictionary<Guid, int> crewGuidToIdCache)
+    private List<CrewMemberInfo> GetCrewMembers(int crewId, List<IMember> allMembers, RoleData roleData, Dictionary<Guid, int> crewGuidToIdCache)
     {
         var members = new List<CrewMemberInfo>();
-        var allMembers = _memberService.GetAllMembers();
+        var adminMemberIds = roleData.AdminIds;
 
         Stopwatch sw = Stopwatch.StartNew();
 
@@ -806,7 +835,9 @@ public class CrewService : ICrewService
                     MemberWish = member.GetValue<string>("memberWish"),
                     TimeslotWish = member.GetValue<string>("timeslotWish"),
                     OtherNotes = ExtractRteMarkup(member.GetValue<string>("otherNotes")),
-                    MemberGroups = _memberService.GetAllRoles(member.Id).ToList()
+                    MemberGroups = roleData.GroupsByMemberId.TryGetValue(member.Id, out var groups)
+                        ? groups
+                        : new List<string>()
                 });
             }
         }
@@ -835,10 +866,10 @@ public class CrewService : ICrewService
                     var guidPart = trimmed["umb://document/".Length..];
                     if (Guid.TryParse(guidPart, out var contentGuid))
                     {
-                        var content = _contentService.GetById(contentGuid);
-                        if (content != null)
+                        var attempt = _idKeyMap.GetIdForKey(contentGuid, UmbracoObjectTypes.Document);
+                        if (attempt.Success)
                         {
-                            ids.Add(content.Id);
+                            ids.Add(attempt.Result);
                         }
                     }
                 }
@@ -858,6 +889,9 @@ public class CrewService : ICrewService
         if (string.IsNullOrWhiteSpace(udiString))
             return crews;
 
+        // [CHANGE: perf – resolve crew references from the published cache instead of an IContentService DB query per UDI] Related: ICrewService.cs, Web/Views/Crew.cshtml
+        _umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext);
+
         var udiParts = udiString.Split(',', StringSplitOptions.RemoveEmptyEntries);
         foreach (var udiPart in udiParts)
         {
@@ -869,31 +903,17 @@ public class CrewService : ICrewService
                     var guidPart = trimmed["umb://document/".Length..];
                     if (Guid.TryParse(guidPart, out var contentGuid))
                     {
-                        var content = _contentService.GetById(contentGuid);
-                        if (content != null && content.ContentType.Alias == CrewContentTypeAlias)
+                        var publishedContent = umbracoContext?.Content?.GetById(contentGuid);
+                        if (publishedContent != null && publishedContent.ContentType.Alias == CrewContentTypeAlias)
                         {
-                            string? description = null;
-                            string? url = null;
-
-                            // Get published content to access properly converted property values
-                            if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext))
-                            {
-                                var publishedContent = umbracoContext.Content?.GetById(content.Key);
-                                if (publishedContent != null)
-                                {
-                                    url = publishedContent.Url();
-                                    description = GetRteDescription(publishedContent, 150);
-                                }
-                            }
-
                             crews.Add(new CrewListItem
                             {
-                                Id = content.Id,
-                                Key = content.Key,
-                                Name = content.Name ?? $"Crew {content.Id}",
-                                Description = description,
-                                AgeLimit = content.GetValue<int?>("ageLimit"),
-                                Url = url
+                                Id = publishedContent.Id,
+                                Key = publishedContent.Key,
+                                Name = publishedContent.Name,
+                                Description = GetRteDescription(publishedContent, 150),
+                                AgeLimit = publishedContent.Value<int?>("ageLimit"),
+                                Url = publishedContent.Url()
                             });
                         }
                     }

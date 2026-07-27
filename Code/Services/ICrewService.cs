@@ -52,6 +52,16 @@ public class CrewDetailData
     public List<CrewMemberInfo> WishlistMembers { get; set; } = new();
     public SupervisorInfo? ScheduleSupervisor { get; set; }
     public List<SupervisorInfo> Supervisors { get; set; } = new();
+    // [CHANGE: perf – rejected members moved from Crew.cshtml into CrewService single member scan] Related: CrewService.cs, Web/Views/Crew.cshtml
+    public List<RejectedMemberInfo> RejectedMembers { get; set; } = new();
+}
+
+public class RejectedMemberInfo
+{
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string RejectedBy { get; set; } = string.Empty;
+    public string RejectionReason { get; set; } = string.Empty;
 }
 
 public class CrewMemberInfo
