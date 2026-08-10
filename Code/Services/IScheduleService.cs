@@ -8,6 +8,8 @@ public class ScheduleData
     public string Name { get; set; } = string.Empty;
     public DateTime ScheduleDate { get; set; }
     public bool IsPublished { get; set; }
+    // [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, ScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
+    public int SortOrder { get; set; }
     public DateTime CreatedUtc { get; set; }
     public List<ScheduleShiftData> Shifts { get; set; } = new();
 }
@@ -75,6 +77,8 @@ public interface IScheduleService
     // [CHANGE: internal bookings without a member] Related: AddScheduleTablesMigration.cs, ScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
     Task<bool> BookInternalShiftAsync(int shiftId, string title);
     Task<bool> UnbookInternalShiftAsync(int shiftId);
+    // [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, ScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
+    Task<bool> MoveScheduleAsync(int scheduleId, int direction);
     Task PublishScheduleAsync(int scheduleId);
     Task UnpublishScheduleAsync(int scheduleId);
     Task<List<ScheduleShiftData>> GetShiftsForMemberAsync(Guid memberKey);

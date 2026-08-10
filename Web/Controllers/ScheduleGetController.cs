@@ -283,6 +283,25 @@ public class ScheduleController : Controller
         return Json(new { success = true });
     }
 
+    // [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, ScheduleService.cs, Web/Views/CrewSchedule.cshtml
+    // POST /umbraco/surface/schedule/reorder
+    [HttpPost("reorder")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reorder([FromBody] ReorderScheduleRequest req)
+    {
+        var schedule = await _scheduleService.GetScheduleAsync(req.ScheduleId);
+        if (schedule == null) return Json(new { success = false, error = "Vagtplan ikke fundet." });
+
+        var (authorized, errorResult) = await AuthorizeCrewEditorAsync(schedule.CrewId);
+        if (!authorized) return errorResult!;
+
+        if (req.Direction != -1 && req.Direction != 1)
+            return Json(new { success = false, error = "Ugyldig retning." });
+
+        var moved = await _scheduleService.MoveScheduleAsync(req.ScheduleId, req.Direction);
+        return Json(new { success = true, moved });
+    }
+
     // POST /umbraco/surface/schedule/publish
     [HttpPost("publish")]
     [ValidateAntiForgeryToken]
@@ -362,6 +381,7 @@ public class ScheduleController : Controller
         scheduleDate = s.ScheduleDate.ToString("yyyy-MM-dd"),
         scheduleDateFormatted = s.ScheduleDate.ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK")),
         isPublished = s.IsPublished,
+        sortOrder = s.SortOrder,
         shifts = s.Shifts.Select(MapShiftDto)
     };
 
@@ -392,3 +412,4 @@ public record UnassignRequest(int ScheduleId, int ShiftId);
 public record BookInternalRequest(int ScheduleId, int ShiftId, string? Title);
 public record UnbookInternalRequest(int ScheduleId, int ShiftId);
 public record IdRequest(int Id);
+public record ReorderScheduleRequest(int ScheduleId, int Direction);

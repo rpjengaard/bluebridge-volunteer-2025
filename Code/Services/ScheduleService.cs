@@ -20,8 +20,9 @@ public class ScheduleService : IScheduleService
         using var scope = _scopeProvider.CreateScope(autoComplete: true);
         var db = scope.Database;
 
+        // [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
         var schedules = db.Fetch<ScheduleSchema>(
-            "SELECT * FROM BbvSchedule WHERE CrewId = @0 ORDER BY ScheduleDate ASC, Name ASC", crewId);
+            "SELECT * FROM BbvSchedule WHERE CrewId = @0 ORDER BY SortOrder ASC, ScheduleDate ASC, Name ASC", crewId);
 
         var result = schedules.Select(MapSchedule).ToList();
         LoadShiftsForSchedules(db, result);
@@ -219,6 +220,39 @@ public class ScheduleService : IScheduleService
         return Task.FromResult(rows > 0);
     }
 
+    // [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
+    // Swaps the schedule with its neighbour in the crew's current display order and
+    // rewrites SortOrder sequentially, so legacy rows (all SortOrder = 0) normalise on first move.
+    public Task<bool> MoveScheduleAsync(int scheduleId, int direction)
+    {
+        if (direction != -1 && direction != 1) return Task.FromResult(false);
+
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
+
+        var target = db.SingleOrDefault<ScheduleSchema>(
+            "SELECT * FROM BbvSchedule WHERE Id = @0", scheduleId);
+        if (target == null) return Task.FromResult(false);
+
+        var schedules = db.Fetch<ScheduleSchema>(
+            "SELECT * FROM BbvSchedule WHERE CrewId = @0 ORDER BY SortOrder ASC, ScheduleDate ASC, Name ASC",
+            target.CrewId);
+
+        var index = schedules.FindIndex(s => s.Id == scheduleId);
+        var newIndex = index + direction;
+        if (index < 0 || newIndex < 0 || newIndex >= schedules.Count) return Task.FromResult(false);
+
+        (schedules[index], schedules[newIndex]) = (schedules[newIndex], schedules[index]);
+
+        for (var i = 0; i < schedules.Count; i++)
+        {
+            if (schedules[i].SortOrder != i)
+                db.Execute("UPDATE BbvSchedule SET SortOrder = @0 WHERE Id = @1", i, schedules[i].Id);
+        }
+
+        return Task.FromResult(true);
+    }
+
     public Task PublishScheduleAsync(int scheduleId)
     {
         using var scope = _scopeProvider.CreateScope(autoComplete: true);
@@ -388,6 +422,7 @@ public class ScheduleService : IScheduleService
         Name = s.Name,
         ScheduleDate = s.ScheduleDate,
         IsPublished = s.IsPublished,
+        SortOrder = s.SortOrder,
         CreatedUtc = s.CreatedUtc
     };
 

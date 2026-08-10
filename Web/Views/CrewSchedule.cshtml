@@ -50,6 +50,16 @@
         .text-blue-bridge { color: #23297A; }
         .bg-accent-yellow { background-color: #FFF000; }
         .border-blue-bridge { border-color: #23297A; }
+        /* [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, ScheduleService.cs, ScheduleGetController.cs */
+        @@media print {
+            @@page { size: A4 landscape; margin: 10mm; }
+            body.printing-grid nav,
+            body.printing-grid footer,
+            body.printing-grid .print-hide { display: none !important; }
+            body.printing-grid main { max-width: none; padding: 0; }
+            body.printing-grid #overview-scroll { overflow: visible !important; }
+            body.printing-grid #overview-container { display: block !important; }
+        }
     </style>
 </head>
 <body class="h-full">
@@ -94,7 +104,7 @@ else
     <main class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
 
         <!-- Page header -->
-        <div class="mb-8">
+        <div class="mb-8 print-hide">
             <div class="flex items-start justify-between">
                 <div>
                     <div class="flex items-center space-x-3 mb-2">
@@ -121,22 +131,31 @@ else
 
         <!-- Schedule planner -->
         <div class="bg-white shadow rounded-lg overflow-hidden">
-            <div class="bg-indigo-700 px-6 py-4">
-                <div class="flex items-center justify-between">
+            <div class="bg-indigo-700 px-6 py-4 print-hide">
+                <div class="flex items-center justify-between flex-wrap gap-2">
                     <h2 class="text-xl font-bold text-white">Vagtplaner</h2>
-                    <button type="button" onclick="toggleCreateScheduleForm()"
+                    <div class="flex items-center gap-3">
+                        <!-- [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, ScheduleService.cs, ScheduleGetController.cs -->
+                        <div class="flex rounded-md overflow-hidden border border-white/30 text-sm">
+                            <button type="button" id="view-btn-list" onclick="setView('list')"
+                                    class="px-3 py-1.5 font-medium bg-white text-indigo-700">Liste</button>
+                            <button type="button" id="view-btn-grid" onclick="setView('grid')"
+                                    class="px-3 py-1.5 font-medium bg-white/20 text-white hover:bg-white/30">Oversigt</button>
+                        </div>
+                        <button type="button" onclick="toggleCreateScheduleForm()"
                             class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md bg-white/20 text-white hover:bg-white/30 transition-colors">
                         <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                         </svg>
                         Ny vagtplan
-                    </button>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="p-6">
 
                 <!-- Create schedule form -->
-                <div id="create-schedule-form" class="hidden mb-6 bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                <div id="create-schedule-form" class="hidden print-hide mb-6 bg-indigo-50 border border-indigo-200 rounded-lg p-4">
                     <h3 class="text-sm font-semibold text-indigo-900 mb-3">Opret ny vagtplan</h3>
                     <div class="flex flex-col sm:flex-row gap-3">
                         <div class="flex-1">
@@ -170,6 +189,22 @@ else
                         </svg>
                         <p class="text-sm">Indlæser vagtplaner...</p>
                     </div>
+                </div>
+
+                <!-- [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, ScheduleService.cs, ScheduleGetController.cs -->
+                <!-- Overview grid view (rendered by JS) -->
+                <div id="overview-container" class="hidden">
+                    <div class="flex flex-wrap items-center justify-between gap-3 mb-4 print-hide">
+                        <div id="overview-day-pills" class="flex flex-wrap gap-2"></div>
+                        <button type="button" onclick="printOverview()"
+                                class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+                            <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659" />
+                            </svg>
+                            Print
+                        </button>
+                    </div>
+                    <div id="overview-grid"></div>
                 </div>
 
             </div>
@@ -251,6 +286,9 @@ else
     let currentSortMode = localStorage.getItem('vagtplan-sort') || 'accepted';
     let crewMembersCache = null;   // populated on first fetch, reused for sort changes
     let currentSearchQuery = '';         // live search filter in assign modal
+    // [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, ScheduleService.cs, ScheduleGetController.cs
+    let currentView = localStorage.getItem('vagtplan-view') || 'list';
+    let selectedOverviewDate = null;     // 'yyyy-MM-dd' of the day shown in the overview grid
 
     function getCsrfToken() {
         const el = document.querySelector('input[name="__RequestVerificationToken"]');
@@ -281,6 +319,7 @@ else
             const schedules = await apiGet(`/umbraco/surface/schedule/forCrew?crewId=${CREW_ID}`);
             currentSchedules = schedules || [];
             renderScheduleList(schedules);
+            renderOverview();
         } catch (e) {
             container.innerHTML = '<p class="text-sm text-red-600 p-4">Fejl ved indlæsning af vagtplaner.</p>';
         }
@@ -314,6 +353,12 @@ else
             <!-- Schedule header -->
             <div class="bg-indigo-50 px-4 py-3 flex flex-wrap items-center gap-2 justify-between">
                 <div class="flex items-center gap-3">
+                    <span class="flex flex-col -my-1">
+                        <button onclick="moveSchedule(${s.id}, -1)" title="Flyt op"
+                                class="text-gray-400 hover:text-indigo-700 leading-none text-[10px] px-0.5">▲</button>
+                        <button onclick="moveSchedule(${s.id}, 1)" title="Flyt ned"
+                                class="text-gray-400 hover:text-indigo-700 leading-none text-[10px] px-0.5">▼</button>
+                    </span>
                     <span class="font-semibold text-indigo-900">${escHtml(s.name)}</span>
                     <span class="text-xs text-gray-500">${s.scheduleDateFormatted}</span>
                     ${publishedBadge}
@@ -987,6 +1032,179 @@ else
         }
     }
 
+    // ── Overview grid view ────────────────────────────────────────────────
+    // [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, ScheduleService.cs, ScheduleGetController.cs
+    const OVERVIEW_HOUR_W = 64;   // px per hour column
+    const OVERVIEW_LANE_H = 46;   // px per stacked lane
+    const OVERVIEW_PALETTE = [
+        '#E08E45', '#2E6FA3', '#4E8A3C', '#B08D2E', '#7C5FA8',
+        '#B9484F', '#3C8A85', '#8A5A3C', '#5A6B9E', '#767676'
+    ];
+
+    function setView(view) {
+        currentView = view;
+        localStorage.setItem('vagtplan-view', view);
+        document.getElementById('schedule-list').classList.toggle('hidden', view === 'grid');
+        document.getElementById('overview-container').classList.toggle('hidden', view !== 'grid');
+        const listBtn = document.getElementById('view-btn-list');
+        const gridBtn = document.getElementById('view-btn-grid');
+        const active = ['bg-white', 'text-indigo-700'];
+        const inactive = ['bg-white/20', 'text-white', 'hover:bg-white/30'];
+        [listBtn, gridBtn].forEach(btn => btn.classList.remove(...active, ...inactive));
+        (view === 'grid' ? gridBtn : listBtn).classList.add(...active);
+        (view === 'grid' ? listBtn : gridBtn).classList.add(...inactive);
+        if (view === 'grid') renderOverview();
+    }
+
+    function overviewToMins(t) {
+        const parts = (t || '0:0').split(':');
+        return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+    }
+
+    // Times before 06:00 count as "after midnight" so the axis can extend past 24:00
+    function overviewAdjStart(t) {
+        const m = overviewToMins(t);
+        return m < 360 ? m + 1440 : m;
+    }
+
+    function overviewAdjEnd(t, adjStart) {
+        let m = overviewToMins(t);
+        if (m < 360) m += 1440;
+        if (m <= adjStart) m += 1440;
+        return m;
+    }
+
+    function selectOverviewDate(d) {
+        selectedOverviewDate = d;
+        renderOverview();
+    }
+
+    // Greedy interval partitioning: overlapping shifts get separate stacked lanes
+    function assignOverviewLanes(shifts) {
+        shifts.sort((a, b) => a._s - b._s || a._e - b._e);
+        const laneEnds = [];
+        shifts.forEach(sh => {
+            let lane = laneEnds.findIndex(end => end <= sh._s);
+            if (lane === -1) { lane = laneEnds.length; laneEnds.push(0); }
+            laneEnds[lane] = sh._e;
+            sh.lane = lane;
+        });
+        return laneEnds.length;
+    }
+
+    function renderOverview() {
+        const container = document.getElementById('overview-grid');
+        const pillsEl = document.getElementById('overview-day-pills');
+        if (!container || currentView !== 'grid') return;
+
+        const dates = [...new Set(currentSchedules.map(s => s.scheduleDate))].sort();
+        if (!dates.length) {
+            pillsEl.innerHTML = '';
+            container.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">Ingen vagtplaner endnu.</p>';
+            return;
+        }
+
+        const now = new Date();
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        if (!selectedOverviewDate || !dates.includes(selectedOverviewDate)) {
+            selectedOverviewDate = dates.includes(todayStr)
+                ? todayStr
+                : (dates.find(d => d >= todayStr) || dates[0]);
+        }
+
+        pillsEl.innerHTML = dates.map(d => {
+            const label = new Date(d + 'T00:00:00').toLocaleDateString('da-DK', { weekday: 'long', day: 'numeric', month: 'short' });
+            const isActive = d === selectedOverviewDate;
+            return `<button onclick="selectOverviewDate('${d}')"
+                class="px-3 py-1.5 rounded-full text-sm font-medium ${isActive ? 'bg-indigo-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}">${label}</button>`;
+        }).join('');
+
+        const daySchedules = currentSchedules.filter(s => s.scheduleDate === selectedOverviewDate);
+        let minM = Infinity, maxM = -Infinity;
+        const rows = daySchedules.map((s, idx) => {
+            const shifts = (s.shifts || []).map(sh => {
+                const start = overviewAdjStart(sh.startTime);
+                const end = overviewAdjEnd(sh.endTime, start);
+                minM = Math.min(minM, start);
+                maxM = Math.max(maxM, end);
+                return { ...sh, _s: start, _e: end };
+            });
+            return { schedule: s, shifts, color: OVERVIEW_PALETTE[idx % OVERVIEW_PALETTE.length] };
+        });
+
+        if (!isFinite(minM)) { minM = 8 * 60; maxM = 18 * 60; }
+        const minH = Math.floor(minM / 60);
+        const maxH = Math.ceil(maxM / 60);
+        const totalW = (maxH - minH) * OVERVIEW_HOUR_W;
+
+        let hourLabels = '';
+        for (let h = minH; h < maxH; h++) {
+            hourLabels += `<span class="absolute top-1 text-[11px] font-semibold opacity-90" style="left:${(h - minH) * OVERVIEW_HOUR_W + 4}px">${String(h % 24).padStart(2, '0')}</span>`;
+        }
+
+        const rowsHtml = rows.map(row => {
+            const laneCount = assignOverviewLanes(row.shifts);
+            const height = Math.max(laneCount, 1) * OVERVIEW_LANE_H + 8;
+            const blocks = row.shifts.map(sh => {
+                const left = (sh._s - minH * 60) / 60 * OVERVIEW_HOUR_W;
+                const width = (sh._e - sh._s) / 60 * OVERVIEW_HOUR_W;
+                const top = sh.lane * OVERVIEW_LANE_H + 4;
+                const label = sh.isInternal ? escHtml(sh.title || 'Internt')
+                            : sh.isAvailable ? 'Ledig vagt'
+                            : escHtml(sh.assignedMemberName || 'Tildelt');
+                const style = sh.isAvailable
+                    ? `background:${row.color}14;border:1.5px dashed ${row.color};color:#6b7280;`
+                    : `background:${row.color}26;border:1px solid ${row.color};color:#1f2937;`;
+                return `<div class="absolute rounded-md px-1.5 py-1 overflow-hidden" title="${label} ${sh.startTime}–${sh.endTime}"
+                    style="left:${left + 1}px;width:${width - 2}px;top:${top}px;height:${OVERVIEW_LANE_H - 8}px;${style}">
+                    <p class="text-[11px] font-semibold leading-tight truncate${sh.isInternal ? ' italic' : ''}">${label}</p>
+                    <p class="text-[10px] opacity-70 leading-tight">${sh.startTime}–${sh.endTime}</p>
+                </div>`;
+            }).join('');
+            const kladdeBadge = row.schedule.isPublished ? '' :
+                `<span class="inline-block self-start mt-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-white/25">Kladde</span>`;
+            return `
+            <div class="flex border-t border-gray-200">
+                <div class="shrink-0 flex flex-col justify-center px-3 py-2 text-white" style="width:11rem;background:${row.color}">
+                    <p class="text-sm font-semibold leading-tight">${escHtml(row.schedule.name)}</p>
+                    ${kladdeBadge}
+                </div>
+                <div class="relative" style="width:${totalW}px;height:${height}px;background-image:repeating-linear-gradient(to right,#e5e7eb 0,#e5e7eb 1px,transparent 1px,transparent ${OVERVIEW_HOUR_W}px)">
+                    ${blocks || '<p class="absolute inset-0 flex items-center px-3 text-xs text-gray-400">Ingen vagter</p>'}
+                </div>
+            </div>`;
+        }).join('');
+
+        const dateLabel = new Date(selectedOverviewDate + 'T00:00:00').toLocaleDateString('da-DK', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+        container.innerHTML = `
+            <h3 class="text-lg font-bold text-blue-bridge mb-3">Vagtplan – ${dateLabel}</h3>
+            <div class="overflow-x-auto pb-2" id="overview-scroll">
+                <div class="w-max border border-gray-200 rounded-lg overflow-hidden">
+                    <div class="flex bg-blue-bridge text-white">
+                        <div class="shrink-0 px-3 py-1.5 text-xs font-semibold self-center" style="width:11rem">Vagtplan</div>
+                        <div class="relative" style="width:${totalW}px;height:24px">${hourLabels}</div>
+                    </div>
+                    ${rowsHtml}
+                </div>
+            </div>`;
+    }
+
+    async function moveSchedule(scheduleId, direction) {
+        const result = await apiPost('/umbraco/surface/schedule/reorder', { scheduleId, direction });
+        if (result.success) {
+            await loadSchedules();
+        } else {
+            alert(result.error || 'Fejl ved flytning.');
+        }
+    }
+
+    function printOverview() {
+        document.body.classList.add('printing-grid');
+        window.print();
+        document.body.classList.remove('printing-grid');
+    }
+
     // Close assign modal on Escape
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
@@ -1002,6 +1220,7 @@ else
     });
 
     // ── Init ──────────────────────────────────────────────────────────────
+    setView(currentView);   // restore persisted Liste/Oversigt choice
     loadSchedules();
     // Prefetch crew members in the background so the assign modal opens instantly
     fetchCrewMembersIfNeeded();

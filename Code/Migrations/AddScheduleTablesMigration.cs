@@ -33,6 +33,10 @@ public class ScheduleSchema
     [Column("IsPublished")]
     public bool IsPublished { get; set; }
 
+    // [CHANGE: overview grid view + manual schedule ordering] Related: IScheduleService.cs, ScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
+    [Column("SortOrder")]
+    public int SortOrder { get; set; }
+
     [Column("CreatedUtc")]
     public DateTime CreatedUtc { get; set; }
 }
@@ -135,6 +139,22 @@ public class AddInternalBookingColumnsMigration : MigrationBase
     }
 }
 
+// [CHANGE: overview grid view + manual schedule ordering] Related: IScheduleService.cs, ScheduleService.cs, Web/Controllers/ScheduleGetController.cs, Web/Views/CrewSchedule.cshtml
+// Existing rows get SortOrder 0; ordering falls back to ScheduleDate/Name until editors reorder.
+public class AddScheduleSortOrderMigration : MigrationBase
+{
+    public AddScheduleSortOrderMigration(IMigrationContext context) : base(context)
+    {
+    }
+
+    protected override void Migrate()
+    {
+        Execute.Sql(@"
+            ALTER TABLE dbo.BbvSchedule ADD
+                SortOrder INT NOT NULL CONSTRAINT DF_BbvSchedule_SortOrder DEFAULT 0").Do();
+    }
+}
+
 public class ScheduleMigrationComposer : IComposer
 {
     public void Compose(IUmbracoBuilder builder)
@@ -171,7 +191,8 @@ public class ScheduleMigrationComponent : IComponent
         var migrationPlan = new MigrationPlan("BbvSchedule");
         migrationPlan.From(string.Empty)
             .To<AddScheduleTablesMigration>("bbv-schedule-001")
-            .To<AddInternalBookingColumnsMigration>("bbv-schedule-002");
+            .To<AddInternalBookingColumnsMigration>("bbv-schedule-002")
+            .To<AddScheduleSortOrderMigration>("bbv-schedule-003");
 
         var upgrader = new Upgrader(migrationPlan);
         upgrader.Execute(_migrationPlanExecutor, _coreScopeProvider, _keyValueService);
