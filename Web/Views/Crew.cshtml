@@ -327,9 +327,28 @@ else
                         <div class="bg-green-600 px-6 py-4">
                             <div class="flex items-center justify-between mb-2">
                                 <h2 class="text-xl font-bold text-white">Tildelte frivillige</h2>
-                                <span class="bg-white/20 text-white text-sm px-3 py-1 rounded-full">
-                                    @regularMemberCount / @(crewData.MaxVoluntiers.HasValue ? crewData.MaxVoluntiers.Value.ToString() : "-")
-                                </span>
+                                <div class="flex items-center gap-2">
+                                    @* [CHANGE: crew email export button] Related: Web/Views/CrewListe.cshtml, Code/Services/CrewService.cs, Web/Controllers/CrewEmailSurfaceController.cs *@
+                                    @if (crewData.Members.Any(m => !string.IsNullOrWhiteSpace(m.Email)))
+                                    {
+                                        var memberEmails = string.Join("; ", crewData.Members
+                                            .Select(m => m.Email)
+                                            .Where(e => !string.IsNullOrWhiteSpace(e))
+                                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                                            .OrderBy(e => e, StringComparer.OrdinalIgnoreCase));
+                                        <button type="button" id="copyCrewEmails" data-emails="@memberEmails"
+                                                class="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-sm px-3 py-1 rounded-full transition-colors"
+                                                title="Kopiér alle e-mailadresser til udklipsholderen">
+                                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                                            </svg>
+                                            <span id="copyCrewEmailsLabel">Kopiér e-mails</span>
+                                        </button>
+                                    }
+                                    <span class="bg-white/20 text-white text-sm px-3 py-1 rounded-full">
+                                        @regularMemberCount / @(crewData.MaxVoluntiers.HasValue ? crewData.MaxVoluntiers.Value.ToString() : "-")
+                                    </span>
+                                </div>
                             </div>
                             @if (crewData.MaxVoluntiers.HasValue && crewData.MaxVoluntiers.Value > 0)
                             {
@@ -985,6 +1004,28 @@ else
             function closeDismissModal() {
                 document.getElementById('dismissModal').classList.add('hidden');
                 document.body.style.overflow = 'auto';
+            }
+
+            // [CHANGE: crew email export button] Related: Web/Views/CrewListe.cshtml
+            var copyEmailsBtn = document.getElementById('copyCrewEmails');
+            if (copyEmailsBtn) {
+                copyEmailsBtn.addEventListener('click', async function () {
+                    var emails = copyEmailsBtn.dataset.emails;
+                    try {
+                        await navigator.clipboard.writeText(emails);
+                    } catch {
+                        // Clipboard API needs a secure context — fall back to a temporary textarea
+                        var ta = document.createElement('textarea');
+                        ta.value = emails;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                    }
+                    var label = document.getElementById('copyCrewEmailsLabel');
+                    label.textContent = 'Kopieret!';
+                    setTimeout(function () { label.textContent = 'Kopiér e-mails'; }, 2000);
+                });
             }
 
             // Close modals on Escape key

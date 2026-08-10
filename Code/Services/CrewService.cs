@@ -188,6 +188,60 @@ public class CrewService : ICrewService
         return Task.FromResult(CrewViewMode.Volunteer);
     }
 
+    // [CHANGE: crew email export button on crew list] Related: ICrewService.cs, Web/Controllers/CrewEmailSurfaceController.cs, Web/Views/CrewListe.cshtml
+    public async Task<CrewEmailData?> GetCrewMemberEmailsAsync(int crewId, string requestingMemberEmail)
+    {
+        // Admins and supervisors/schedulers only — same rule as the crew detail page
+        var viewMode = await GetMemberCrewViewModeAsync(requestingMemberEmail, crewId);
+        if (viewMode == CrewViewMode.Volunteer)
+        {
+            return null;
+        }
+
+        string? crewName = null;
+        if (_umbracoContextAccessor.TryGetUmbracoContext(out var umbracoContext) && umbracoContext.Content != null)
+        {
+            crewName = umbracoContext.Content.GetById(crewId)?.Name;
+        }
+        crewName ??= _contentService.GetById(crewId)?.Name;
+        if (crewName == null)
+        {
+            return null;
+        }
+
+        var roleData = BuildRoleData();
+        var crewGuidToIdCache = new Dictionary<Guid, int>();
+        var emails = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var member in _memberService.GetAllMembers())
+        {
+            if (member.GetValue<bool>("rejected"))
+                continue;
+            if (member.GetValue<bool>("cancelation"))
+                continue;
+            if (roleData.AdminIds.Contains(member.Id))
+                continue;
+            if (!member.GetValue<bool>("accept2026"))
+                continue;
+
+            var isVolunteer = roleData.VolunteerIds.Contains(member.Id);
+            var isSupervisor = roleData.SupervisorIds.Contains(member.Id);
+            if (!isVolunteer && !isSupervisor)
+                continue;
+
+            var assignedCrewIds = ParseCrewIdsWithCache(member.GetValue<string>("crews"), crewGuidToIdCache);
+            if (!assignedCrewIds.Contains(crewId))
+                continue;
+
+            if (!string.IsNullOrWhiteSpace(member.Email))
+            {
+                emails.Add(member.Email);
+            }
+        }
+
+        return new CrewEmailData { CrewName = crewName, Emails = emails.ToList() };
+    }
+
     public Task<MemberDetailData?> GetMemberByKeyAsync(Guid memberKey, string requestingMemberEmail)
     {
         // Check if requesting member has permission (must be admin or scheduler)

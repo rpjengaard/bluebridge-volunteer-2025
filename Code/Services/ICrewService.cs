@@ -6,6 +6,14 @@ public interface ICrewService
     Task<CrewDetailData?> GetCrewDetailAsync(int crewId, string memberEmail, CrewViewMode viewMode);
     Task<CrewViewMode> GetMemberCrewViewModeAsync(string memberEmail, int crewId);
     Task<MemberDetailData?> GetMemberByKeyAsync(Guid memberKey, string requestingMemberEmail);
+    // [CHANGE: crew email export button on crew list] Related: CrewService.cs, Web/Controllers/CrewEmailSurfaceController.cs, Web/Views/CrewListe.cshtml
+    Task<CrewEmailData?> GetCrewMemberEmailsAsync(int crewId, string requestingMemberEmail);
+}
+
+public class CrewEmailData
+{
+    public string CrewName { get; set; } = string.Empty;
+    public List<string> Emails { get; set; } = new();
 }
 
 public enum CrewViewMode
