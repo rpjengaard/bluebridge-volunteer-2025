@@ -166,6 +166,7 @@ public class BillettoTicketService : IBillettoTicketService
         {
             if (!member.IsApproved) continue;
             if (!member.GetValue<bool>("accept2026")) continue;
+            if (member.GetValue<bool>("cancelation")) continue;
             if (!volunteerIds.Contains(member.Id) || excludedIds.Contains(member.Id)) continue;
 
             if (member.GetValue<bool>("ticketNotNeeded"))
