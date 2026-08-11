@@ -1,0 +1,25 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "BillettoTicketStatus",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "dashboard",
+      "alias": "My.BillettoTicketStatus.Dashboard",
+      "name": "Billetto Ticket Status Dashboard",
+      "element": "/App_Plugins/BillettoTicketStatus/billetto-ticket-status.js",
+      "elementName": "billetto-ticket-status",
+      "weight": 80,
+      "meta": {
+        "label": "Billetto Billetter",
+        "pathname": "billetto-ticket-status"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Members"
+        }
+      ]
+    }
+  ]
+}

@@ -28,6 +28,9 @@ builder.Services.AddScoped<IApplicationsService, ApplicationsService>();
 builder.Services.AddScoped<ICrewMessageService, CrewMessageService>();
 builder.Services.AddScoped<IScheduleService, ScheduleService>();
 builder.Services.AddScoped<IMemberListService, MemberListService>();
+// [CHANGE: Billetto ticket status dashboard] Related: Code/Services/BillettoTicketService.cs, Web/Controllers/BillettoTicketStatusController.cs, Web/App_Plugins/BillettoTicketStatus/*
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IBillettoTicketService, BillettoTicketService>();
 builder.Services.AddSingleton<IEmailLogService>(sp =>
 {
     var env = sp.GetRequiredService<IWebHostEnvironment>();

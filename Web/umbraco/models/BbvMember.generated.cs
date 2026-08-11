@@ -64,6 +64,22 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual global::System.DateTime AcceptedDate => this.Value<global::System.DateTime>(_publishedValueFallback, "acceptedDate");
 
 		///<summary>
+		/// Alternativ billetto e-mail: Hvis brugeren har oprettet sig med en anden e-mail end den de har købt billet med, kan den angives her.
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("altBillettoEmail")]
+		public virtual string AltBillettoEmail => this.Value<string>(_publishedValueFallback, "altBillettoEmail");
+
+		///<summary>
+		/// Billetto Id
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("billettoId")]
+		public virtual string BillettoId => this.Value<string>(_publishedValueFallback, "billettoId");
+
+		///<summary>
 		/// Fødselsdato
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
@@ -170,6 +186,13 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
 		[ImplementPropertyType("rejectionReason")]
 		public virtual global::Umbraco.Cms.Core.Strings.IHtmlEncodedString RejectionReason => this.Value<global::Umbraco.Cms.Core.Strings.IHtmlEncodedString>(_publishedValueFallback, "rejectionReason");
+
+		///<summary>
+		/// Skal ikke have billet: F.eks. sheriffer / vicesheriffer
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
+		[ImplementPropertyType("ticketNotNeeded")]
+		public virtual bool TicketNotNeeded => this.Value<bool>(_publishedValueFallback, "ticketNotNeeded");
 
 		///<summary>
 		/// Tidligere arbejdssteder
