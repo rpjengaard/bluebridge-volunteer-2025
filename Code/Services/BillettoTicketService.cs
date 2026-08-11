@@ -44,6 +44,7 @@ public class MissingTicketMember
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public bool UsesAltEmail { get; set; }
+    public bool HasShift { get; set; }
     public List<string> CrewNames { get; set; } = new();
 }
 
@@ -62,6 +63,7 @@ public class BillettoTicketService : IBillettoTicketService
 
     private readonly IMemberService _memberService;
     private readonly IContentService _contentService;
+    private readonly IScheduleService _scheduleService;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly AppCaches _appCaches;
@@ -70,6 +72,7 @@ public class BillettoTicketService : IBillettoTicketService
     public BillettoTicketService(
         IMemberService memberService,
         IContentService contentService,
+        IScheduleService scheduleService,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         AppCaches appCaches,
@@ -77,6 +80,7 @@ public class BillettoTicketService : IBillettoTicketService
     {
         _memberService = memberService;
         _contentService = contentService;
+        _scheduleService = scheduleService;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _appCaches = appCaches;
@@ -161,6 +165,7 @@ public class BillettoTicketService : IBillettoTicketService
 
         var membersToSave = new List<IMember>();
         var missingCrewUdis = new Dictionary<int, List<Guid>>();
+        var assignedMemberKeys = await _scheduleService.GetAssignedMemberKeysAsync();
 
         foreach (var member in _memberService.GetAllMembers())
         {
@@ -211,7 +216,8 @@ public class BillettoTicketService : IBillettoTicketService
                 MemberKey = member.Key,
                 FullName = fullName,
                 Email = email,
-                UsesAltEmail = usesAltEmail
+                UsesAltEmail = usesAltEmail,
+                HasShift = assignedMemberKeys.Contains(member.Key)
             };
             result.MissingMembers.Add(missing);
             missingCrewUdis[member.Id] = ParseCrewGuids(member.GetValue<string>("crews"));

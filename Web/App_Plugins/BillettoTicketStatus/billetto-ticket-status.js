@@ -226,11 +226,12 @@ export default class BillettoTicketStatusElement extends UmbElementMixin(LitElem
               <th>Navn</th>
               <th>Email</th>
               <th>Crew(s)</th>
+              <th>Vagt</th>
             </tr>
           </thead>
           <tbody>
             ${filtered.length === 0
-              ? html`<tr><td colspan="3" class="empty-row">
+              ? html`<tr><td colspan="4" class="empty-row">
                   ${d.missingCount === 0 ? "Alle frivillige har billet 🎉" : "Ingen match på søgningen"}
                 </td></tr>`
               : filtered.map((m) => html`
@@ -246,6 +247,11 @@ export default class BillettoTicketStatusElement extends UmbElementMixin(LitElem
                   <td class="crew-cell">
                     ${m.crewNames && m.crewNames.length > 0
                       ? m.crewNames.join(", ")
+                      : html`<span class="text-muted">-</span>`}
+                  </td>
+                  <td class="center-cell">
+                    ${m.hasShift
+                      ? html`<span class="badge badge-shift" title="Er tildelt mindst én vagt">✓</span>`
                       : html`<span class="text-muted">-</span>`}
                   </td>
                 </tr>
@@ -307,6 +313,8 @@ export default class BillettoTicketStatusElement extends UmbElementMixin(LitElem
       font-size: 0.78em; font-weight: 500; margin-left: 6px;
     }
     .badge-alt { background: #3b82f6; color: white; }
+    .badge-shift { background: #4caf50; color: white; margin-left: 0; }
+    .center-cell { text-align: center; }
 
     .alert {
       padding: 14px 16px; border-radius: 6px; margin-bottom: 20px;

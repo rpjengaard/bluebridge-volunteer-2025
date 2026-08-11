@@ -62,6 +62,7 @@ public class BillettoTicketStatusController : ManagementApiControllerBase
                     fullName = m.FullName,
                     email = m.Email,
                     usesAltEmail = m.UsesAltEmail,
+                    hasShift = m.HasShift,
                     crewNames = m.CrewNames
                 }).ToList()
             });
