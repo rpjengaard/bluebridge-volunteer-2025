@@ -220,5 +220,23 @@ An admin-only dashboard shown as the first tab in the Content section ("Billetsa
 - Manifest condition `Umb.Condition.CurrentUser.IsAdmin` hides the dashboard tab from non-admins
 - Both API endpoints (`/umbraco/management/api/v1/billettosales/summary` and `.../progress`) check `IBackOfficeSecurityAccessor` server-side and return 403 for non-admins
 
+### Frontend Ticket Sales Page (SuperAdmin)
+
+A frontend page (doctype `bbvTicketSales`, view `Web/Views/TicketSales.cshtml`) showing the same Billetto sales numbers as the backoffice sales dashboard, restricted to members in the **SuperAdmin** member group.
+
+**Controllers:**
+- Web/Controllers/BbvTicketSalesController.cs (RenderController — gates the page)
+- Web/Controllers/TicketSalesApiController.cs (frontend JSON API: GET `/umbraco/surface/ticketsales/summary` and `.../progress`; POST `.../refresh` with antiforgery token for force refresh — a refresh clears the cache and re-syncs from Billetto, so it must not be reachable via cross-site GET)
+**Service:** Code/Services/SuperAdminService.cs (role check; group name constant)
+**Composer:** Code/Notifications/SuperAdminMemberGroupComposer.cs (creates the SuperAdmin member group on startup if missing)
+
+**Behavior:**
+- Reuses `IBillettoSalesService`, so the frontend page and the backoffice dashboard share the same 10-minute cache, incremental sync file, and fetch progress
+- Page JS mirrors the backoffice dashboard: progress polling during fetches, "Opdatér fra Billetto" force refresh, check-in columns with "check-in-data ikke tilgængelig" fallback, total row
+- Access: anonymous → redirect to `/login?returnUrl=...`; logged-in non-SuperAdmin members → redirect to `/`; the JSON endpoints return 401/403 respectively
+- `_Navigation.cshtml` hides nav items with doctype alias `bbvTicketSales` from non-SuperAdmin members (the page node is picked into site settings Navigation like other pages)
+- Members are assigned to the SuperAdmin group manually in the backoffice
+
+**Doctype setup:** the document type `bbvTicketSales` (single `title` text property, template alias `ticketSales` → `Views/TicketSales.cshtml`), its template, the `bbvFrontpage` allowed-child entry and the NavigationPicker filter are all captured in uSync (`Web/uSync/v17/ContentTypes/bbvticketsales.config`, `Templates/ticketsales.config`, plus edits to `bbvfrontpage.config` and `DataTypes/NavigationPicker.config`). On environments that don't import automatically (production has uSync `ImportAtStartup: "None"`; dev has `"Once"`), run a uSync import from the backoffice — do NOT hand-create the doctype: a hand-created doctype gets a different GUID than `9034237b-c9fa-48ed-84f1-7e6cb71ac9df`, which the picker filter and allowed-child entry reference, so the node would be neither creatable under the frontpage nor pickable in Navigation. Manual steps after import: create one node (e.g. `/billetsalg`), add it to site settings Navigation, assign members to the SuperAdmin group.
 
 Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.

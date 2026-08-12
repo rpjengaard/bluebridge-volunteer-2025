@@ -9,6 +9,44 @@ using Umbraco.Extensions;
 
 namespace Web.Controllers;
 
+// [CHANGE: review fix — single definition of the sales/progress payloads shared by the
+// backoffice dashboard and the SuperAdmin frontend page, so the two screens cannot drift]
+// Related: Web/Controllers/TicketSalesApiController.cs
+internal static class BillettoSalesPayload
+{
+    internal static object Progress(BillettoFetchProgress p) => new
+    {
+        active = p.Active,
+        pagesFetched = p.PagesFetched,
+        attendeesFetched = p.AttendeesFetched,
+        ratelimitRemaining = p.RatelimitRemaining,
+        ratelimitLimit = p.RatelimitLimit,
+        throttledWaitSeconds = p.ThrottledWaitSeconds
+    };
+
+    internal static object Summary(BillettoSalesResult result) => new
+    {
+        success = result.ErrorMessage == null,
+        configured = result.Configured,
+        message = result.ErrorMessage,
+        fetchedAt = result.FetchedAt,
+        totalSold = result.TotalSold,
+        totalCheckedIn = result.TotalCheckedIn,
+        checkInDataAvailable = result.CheckInDataAvailable,
+        cancelledCount = result.CancelledCount,
+        ticketTypes = result.TicketTypes.Select(t => new
+        {
+            id = t.Id,
+            name = t.Name,
+            sold = t.Sold,
+            checkedIn = t.CheckedIn
+        }).ToList()
+    };
+
+    internal static object Error(Exception ex) =>
+        new { success = false, configured = true, message = $"Fejl: {ex.Message}" };
+}
+
 [ApiVersion("1.0")]
 [VersionedApiBackOfficeRoute("billettosales")]
 [ApiExplorerSettings(GroupName = "Billetto Sales API")]
@@ -45,16 +83,7 @@ public class BillettoSalesController : ManagementApiControllerBase
     {
         if (!IsCurrentUserAdmin()) return ForbiddenResult();
 
-        var p = _billettoSalesService.GetFetchProgress();
-        return Ok(new
-        {
-            active = p.Active,
-            pagesFetched = p.PagesFetched,
-            attendeesFetched = p.AttendeesFetched,
-            ratelimitRemaining = p.RatelimitRemaining,
-            ratelimitLimit = p.RatelimitLimit,
-            throttledWaitSeconds = p.ThrottledWaitSeconds
-        });
+        return Ok(BillettoSalesPayload.Progress(_billettoSalesService.GetFetchProgress()));
     }
 
     [HttpGet("summary")]
@@ -65,30 +94,12 @@ public class BillettoSalesController : ManagementApiControllerBase
         try
         {
             var result = await _billettoSalesService.GetSalesAsync(refresh);
-
-            return Ok(new
-            {
-                success = result.ErrorMessage == null,
-                configured = result.Configured,
-                message = result.ErrorMessage,
-                fetchedAt = result.FetchedAt,
-                totalSold = result.TotalSold,
-                totalCheckedIn = result.TotalCheckedIn,
-                checkInDataAvailable = result.CheckInDataAvailable,
-                cancelledCount = result.CancelledCount,
-                ticketTypes = result.TicketTypes.Select(t => new
-                {
-                    id = t.Id,
-                    name = t.Name,
-                    sold = t.Sold,
-                    checkedIn = t.CheckedIn
-                }).ToList()
-            });
+            return Ok(BillettoSalesPayload.Summary(result));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to get Billetto ticket sales");
-            return StatusCode(500, new { success = false, configured = true, message = $"Fejl: {ex.Message}" });
+            return StatusCode(500, BillettoSalesPayload.Error(ex));
         }
     }
 }

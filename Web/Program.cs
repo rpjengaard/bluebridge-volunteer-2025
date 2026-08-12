@@ -33,6 +33,8 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<IBillettoTicketService, BillettoTicketService>();
 // [CHANGE: Billetto sales dashboard] Related: Code/Services/BillettoSalesService.cs, Web/Controllers/BillettoSalesController.cs, Web/App_Plugins/BillettoSales/*
 builder.Services.AddScoped<IBillettoSalesService, BillettoSalesService>();
+// [CHANGE: SuperAdmin ticket sales page] Related: Code/Services/SuperAdminService.cs, Web/Controllers/BbvTicketSalesController.cs, Web/Controllers/TicketSalesApiController.cs
+builder.Services.AddScoped<ISuperAdminService, SuperAdminService>();
 builder.Services.AddSingleton<IEmailLogService>(sp =>
 {
     var env = sp.GetRequiredService<IWebHostEnvironment>();

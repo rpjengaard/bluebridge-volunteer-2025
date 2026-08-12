@@ -1,0 +1,237 @@
+﻿@* [CHANGE: SuperAdmin ticket sales page] Related: Web/Controllers/BbvTicketSalesController.cs, Web/Controllers/TicketSalesApiController.cs *@
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage
+@{
+    Layout = null;
+    var pageTitle = Model.Value<string>("title");
+    if (string.IsNullOrWhiteSpace(pageTitle)) { pageTitle = Model.Name; }
+}
+<!DOCTYPE html>
+<html lang="da" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@pageTitle - Blue Bridge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Montserrat', sans-serif; }
+        h1, h2, h3 { font-family: 'Playfair Display', serif; }
+        .bg-blue-bridge { background-color: #23297A; }
+        .text-blue-bridge { color: #23297A; }
+        .bg-accent-yellow { background-color: #FFF000; }
+        .border-blue-bridge { border-color: #23297A; }
+    </style>
+</head>
+<body class="h-full">
+
+    @await Html.PartialAsync("Partials/_Navigation")
+
+    @* [CHANGE: review fix — force refresh is now a POST with antiforgery, see TicketSalesApiController] *@
+    @Html.AntiForgeryToken()
+
+    <main class="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">@pageTitle</h1>
+            <p class="mt-2 text-gray-600">Solgte billetter fra Billetto fordelt på billettype.</p>
+        </div>
+
+        <!-- Error -->
+        <div id="tsError" class="hidden bg-red-50 border border-red-300 text-red-800 rounded-lg p-4 mb-6 font-semibold"></div>
+
+        <!-- Loading / progress -->
+        <div id="tsLoading" class="hidden bg-white shadow rounded-lg p-10 mb-6 text-center text-gray-500">
+            <div class="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden mb-4">
+                <div class="bg-blue-bridge h-1.5 w-1/3 rounded-full animate-pulse mx-auto"></div>
+            </div>
+            <div class="font-medium text-gray-700">Henter billetsalg fra Billetto...</div>
+            <div id="tsProgress" class="mt-2 text-sm">Bruger evt. cachede data...</div>
+            <div id="tsThrottle" class="hidden mt-3 inline-block px-3 py-2 text-sm bg-orange-50 border border-orange-300 text-orange-800 rounded"></div>
+        </div>
+
+        <!-- Data -->
+        <div id="tsContent" class="hidden">
+            <div id="tsStats" class="flex flex-wrap gap-4 mb-6"></div>
+
+            <div id="tsNoCheckin" class="hidden bg-orange-50 border border-orange-300 text-orange-800 rounded-lg p-4 mb-6">
+                Check-in-data er ikke tilgængelig fra Billetto endnu.
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <span id="tsFetchedAt" class="text-sm text-gray-500"></span>
+                <button id="tsRefresh" type="button"
+                        class="bg-blue-bridge text-white text-sm px-4 py-2 rounded-full font-medium hover:opacity-90 transition-opacity disabled:opacity-50">
+                    Opdatér fra Billetto
+                </button>
+            </div>
+
+            <div class="bg-white shadow rounded-lg overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Billettype</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Solgt</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Checket ind</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">%</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tsRows" class="divide-y divide-gray-200"></tbody>
+                    <tfoot id="tsFoot" class="hidden border-t-2 border-gray-300"></tfoot>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        (function () {
+            const els = {
+                error: document.getElementById("tsError"),
+                loading: document.getElementById("tsLoading"),
+                progress: document.getElementById("tsProgress"),
+                throttle: document.getElementById("tsThrottle"),
+                content: document.getElementById("tsContent"),
+                stats: document.getElementById("tsStats"),
+                noCheckin: document.getElementById("tsNoCheckin"),
+                fetchedAt: document.getElementById("tsFetchedAt"),
+                refresh: document.getElementById("tsRefresh"),
+                rows: document.getElementById("tsRows"),
+                foot: document.getElementById("tsFoot"),
+            };
+
+            let progressTimer = null;
+
+            function esc(s) {
+                const div = document.createElement("div");
+                div.textContent = s == null ? "" : String(s);
+                return div.innerHTML;
+            }
+
+            function pct(part, whole) {
+                return whole ? Math.round((part / whole) * 100) + "%" : "-";
+            }
+
+            function formatDateTime(iso) {
+                if (!iso) return "-";
+                return new Date(iso).toLocaleDateString("da-DK", {
+                    day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit",
+                });
+            }
+
+            function startProgressPolling() {
+                stopProgressPolling();
+                progressTimer = setInterval(async () => {
+                    try {
+                        const res = await fetch("/umbraco/surface/ticketsales/progress");
+                        if (!res.ok) return;
+                        const p = await res.json();
+                        if (p.active) {
+                            let text = `Side ${p.pagesFetched} · ${p.attendeesFetched} billetter hentet`;
+                            if (p.ratelimitRemaining != null) {
+                                text += ` · Rate limit: ${p.ratelimitRemaining}${p.ratelimitLimit ? " / " + p.ratelimitLimit : ""} tilbage`;
+                            }
+                            els.progress.textContent = text;
+                        }
+                        if (p.throttledWaitSeconds != null) {
+                            els.throttle.textContent = `⏳ Billetto throttler — venter ${Math.round(p.throttledWaitSeconds)} sekunder...`;
+                            els.throttle.classList.remove("hidden");
+                        } else {
+                            els.throttle.classList.add("hidden");
+                        }
+                    } catch { /* ignore polling errors */ }
+                }, 1000);
+            }
+
+            function stopProgressPolling() {
+                if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+                els.progress.textContent = "Bruger evt. cachede data...";
+                els.throttle.classList.add("hidden");
+            }
+
+            function statBox(number, label, borderClass, bgClass) {
+                return `<div class="flex-1 min-w-[140px] p-4 rounded-lg border-l-4 ${borderClass} ${bgClass} text-center">
+                    <div class="text-3xl font-bold text-gray-900">${esc(number)}</div>
+                    <div class="text-sm text-gray-600 mt-1">${esc(label)}</div>
+                </div>`;
+            }
+
+            function render(d) {
+                const hasCheckIn = d.checkInDataAvailable;
+
+                let stats = statBox(d.totalSold, "Solgte billetter", "border-blue-500", "bg-blue-50");
+                stats += statBox(
+                    hasCheckIn ? d.totalCheckedIn : "–",
+                    "Checket ind" + (hasCheckIn ? ` (${pct(d.totalCheckedIn, d.totalSold)})` : ""),
+                    "border-green-500", "bg-green-50");
+                if (d.cancelledCount > 0) {
+                    stats += statBox(d.cancelledCount, "Annullerede", "border-gray-400", "bg-gray-50");
+                }
+                els.stats.innerHTML = stats;
+
+                els.noCheckin.classList.toggle("hidden", hasCheckIn);
+                els.fetchedAt.textContent = "Billetto-data hentet: " + formatDateTime(d.fetchedAt);
+
+                const types = d.ticketTypes || [];
+                if (types.length === 0) {
+                    els.rows.innerHTML = `<tr><td colspan="4" class="px-6 py-10 text-center text-gray-500">Ingen billetter solgt endnu</td></tr>`;
+                    els.foot.classList.add("hidden");
+                } else {
+                    els.rows.innerHTML = types.map(t => `<tr class="hover:bg-gray-50">
+                        <td class="px-6 py-3 text-sm text-gray-900">${esc(t.name)}</td>
+                        <td class="px-6 py-3 text-sm text-right">${esc(t.sold)}</td>
+                        <td class="px-6 py-3 text-sm text-right">${hasCheckIn ? esc(t.checkedIn) : "–"}</td>
+                        <td class="px-6 py-3 text-sm text-right">${hasCheckIn ? esc(pct(t.checkedIn, t.sold)) : "–"}</td>
+                    </tr>`).join("");
+                    els.foot.innerHTML = `<tr class="font-semibold bg-gray-50">
+                        <td class="px-6 py-3 text-sm">I alt</td>
+                        <td class="px-6 py-3 text-sm text-right">${esc(d.totalSold)}</td>
+                        <td class="px-6 py-3 text-sm text-right">${hasCheckIn ? esc(d.totalCheckedIn) : "–"}</td>
+                        <td class="px-6 py-3 text-sm text-right">${hasCheckIn ? esc(pct(d.totalCheckedIn, d.totalSold)) : "–"}</td>
+                    </tr>`;
+                    els.foot.classList.remove("hidden");
+                }
+
+                els.content.classList.remove("hidden");
+            }
+
+            async function loadData(refresh) {
+                els.error.classList.add("hidden");
+                els.loading.classList.remove("hidden");
+                els.refresh.disabled = true;
+                els.refresh.textContent = "Opdaterer...";
+                startProgressPolling();
+
+                try {
+                    // [CHANGE: review fix] refresh = POST + antiforgery (state-changing); plain load = GET
+                    const res = refresh
+                        ? await fetch("/umbraco/surface/ticketsales/refresh", {
+                              method: "POST",
+                              headers: { "RequestVerificationToken": document.querySelector('input[name="__RequestVerificationToken"]').value },
+                          })
+                        : await fetch("/umbraco/surface/ticketsales/summary");
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                        els.error.textContent = data.message || `Serverfejl: ${res.status}`;
+                        els.error.classList.remove("hidden");
+                        // [CHANGE: review fix] error payloads carry an empty ticketTypes list —
+                        // rendering them showed a fake "0 solgte billetter" report; keep the
+                        // previous table (backoffice dashboard behaves the same way)
+                    } else {
+                        render(data);
+                    }
+                } catch (err) {
+                    els.error.textContent = err.message || "Kunne ikke hente data";
+                    els.error.classList.remove("hidden");
+                } finally {
+                    stopProgressPolling();
+                    els.loading.classList.add("hidden");
+                    els.refresh.disabled = false;
+                    els.refresh.textContent = "Opdatér fra Billetto";
+                }
+            }
+
+            els.refresh.addEventListener("click", () => loadData(true));
+            loadData(false);
+        })();
+    </script>
+</body>
+</html>
