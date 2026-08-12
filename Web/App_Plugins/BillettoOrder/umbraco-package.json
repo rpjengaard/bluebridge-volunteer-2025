@@ -1,0 +1,20 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "BillettoOrder",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "propertyEditorUi",
+      "alias": "My.PropertyEditorUi.BillettoOrder",
+      "name": "Billetto Order Property Editor UI",
+      "element": "/App_Plugins/BillettoOrder/billetto-order.js",
+      "elementName": "billetto-order-property-editor",
+      "meta": {
+        "label": "Billetto Ordre",
+        "icon": "icon-receipt-alt",
+        "group": "common",
+        "propertyEditorSchemaAlias": "Umbraco.Label"
+      }
+    }
+  ]
+}
