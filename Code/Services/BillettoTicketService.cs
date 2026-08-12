@@ -51,6 +51,9 @@ public class BillettoOrderLookupResult
     public string? MatchedBy { get; set; }   // "billettoId" | "altEmail" | "email"
     public string? BillettoId { get; set; }
     public JsonNode? Order { get; set; }     // rå Billetto ordre-JSON
+    // [CHANGE: cache order on member] Related: Web/Controllers/BillettoOrderController.cs, Web/App_Plugins/BillettoOrder/billetto-order.js, Web/uSync/v17/DataTypes/BillettoOrdre.config
+    public bool FromCache { get; set; }      // true = læst fra billettoOrderInfo, Billetto ikke kontaktet
+    public DateTime? FetchedAt { get; set; } // hvornår data senest blev hentet fra Billetto (UTC)
 }
 
 public class MissingTicketMember
@@ -282,6 +285,13 @@ public class BillettoTicketService : IBillettoTicketService
         }
 
         var usesOverride = !string.IsNullOrWhiteSpace(billettoIdOverride) || !string.IsNullOrWhiteSpace(altEmailOverride);
+        // Overrides come from the (possibly unsaved) editor values; only persist the
+        // fetched order on the member when they don't differ from the saved values
+        var overridesDiffer =
+            (!string.IsNullOrWhiteSpace(billettoIdOverride)
+                && !string.Equals(billettoIdOverride.Trim(), member.GetValue<string>("billettoId")?.Trim(), StringComparison.OrdinalIgnoreCase))
+            || (!string.IsNullOrWhiteSpace(altEmailOverride)
+                && !string.Equals(altEmailOverride.Trim(), member.GetValue<string>("altBillettoEmail")?.Trim(), StringComparison.OrdinalIgnoreCase));
         var billettoId = !string.IsNullOrWhiteSpace(billettoIdOverride)
             ? billettoIdOverride.Trim()
             : member.GetValue<string>("billettoId")?.Trim();
@@ -289,6 +299,18 @@ public class BillettoTicketService : IBillettoTicketService
             ? altEmailOverride.Trim()
             : member.GetValue<string>("altBillettoEmail")?.Trim();
         var email = (member.Email ?? string.Empty).Trim();
+
+        // [CHANGE: cache order on member] Related: Web/Controllers/BillettoOrderController.cs, Web/App_Plugins/BillettoOrder/billetto-order.js, Web/uSync/v17/DataTypes/BillettoOrdre.config
+        // Serve the order stored on the member unless a refresh is requested, so
+        // opening a member doesn't hit Billetto every time
+        if (!forceRefresh)
+        {
+            var cached = TryReadStoredOrder(member);
+            if (cached != null)
+            {
+                return cached;
+            }
+        }
 
         var baseUrl = (_configuration["Billetto:BaseUrl"] ?? "https://billetto.dk").TrimEnd('/');
         var client = CreateBillettoClient(keypair);
@@ -306,6 +328,8 @@ public class BillettoTicketService : IBillettoTicketService
                     result.MatchedBy = "billettoId";
                     result.BillettoId = billettoId;
                     result.Order = order;
+                    result.FetchedAt = DateTime.UtcNow;
+                    if (!overridesDiffer) PersistOrderOnMember(member, result);
                     return result;
                 }
             }
@@ -349,15 +373,17 @@ public class BillettoTicketService : IBillettoTicketService
             result.Found = true;
             result.BillettoId = match.Id;
             result.Order = await TryGetOrderAsync(client, baseUrl, match.Id);
+            result.FetchedAt = DateTime.UtcNow;
 
             // Persist the matched order id (mirrors GetStatusAsync); never clear on a
             // lost match, and skip when unsaved override values drove the lookup
             if (!usesOverride && member.GetValue<string>("billettoId") != match.Id)
             {
                 member.SetValue("billettoId", match.Id);
-                _memberService.Save(member);
                 _logger.LogInformation("Billetto: updated billettoId on member {MemberId} via order lookup", member.Id);
             }
+            if (!overridesDiffer) PersistOrderOnMember(member, result);
+            else if (member.IsDirty()) _memberService.Save(member);
 
             return result;
         }
@@ -384,6 +410,57 @@ public class BillettoTicketService : IBillettoTicketService
             throw new InvalidOperationException($"Billetto API svarede {(int)response.StatusCode}: {body}");
         }
         return JsonNode.Parse(body);
+    }
+
+    // [CHANGE: cache order on member] Related: Web/Controllers/BillettoOrderController.cs, Web/App_Plugins/BillettoOrder/billetto-order.js, Web/uSync/v17/DataTypes/BillettoOrdre.config
+    // Stored on billettoOrderInfo as {"fetchedAt","matchedBy","billettoId","order"}
+    private BillettoOrderLookupResult? TryReadStoredOrder(IMember member)
+    {
+        var raw = member.GetValue<string>("billettoOrderInfo");
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        try
+        {
+            var stored = JsonNode.Parse(raw);
+            var order = stored?["order"];
+            if (order == null) return null;
+
+            return new BillettoOrderLookupResult
+            {
+                Found = true,
+                FromCache = true,
+                MatchedBy = stored!["matchedBy"]?.GetValue<string>(),
+                BillettoId = stored["billettoId"]?.GetValue<string>(),
+                FetchedAt = DateTime.TryParse(stored["fetchedAt"]?.GetValue<string>(), null,
+                    System.Globalization.DateTimeStyles.AdjustToUniversal, out var fetchedAt) ? fetchedAt : null,
+                Order = order.DeepClone(),
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Billetto: could not parse stored order on member {MemberId}, refetching", member.Id);
+            return null;
+        }
+    }
+
+    private void PersistOrderOnMember(IMember member, BillettoOrderLookupResult result)
+    {
+        if (result.Order != null)
+        {
+            var stored = new JsonObject
+            {
+                ["fetchedAt"] = (result.FetchedAt ?? DateTime.UtcNow).ToString("O"),
+                ["matchedBy"] = result.MatchedBy,
+                ["billettoId"] = result.BillettoId,
+                ["order"] = result.Order.DeepClone(),
+            };
+            member.SetValue("billettoOrderInfo", stored.ToJsonString());
+        }
+
+        if (member.IsDirty())
+        {
+            _memberService.Save(member);
+        }
     }
 
     private HttpClient CreateBillettoClient(string keypair)
