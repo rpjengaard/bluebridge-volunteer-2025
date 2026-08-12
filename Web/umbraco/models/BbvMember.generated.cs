@@ -80,6 +80,14 @@ namespace Umbraco.Cms.Web.Common.PublishedModels
 		public virtual string BillettoId => this.Value<string>(_publishedValueFallback, "billettoId");
 
 		///<summary>
+		/// Billetto ordre: Viser ordreoplysninger fra Billetto ud fra Billetto Id — findes det ikke, forsøges e-mail (alternativ Billetto-e-mail først).
+		///</summary>
+		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
+		[global::System.Diagnostics.CodeAnalysis.MaybeNull]
+		[ImplementPropertyType("billettoOrderInfo")]
+		public virtual string BillettoOrderInfo => this.Value<string>(_publishedValueFallback, "billettoOrderInfo");
+
+		///<summary>
 		/// Fødselsdato
 		///</summary>
 		[global::System.CodeDom.Compiler.GeneratedCodeAttribute("Umbraco.ModelsBuilder.Embedded", "17.2.0+51e91c8")]
