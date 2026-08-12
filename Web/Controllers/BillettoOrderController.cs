@@ -48,7 +48,10 @@ public class BillettoOrderController : ManagementApiControllerBase
                 found = result.Found,
                 matchedBy = result.MatchedBy,
                 billettoId = result.BillettoId,
-                order = result.Order
+                order = result.Order,
+                // [CHANGE: cache order on member] Related: Code/Services/BillettoTicketService.cs, Web/App_Plugins/BillettoOrder/billetto-order.js
+                fromCache = result.FromCache,
+                fetchedAt = result.FetchedAt
             });
         }
         catch (Exception ex)
