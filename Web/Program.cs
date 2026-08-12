@@ -31,6 +31,8 @@ builder.Services.AddScoped<IMemberListService, MemberListService>();
 // [CHANGE: Billetto ticket status dashboard] Related: Code/Services/BillettoTicketService.cs, Web/Controllers/BillettoTicketStatusController.cs, Web/App_Plugins/BillettoTicketStatus/*
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IBillettoTicketService, BillettoTicketService>();
+// [CHANGE: Billetto sales dashboard] Related: Code/Services/BillettoSalesService.cs, Web/Controllers/BillettoSalesController.cs, Web/App_Plugins/BillettoSales/*
+builder.Services.AddScoped<IBillettoSalesService, BillettoSalesService>();
 builder.Services.AddSingleton<IEmailLogService>(sp =>
 {
     var env = sp.GetRequiredService<IWebHostEnvironment>();
