@@ -187,5 +187,38 @@ A custom dashboard that allows admin users to impersonate volunteer members on t
 6. Click "Open Frontend in New Tab" to view as that member
 7. Click "Exit Impersonation" in the red banner when done
 
+### Billetto Ticket Status Dashboard
+
+A dashboard in the Members section ("Billetto Billetter") that reconciles volunteers against orders from the Billetto API to show which volunteers are missing a ticket.
+
+**Location:** Web/App_Plugins/BillettoTicketStatus/
+**Controller:** Web/Controllers/BillettoTicketStatusController.cs
+**Service:** Code/Services/BillettoTicketService.cs (shared HTTP machinery in Code/Services/BillettoApiClient.cs)
+
+**Configuration** (`Web/appsettings.json`):
+```json
+"Billetto": { "BaseUrl": "https://billetto.dk", "Keypair": "...", "EventId": "..." }
+```
+
+Fetches orders for the configured event (`/api/v3/organiser/orders`), matches buyer emails against volunteer members (respecting `altBillettoEmail`, `ticketNotNeeded`, `accept2026`, `cancelation`), persists matched order ids to the `billettoId` member property, and lists members without a ticket. Results are cached for 10 minutes; the dashboard polls a progress endpoint during fetches.
+
+### Billetto Sales Dashboard
+
+An admin-only dashboard shown as the first tab in the Content section ("Billetsalg") — the first thing an administrator sees after logging into the backoffice. Shows sold tickets for the configured Billetto event grouped by ticket type, plus checked-in counts when Billetto exposes them.
+
+**Location:** Web/App_Plugins/BillettoSales/
+**Controller:** Web/Controllers/BillettoSalesController.cs
+**Service:** Code/Services/BillettoSalesService.cs (shares Code/Services/BillettoApiClient.cs with the ticket status dashboard)
+
+**Behavior:**
+- Fetches `/api/v3/organiser/events/{eventId}/ticket_types` (type names) and `/api/v3/organiser/events/{eventId}/attendees` (one sold ticket per non-cancelled attendee) using the shared pagination/throttle machinery
+- Results cached for 10 minutes (`Billetto.Sales` cache key); "Opdatér fra Billetto" forces a refresh; live progress polling during fetches
+- Billetto's attendee schema is not fully documented, so parsing is tolerant: ticket type is probed via `ticket_type` (object or id), `ticket_type_id`, or `ticket.ticket_type`, falling back to an "Ukendt billettype" bucket; check-in is probed via `checked_in`, `checked_in_at`/`used_at`/`check_in_at`, or `state`/`status` values. If no attendee yields a check-in signal, the UI shows "check-in-data ikke tilgængelig" instead of zeros
+- To tune field mapping: enable Debug logging for `Code.Services.BillettoSalesService` — one raw sample attendee JSON is logged per fetch
+
+**Security (admin-only, two layers):**
+- Manifest condition `Umb.Condition.CurrentUser.IsAdmin` hides the dashboard tab from non-admins
+- Both API endpoints (`/umbraco/management/api/v1/billettosales/summary` and `.../progress`) check `IBackOfficeSecurityAccessor` server-side and return 403 for non-admins
+
 
 Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.

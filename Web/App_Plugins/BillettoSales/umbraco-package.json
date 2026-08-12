@@ -1,0 +1,28 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "BillettoSales",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "dashboard",
+      "alias": "My.BillettoSales.Dashboard",
+      "name": "Billetto Sales Dashboard",
+      "element": "/App_Plugins/BillettoSales/billetto-sales-dashboard.js",
+      "elementName": "billetto-sales-dashboard",
+      "weight": 500,
+      "meta": {
+        "label": "Billetsalg",
+        "pathname": "billetto-sales"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Content"
+        },
+        {
+          "alias": "Umb.Condition.CurrentUser.IsAdmin"
+        }
+      ]
+    }
+  ]
+}

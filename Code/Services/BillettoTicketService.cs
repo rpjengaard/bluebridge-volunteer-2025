@@ -1,4 +1,4 @@
-// [CHANGE: Billetto ticket status dashboard] Related: Web/Controllers/BillettoTicketStatusController.cs, Web/App_Plugins/BillettoTicketStatus/*, Web/Program.cs, Web/appsettings.json
+// [CHANGE: Billetto ticket status dashboard] Related: Web/Controllers/BillettoTicketStatusController.cs, Web/App_Plugins/BillettoTicketStatus/*, Web/Program.cs, Web/appsettings.json, Code/Services/BillettoApiClient.cs
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -278,9 +278,16 @@ public class BillettoTicketService : IBillettoTicketService
     private async Task<BillettoFetch> FetchAllAttendeesAsync(string keypair, string eventId)
     {
         var baseUrl = (_configuration["Billetto:BaseUrl"] ?? "https://billetto.dk").TrimEnd('/');
-        var client = _httpClientFactory.CreateClient("Billetto");
-        client.DefaultRequestHeaders.Remove("Api-Keypair");
-        client.DefaultRequestHeaders.Add("Api-Keypair", keypair);
+        var client = BillettoApiClient.CreateClient(_httpClientFactory, keypair);
+        var api = new BillettoApiClient(
+            _logger,
+            onPageFetched: () => UpdateProgress(p => p.PagesFetched++),
+            onRatelimit: (remaining, limit) => UpdateProgress(p =>
+            {
+                if (remaining != null) p.RatelimitRemaining = remaining;
+                if (limit != null) p.RatelimitLimit = limit;
+            }),
+            onThrottleWait: seconds => UpdateProgress(p => p.ThrottledWaitSeconds = seconds));
 
         var attendees = new List<BillettoAttendee>();
 
@@ -304,13 +311,13 @@ public class BillettoTicketService : IBillettoTicketService
             // updated_after=<event created_at> skips old events (an order for this event
             // cannot predate the event itself).
             var ordersUrl = $"{baseUrl}/api/v3/organiser/orders?event_id={Uri.EscapeDataString(eventId)}&limit=100";
-            var eventCreatedAt = await GetEventCreatedAtAsync(client, baseUrl, eventId);
+            var eventCreatedAt = await GetEventCreatedAtAsync(api, client, baseUrl, eventId);
             if (eventCreatedAt != null)
             {
                 ordersUrl += $"&updated_after={eventCreatedAt.Value:yyyy-MM-dd}";
             }
 
-            await FetchPagedAsync(client, baseUrl,
+            await api.FetchPagedAsync(client, baseUrl,
                 ordersUrl,
                 item =>
                 {
@@ -326,7 +333,7 @@ public class BillettoTicketService : IBillettoTicketService
                         Id: item["id"]?.GetValue<string>() ?? string.Empty,
                         Email: email));
                 },
-                () => attendees.Count);
+                _ => UpdateProgress(p => p.AttendeesFetched = attendees.Count));
 
             UpdateProgress(p => p.AttendeesFetched = attendees.Count);
         }
@@ -339,11 +346,11 @@ public class BillettoTicketService : IBillettoTicketService
         return new BillettoFetch(attendees, DateTime.Now);
     }
 
-    private async Task<DateTime?> GetEventCreatedAtAsync(HttpClient client, string baseUrl, string eventId)
+    private async Task<DateTime?> GetEventCreatedAtAsync(BillettoApiClient api, HttpClient client, string baseUrl, string eventId)
     {
         try
         {
-            var response = await GetWithThrottleRetryAsync(client, $"{baseUrl}/api/v3/organiser/events/{Uri.EscapeDataString(eventId)}");
+            var response = await api.GetWithThrottleRetryAsync(client, $"{baseUrl}/api/v3/organiser/events/{Uri.EscapeDataString(eventId)}");
             if (!response.IsSuccessStatusCode) return null;
 
             var root = JsonNode.Parse(await response.Content.ReadAsStringAsync());
@@ -355,104 +362,6 @@ public class BillettoTicketService : IBillettoTicketService
             _logger.LogWarning(ex, "Billetto: could not read event created_at, fetching orders unfiltered by date");
             return null;
         }
-    }
-
-    private async Task FetchPagedAsync(HttpClient client, string baseUrl, string url, Action<JsonNode> handleItem, Func<int>? currentCount = null)
-    {
-        var pageGuard = 0;
-        string? nextUrl = url;
-
-        // Billetto's has_more is broken: it stays true past the last page, serves an
-        // empty page, then loops the cursor back to the start. Track seen ids and stop
-        // on an empty page or a page with no new items.
-        var seenIds = new HashSet<string>();
-
-        while (!string.IsNullOrEmpty(nextUrl) && pageGuard++ < 200)
-        {
-            var response = await GetWithThrottleRetryAsync(client, nextUrl);
-            if (!response.IsSuccessStatusCode)
-            {
-                var body = await response.Content.ReadAsStringAsync();
-                throw new InvalidOperationException($"Billetto API svarede {(int)response.StatusCode}: {body}");
-            }
-
-            var hasRemaining = TryGetHeaderInt(response, "X-Ratelimit-Remaining", out var remaining);
-            var hasLimit = TryGetHeaderInt(response, "X-Ratelimit-Limit", out var limit);
-            UpdateProgress(p =>
-            {
-                p.PagesFetched++;
-                if (hasRemaining) p.RatelimitRemaining = remaining;
-                if (hasLimit) p.RatelimitLimit = limit;
-            });
-
-            var root = JsonNode.Parse(await response.Content.ReadAsStringAsync());
-            var data = root?["data"]?.AsArray();
-            if (data == null || data.Count == 0) return;
-
-            var newItems = 0;
-            foreach (var item in data)
-            {
-                if (item == null) continue;
-                var id = item["id"]?.GetValue<string>();
-                if (id != null && !seenIds.Add(id)) continue;
-                newItems++;
-                handleItem(item);
-            }
-            if (newItems == 0) return;
-
-            if (currentCount != null)
-            {
-                var count = currentCount();
-                UpdateProgress(p => p.AttendeesFetched = count);
-            }
-
-            var hasMore = root?["has_more"]?.GetValue<bool>() ?? false;
-            var next = root?["next_url"]?.GetValue<string>();
-            if (!hasMore || string.IsNullOrWhiteSpace(next))
-            {
-                nextUrl = null;
-            }
-            else
-            {
-                nextUrl = next.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? next : baseUrl + next;
-                // Gentle pacing between pages instead of reactive long pauses
-                await Task.Delay(300);
-            }
-        }
-    }
-
-    // Billetto throttles aggressively; on 429 wait the announced time and retry
-    private async Task<HttpResponseMessage> GetWithThrottleRetryAsync(HttpClient client, string url)
-    {
-        for (var attempt = 0; ; attempt++)
-        {
-            var response = await client.GetAsync(url);
-            if ((int)response.StatusCode != 429 || attempt >= 3)
-            {
-                return response;
-            }
-
-            var waitSeconds = response.Headers.RetryAfter?.Delta?.TotalSeconds;
-            if (waitSeconds == null)
-            {
-                var body = await response.Content.ReadAsStringAsync();
-                var match = System.Text.RegularExpressions.Regex.Match(body, @"(\d+)\s*second");
-                waitSeconds = match.Success ? int.Parse(match.Groups[1].Value) : 30;
-            }
-
-            var wait = TimeSpan.FromSeconds(Math.Clamp(waitSeconds.Value + 1, 2, 90));
-            _logger.LogWarning("Billetto: throttled (429), waiting {Wait}s before retry {Attempt}/3", wait.TotalSeconds, attempt + 1);
-            UpdateProgress(p => { p.RatelimitRemaining = 0; p.ThrottledWaitSeconds = wait.TotalSeconds; });
-            await Task.Delay(wait);
-            UpdateProgress(p => p.ThrottledWaitSeconds = null);
-        }
-    }
-
-    private static bool TryGetHeaderInt(HttpResponseMessage response, string header, out int value)
-    {
-        value = 0;
-        return response.Headers.TryGetValues(header, out var values)
-            && int.TryParse(values.FirstOrDefault(), out value);
     }
 
     private static List<Guid> ParseCrewGuids(string? udiString)
