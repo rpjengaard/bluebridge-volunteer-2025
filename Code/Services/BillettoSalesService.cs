@@ -1,8 +1,15 @@
 // [CHANGE: Billetto sales dashboard] Related: Web/Controllers/BillettoSalesController.cs, Web/App_Plugins/BillettoSales/*, Code/Services/BillettoApiClient.cs, Web/Program.cs
+// [CHANGE: incremental sales sync] Full attendee scan only on first run; state is
+// persisted to umbraco/Data/BillettoSalesCache.json and refreshes fetch only
+// attendees changed since last sync (updated_after) — Billetto caps page size at
+// 100 and rate-credits are shared with the other dashboards, so full scans on
+// every refresh throttle the whole backoffice.
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Umbraco.Cms.Core.Cache;
+using Umbraco.Cms.Core.Hosting;
 
 namespace Code.Services;
 
@@ -50,17 +57,20 @@ public class BillettoSalesService : IBillettoSalesService
     private readonly IConfiguration _configuration;
     private readonly AppCaches _appCaches;
     private readonly ILogger<BillettoSalesService> _logger;
+    private readonly IHostingEnvironment _hostingEnvironment;
 
     public BillettoSalesService(
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration,
         AppCaches appCaches,
-        ILogger<BillettoSalesService> logger)
+        ILogger<BillettoSalesService> logger,
+        IHostingEnvironment hostingEnvironment)
     {
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
         _appCaches = appCaches;
         _logger = logger;
+        _hostingEnvironment = hostingEnvironment;
     }
 
     public BillettoFetchProgress GetFetchProgress()
@@ -161,19 +171,33 @@ public class BillettoSalesService : IBillettoSalesService
 
         try
         {
-            var typeNames = await FetchTicketTypeNamesAsync(api, client, baseUrl, eventId);
+            // Incremental sync: everything already seen lives in the cache file, so
+            // only attendees updated since last sync are fetched. Full scan only when
+            // no cache exists (first run or deleted file).
+            var cache = LoadCacheFile(eventId);
+            var isFullScan = cache == null;
+            cache ??= new SalesCacheFile { EventId = eventId };
+            var syncStartedUtc = DateTime.UtcNow;
 
-            var salesByType = new Dictionary<string, BillettoTicketTypeSales>();
-            var result = new BillettoSalesResult { FetchedAt = DateTime.Now };
-            var attendeeCount = 0;
-            var checkInFieldSeen = false;
+            if (cache.TypeNames.Count == 0)
+            {
+                cache.TypeNames = await FetchTicketTypeNamesAsync(api, client, baseUrl, eventId);
+            }
+
+            var attendeesUrl = $"{baseUrl}/api/v3/organiser/events/{Uri.EscapeDataString(eventId)}/attendees?limit=100";
+            if (!isFullScan)
+            {
+                // Day-granular filter; one day of overlap so nothing slips between syncs.
+                // Re-fetched attendees just overwrite their cache entry (idempotent).
+                attendeesUrl += $"&updated_after={cache.SyncedThroughUtc.AddDays(-1):yyyy-MM-dd}";
+            }
+
+            var fetchedCount = 0;
             var sampleLogged = false;
-
-            await api.FetchPagedAsync(client, baseUrl,
-                $"{baseUrl}/api/v3/organiser/events/{Uri.EscapeDataString(eventId)}/attendees?limit=100",
+            await api.FetchPagedAsync(client, baseUrl, attendeesUrl,
                 item =>
                 {
-                    attendeeCount++;
+                    fetchedCount++;
                     if (!sampleLogged)
                     {
                         // Field-discovery aid: Billetto's attendee schema is not fully
@@ -182,45 +206,26 @@ public class BillettoSalesService : IBillettoSalesService
                         sampleLogged = true;
                     }
 
-                    var parsed = ParseAttendee(item, typeNames);
-                    if (parsed.Cancelled)
-                    {
-                        result.CancelledCount++;
-                        return;
-                    }
+                    var id = item["id"]?.ToString();
+                    if (string.IsNullOrWhiteSpace(id)) return;
 
-                    if (!salesByType.TryGetValue(parsed.TypeKey, out var typeSales))
+                    var parsed = ParseAttendee(item, cache.TypeNames);
+                    cache.Attendees[id] = new CachedAttendee
                     {
-                        typeSales = new BillettoTicketTypeSales { Id = parsed.TypeKey, Name = parsed.TypeName };
-                        salesByType[parsed.TypeKey] = typeSales;
-                    }
-
-                    typeSales.Sold++;
-                    result.TotalSold++;
-
-                    if (parsed.CheckedIn != null)
-                    {
-                        checkInFieldSeen = true;
-                        if (parsed.CheckedIn == true)
-                        {
-                            typeSales.CheckedIn++;
-                            result.TotalCheckedIn++;
-                        }
-                    }
+                        Type = parsed.TypeKey,
+                        Cancelled = parsed.Cancelled,
+                        CheckedIn = parsed.CheckedIn,
+                    };
                 },
-                _ => UpdateProgress(p => p.AttendeesFetched = attendeeCount));
+                _ => UpdateProgress(p => p.AttendeesFetched = fetchedCount));
 
-            result.CheckInDataAvailable = checkInFieldSeen;
+            cache.SyncedThroughUtc = syncStartedUtc;
+            SaveCacheFile(cache);
 
-            // Sold-descending, unknown bucket last
-            result.TicketTypes = salesByType.Values
-                .OrderBy(t => t.Id == UnknownTypeKey ? 1 : 0)
-                .ThenByDescending(t => t.Sold)
-                .ToList();
-
+            var result = AggregateFromCache(cache);
             _logger.LogInformation(
-                "Billetto: fetched {Count} attendees for event {EventId} ({Sold} sold, {CheckedIn} checked in, {Cancelled} cancelled)",
-                attendeeCount, eventId, result.TotalSold, result.TotalCheckedIn, result.CancelledCount);
+                "Billetto: sales sync fetched {Count} attendees ({Mode}) for event {EventId} ({Sold} sold, {CheckedIn} checked in, {Cancelled} cancelled)",
+                fetchedCount, isFullScan ? "full" : "incremental", eventId, result.TotalSold, result.TotalCheckedIn, result.CancelledCount);
             return result;
         }
         finally
@@ -229,13 +234,109 @@ public class BillettoSalesService : IBillettoSalesService
         }
     }
 
+    private BillettoSalesResult AggregateFromCache(SalesCacheFile cache)
+    {
+        var result = new BillettoSalesResult { FetchedAt = DateTime.Now };
+        var salesByType = new Dictionary<string, BillettoTicketTypeSales>();
+
+        foreach (var attendee in cache.Attendees.Values)
+        {
+            if (attendee.Cancelled)
+            {
+                result.CancelledCount++;
+                continue;
+            }
+
+            var typeKey = attendee.Type ?? UnknownTypeKey;
+            if (!salesByType.TryGetValue(typeKey, out var typeSales))
+            {
+                var name = typeKey == UnknownTypeKey
+                    ? UnknownTypeName
+                    : cache.TypeNames.TryGetValue(typeKey, out var known) ? known : typeKey;
+                typeSales = new BillettoTicketTypeSales { Id = typeKey, Name = name };
+                salesByType[typeKey] = typeSales;
+            }
+
+            typeSales.Sold++;
+            result.TotalSold++;
+
+            if (attendee.CheckedIn != null)
+            {
+                result.CheckInDataAvailable = true;
+                if (attendee.CheckedIn == true)
+                {
+                    typeSales.CheckedIn++;
+                    result.TotalCheckedIn++;
+                }
+            }
+        }
+
+        // Sold-descending, unknown bucket last
+        result.TicketTypes = salesByType.Values
+            .OrderBy(t => t.Id == UnknownTypeKey ? 1 : 0)
+            .ThenByDescending(t => t.Sold)
+            .ToList();
+        return result;
+    }
+
+    // Persisted sync state — one file per event id under umbraco/Data
+    private sealed class SalesCacheFile
+    {
+        public string EventId { get; set; } = string.Empty;
+        public DateTime SyncedThroughUtc { get; set; }
+        public Dictionary<string, string> TypeNames { get; set; } = new();
+        public Dictionary<string, CachedAttendee> Attendees { get; set; } = new();
+    }
+
+    private sealed class CachedAttendee
+    {
+        public string? Type { get; set; }
+        public bool Cancelled { get; set; }
+        public bool? CheckedIn { get; set; }
+    }
+
+    private string GetCacheFilePath(string eventId) =>
+        _hostingEnvironment.MapPathContentRoot($"~/umbraco/Data/BillettoSalesCache-{eventId}.json");
+
+    private SalesCacheFile? LoadCacheFile(string eventId)
+    {
+        try
+        {
+            var path = GetCacheFilePath(eventId);
+            if (!File.Exists(path)) return null;
+            var cache = JsonSerializer.Deserialize<SalesCacheFile>(File.ReadAllText(path));
+            return cache?.EventId == eventId && cache.SyncedThroughUtc != default ? cache : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Billetto: could not read sales cache file, doing a full scan");
+            return null;
+        }
+    }
+
+    private void SaveCacheFile(SalesCacheFile cache)
+    {
+        try
+        {
+            var path = GetCacheFilePath(cache.EventId);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, JsonSerializer.Serialize(cache));
+        }
+        catch (Exception ex)
+        {
+            // Non-fatal: next refresh just falls back to a full scan
+            _logger.LogWarning(ex, "Billetto: could not write sales cache file");
+        }
+    }
+
     private async Task<Dictionary<string, string>> FetchTicketTypeNamesAsync(BillettoApiClient api, HttpClient client, string baseUrl, string eventId)
     {
         var names = new Dictionary<string, string>();
         try
         {
+            // NB: ticket_types is NOT nested under events — the nested URL 404s
             await api.FetchPagedAsync(client, baseUrl,
-                $"{baseUrl}/api/v3/organiser/events/{Uri.EscapeDataString(eventId)}/ticket_types?limit=100",
+                $"{baseUrl}/api/v3/organiser/ticket_types?event_id={Uri.EscapeDataString(eventId)}&limit=100",
                 item =>
                 {
                     var id = item["id"]?.ToString();
@@ -271,6 +372,12 @@ public class BillettoSalesService : IBillettoSalesService
         if (checkedInNode is JsonValue boolValue && boolValue.TryGetValue<bool>(out var b))
         {
             checkedIn = b;
+        }
+        // Scan count is the reliable signal in practice: attendees embed a
+        // scannings list, and a scanned ticket means checked in
+        else if (item["scannings"]?["total"] is JsonValue scanValue && scanValue.TryGetValue<int>(out var scans))
+        {
+            checkedIn = scans > 0;
         }
         else if (CheckInTimestampFields.Any(f => !string.IsNullOrWhiteSpace(item[f]?.ToString())))
         {

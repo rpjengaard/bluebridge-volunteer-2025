@@ -314,7 +314,7 @@ public class BillettoTicketService : IBillettoTicketService
         }
 
         var baseUrl = (_configuration["Billetto:BaseUrl"] ?? "https://billetto.dk").TrimEnd('/');
-        var client = CreateBillettoClient(keypair);
+        var client = BillettoApiClient.CreateClient(_httpClientFactory, keypair);
         var result = new BillettoOrderLookupResult();
 
         try
@@ -399,7 +399,9 @@ public class BillettoTicketService : IBillettoTicketService
     // Returns the raw order JSON, or null on 404 so callers can fall back to e-mail
     private async Task<JsonNode?> TryGetOrderAsync(HttpClient client, string baseUrl, string orderId)
     {
-        var response = await GetWithThrottleRetryAsync(client, $"{baseUrl}/api/v3/organiser/orders/{Uri.EscapeDataString(orderId)}");
+        // [CHANGE: merge fixup after BillettoApiClient extraction] Related: Code/Services/BillettoApiClient.cs
+        var api = new BillettoApiClient(_logger);
+        var response = await api.GetWithThrottleRetryAsync(client, $"{baseUrl}/api/v3/organiser/orders/{Uri.EscapeDataString(orderId)}");
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
         {
             return null;
@@ -464,14 +466,6 @@ public class BillettoTicketService : IBillettoTicketService
         }
     }
 
-    private HttpClient CreateBillettoClient(string keypair)
-    {
-        var client = _httpClientFactory.CreateClient("Billetto");
-        client.DefaultRequestHeaders.Remove("Api-Keypair");
-        client.DefaultRequestHeaders.Add("Api-Keypair", keypair);
-        return client;
-    }
-
     private static void AddToLookup(Dictionary<string, BillettoAttendee> lookup, string? email, BillettoAttendee attendee)
     {
         if (string.IsNullOrWhiteSpace(email)) return;
@@ -522,7 +516,6 @@ public class BillettoTicketService : IBillettoTicketService
                 if (limit != null) p.RatelimitLimit = limit;
             }),
             onThrottleWait: seconds => UpdateProgress(p => p.ThrottledWaitSeconds = seconds));
-        var client = CreateBillettoClient(keypair);
 
         var attendees = new List<BillettoAttendee>();
 
