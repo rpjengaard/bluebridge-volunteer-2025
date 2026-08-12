@@ -5,6 +5,7 @@
 @inject IMemberService MemberService
 @inject IMemberGroupService MemberGroupService
 @inject Umbraco.Cms.Core.IPublishedContentQuery PublishedContentQuery
+@inject Code.Services.ISuperAdminService SuperAdminService
 @{
     var currentMember = await MemberManager.GetCurrentMemberAsync();
     var currentPath = Context.Request.Path.Value?.ToLowerInvariant() ?? "";
@@ -19,9 +20,16 @@
     // Get member name and check admin/scheduler status if logged in
     string? memberName = null;
     bool isAdminOrScheduler = false;
+    // [CHANGE: SuperAdmin ticket sales page] Related: Web/Controllers/BbvTicketSalesController.cs, Code/Services/SuperAdminService.cs
+    bool isSuperAdmin = false;
 
     if (currentMember != null)
     {
+        // [CHANGE: review fix — use ISuperAdminService (same rule as page/API gates) instead of
+        // re-deriving via MemberService.GetByEmail, which fails for members whose email doesn't
+        // resolve and lets the two checks drift] Related: Code/Services/SuperAdminService.cs
+        isSuperAdmin = await SuperAdminService.IsSuperAdminAsync(currentMember);
+
         var member = MemberService.GetByEmail(currentMember.Email!);
         if (member != null)
         {
@@ -69,6 +77,32 @@
 
         return false;
     }
+
+    // [CHANGE: review fix — one nav-visibility rule shared by all four loops (desktop/mobile,
+    // signed-in/anonymous) instead of hand-copied filter blocks that can drift]
+    // Related: Web/Controllers/BbvTicketSalesController.cs, Code/Services/SuperAdminService.cs
+    bool IsHiddenInNav(IPublishedContent navItem)
+    {
+        var navUrl = navItem.Url()?.ToLowerInvariant();
+
+        // Applications and member list pages require admin/scheduler
+        var isApplicationsPage = navItem.ContentType.Alias == "bbvApplications"
+            || navUrl?.Contains("ansoegninger") == true
+            || navUrl?.Contains("ansogninger") == true;
+        var isMemberListPage = navItem.ContentType.Alias == "bbvMemberList";
+        if ((isApplicationsPage || isMemberListPage) && !isAdminOrScheduler)
+        {
+            return true;
+        }
+
+        // Ticket sales page is SuperAdmin-only
+        if (navItem.ContentType.Alias == "bbvTicketSales" && !isSuperAdmin)
+        {
+            return true;
+        }
+
+        return false;
+    }
 }
 
 @await Html.PartialAsync("Partials/_ImpersonationBanner")
@@ -86,20 +120,11 @@
                 <div class="hidden md:flex items-center space-x-8">
                     @foreach (var navItem in navigationItems)
                     {
+                        if (IsHiddenInNav(navItem)) { continue; }
+
                         var isActive = IsActive(navItem);
                         var navUrl = navItem.Url();
                         var navName = navItem.Name;
-
-                        // Check if this is the applications or member list page (requires admin/scheduler)
-                        var isApplicationsPage = navItem.ContentType.Alias == "bbvApplications"
-                            || navUrl?.ToLowerInvariant().Contains("ansoegninger") == true
-                            || navUrl?.ToLowerInvariant().Contains("ansogninger") == true;
-                        var isMemberListPage = navItem.ContentType.Alias == "bbvMemberList";
-
-                        if ((isApplicationsPage || isMemberListPage) && !isAdminOrScheduler)
-                        {
-                            continue; // Skip for non-admin/scheduler users
-                        }
 
                         <a href="@navUrl" class="@(isActive ? "text-white font-semibold border-b-2 border-white pb-1" : "text-white/80 hover:text-white transition-colors")">@navName</a>
                     }
@@ -122,6 +147,9 @@
                 <div class="hidden md:flex items-center space-x-8">
                     @foreach (var navItem in navigationNotSignedIn)
                     {
+                        @* [CHANGE: review fix] the picker datatype also allows gated doctypes here — never render them to anonymous visitors *@
+                        if (IsHiddenInNav(navItem)) { continue; }
+
                         var isActive = IsActive(navItem);
                         var navUrl = navItem.Url();
                         var navName = navItem.Name;
@@ -142,20 +170,11 @@
             <div class="flex flex-wrap gap-4">
                 @foreach (var navItem in navigationItems)
                 {
+                    if (IsHiddenInNav(navItem)) { continue; }
+
                     var isActive = IsActive(navItem);
                     var navUrl = navItem.Url();
                     var navName = navItem.Name;
-
-                    // Check if this is the applications or member list page (requires admin/scheduler)
-                    var isApplicationsPage = navItem.ContentType.Alias == "bbvApplications"
-                        || navUrl?.ToLowerInvariant().Contains("ansoegninger") == true
-                        || navUrl?.ToLowerInvariant().Contains("ansogninger") == true;
-                    var isMemberListPage = navItem.ContentType.Alias == "bbvMemberList";
-
-                    if ((isApplicationsPage || isMemberListPage) && !isAdminOrScheduler)
-                    {
-                        continue; // Skip for non-admin/scheduler users
-                    }
 
                     <a href="@navUrl" class="@(isActive ? "text-white font-semibold" : "text-white/80 hover:text-white") text-sm">@navName</a>
                 }
@@ -169,6 +188,8 @@
             <div class="flex flex-wrap gap-4">
                 @foreach (var navItem in navigationNotSignedIn)
                 {
+                    if (IsHiddenInNav(navItem)) { continue; }
+
                     var isActive = IsActive(navItem);
                     var navUrl = navItem.Url();
                     var navName = navItem.Name;
