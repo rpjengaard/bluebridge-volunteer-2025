@@ -1034,8 +1034,8 @@ else
 
     // ── Overview grid view ────────────────────────────────────────────────
     // [CHANGE: overview grid view + manual schedule ordering] Related: AddScheduleTablesMigration.cs, IScheduleService.cs, ScheduleService.cs, ScheduleGetController.cs
-    const OVERVIEW_HOUR_W = 64;   // px per hour column
-    const OVERVIEW_LANE_H = 46;   // px per stacked lane
+    const OVERVIEW_HOUR_W = 96;   // px per hour column
+    const OVERVIEW_LANE_H = 72;   // px per stacked lane (fits name + time + phone)
     const OVERVIEW_PALETTE = [
         '#E08E45', '#2E6FA3', '#4E8A3C', '#B08D2E', '#7C5FA8',
         '#B9484F', '#3C8A85', '#8A5A3C', '#5A6B9E', '#767676'
@@ -1139,7 +1139,7 @@ else
 
         let hourLabels = '';
         for (let h = minH; h < maxH; h++) {
-            hourLabels += `<span class="absolute top-1 text-[11px] font-semibold opacity-90" style="left:${(h - minH) * OVERVIEW_HOUR_W + 4}px">${String(h % 24).padStart(2, '0')}</span>`;
+            hourLabels += `<span class="absolute top-1 text-[13px] font-semibold opacity-90" style="left:${(h - minH) * OVERVIEW_HOUR_W + 4}px">${String(h % 24).padStart(2, '0')}</span>`;
         }
 
         const rowsHtml = rows.map(row => {
@@ -1152,13 +1152,16 @@ else
                 const label = sh.isInternal ? escHtml(sh.title || 'Internt')
                             : sh.isAvailable ? 'Ledig vagt'
                             : escHtml(sh.assignedMemberName || 'Tildelt');
+                const phone = (!sh.isInternal && !sh.isAvailable && sh.assignedMemberPhone)
+                    ? escHtml(sh.assignedMemberPhone) : '';
                 const style = sh.isAvailable
                     ? `background:${row.color}14;border:1.5px dashed ${row.color};color:#6b7280;`
                     : `background:${row.color}26;border:1px solid ${row.color};color:#1f2937;`;
-                return `<div class="absolute rounded-md px-1.5 py-1 overflow-hidden" title="${label} ${sh.startTime}–${sh.endTime}"
+                return `<div class="absolute rounded-md px-1.5 py-1 overflow-hidden" title="${label} ${sh.startTime}–${sh.endTime}${phone ? ' · ' + phone : ''}"
                     style="left:${left + 1}px;width:${width - 2}px;top:${top}px;height:${OVERVIEW_LANE_H - 8}px;${style}">
-                    <p class="text-[11px] font-semibold leading-tight truncate${sh.isInternal ? ' italic' : ''}">${label}</p>
-                    <p class="text-[10px] opacity-70 leading-tight">${sh.startTime}–${sh.endTime}</p>
+                    <p class="text-[13px] font-semibold leading-tight truncate${sh.isInternal ? ' italic' : ''}">${label}</p>
+                    <p class="text-xs opacity-70 leading-tight">${sh.startTime}–${sh.endTime}</p>
+                    ${phone ? `<p class="text-xs opacity-70 leading-tight truncate">${phone}</p>` : ''}
                 </div>`;
             }).join('');
             const kladdeBadge = row.schedule.isPublished ? '' :

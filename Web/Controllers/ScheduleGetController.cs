@@ -42,7 +42,8 @@ public class ScheduleController : Controller
         if (!authorized) return errorResult!;
 
         var schedules = await _scheduleService.GetSchedulesForCrewAsync(crewId);
-        return Json(schedules.Select(s => MapScheduleDto(s)));
+        var phones = BuildPhoneLookup(schedules);
+        return Json(schedules.Select(s => MapScheduleDto(s, phones)));
     }
 
     // GET /umbraco/surface/schedule/crewMembers?crewId=X&sort=accepted|name|age
@@ -372,7 +373,30 @@ public class ScheduleController : Controller
         return (true, null);
     }
 
-    private static object MapScheduleDto(ScheduleData s) => new
+    /// <summary>
+    /// Resolves the "phone" member property for every distinct member assigned to a
+    /// shift in the given schedules. One member-service lookup per distinct member.
+    /// </summary>
+    private IReadOnlyDictionary<Guid, string?> BuildPhoneLookup(IEnumerable<ScheduleData> schedules)
+    {
+        var phones = new Dictionary<Guid, string?>();
+        var keys = schedules
+            .SelectMany(s => s.Shifts)
+            .Where(sh => sh.AssignedMemberKey.HasValue)
+            .Select(sh => sh.AssignedMemberKey!.Value)
+            .Distinct();
+
+        foreach (var key in keys)
+        {
+            var member = _memberService.GetByKey(key);
+            var phone = member?.GetValue<string>("phone");
+            phones[key] = string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
+        }
+
+        return phones;
+    }
+
+    private static object MapScheduleDto(ScheduleData s, IReadOnlyDictionary<Guid, string?>? phones = null) => new
     {
         id = s.Id,
         crewId = s.CrewId,
@@ -382,10 +406,12 @@ public class ScheduleController : Controller
         scheduleDateFormatted = s.ScheduleDate.ToString("d. MMMM yyyy", new System.Globalization.CultureInfo("da-DK")),
         isPublished = s.IsPublished,
         sortOrder = s.SortOrder,
-        shifts = s.Shifts.Select(MapShiftDto)
+        shifts = s.Shifts.Select(sh => MapShiftDto(sh, phones))
     };
 
-    private static object MapShiftDto(ScheduleShiftData sh) => new
+    private static object MapShiftDto(ScheduleShiftData sh) => MapShiftDto(sh, null);
+
+    private static object MapShiftDto(ScheduleShiftData sh, IReadOnlyDictionary<Guid, string?>? phones) => new
     {
         id = sh.Id,
         scheduleId = sh.ScheduleId,
@@ -393,6 +419,7 @@ public class ScheduleController : Controller
         endTime = sh.EndTime,
         assignedMemberKey = sh.AssignedMemberKey,
         assignedMemberName = sh.AssignedMemberName,
+        assignedMemberPhone = sh.AssignedMemberKey.HasValue && phones != null && phones.TryGetValue(sh.AssignedMemberKey.Value, out var p) ? p : null,
         isInternal = sh.IsInternal,
         title = sh.Title,
         isAvailable = sh.IsAvailable,
