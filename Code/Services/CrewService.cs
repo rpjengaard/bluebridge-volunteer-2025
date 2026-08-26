@@ -266,7 +266,7 @@ public class CrewService : ICrewService
         }
 
         // Get the member by key
-        var member = _memberService.GetByKey(memberKey);
+        var member = _memberService.GetById(memberKey);
         if (member == null)
         {
             return Task.FromResult<MemberDetailData?>(null);
@@ -481,7 +481,7 @@ public class CrewService : ICrewService
                     var guidPart = trimmed["umb://member/".Length..];
                     if (Guid.TryParse(guidPart, out var memberGuid))
                     {
-                        var member = _memberService.GetByKey(memberGuid);
+                        var member = _memberService.GetById(memberGuid);
                         if (member != null)
                         {
                             var firstName = member.GetValue<string>("firstName") ?? string.Empty;
@@ -937,7 +937,7 @@ public class CrewService : ICrewService
         return ids;
     }
 
-    private List<CrewListItem> ParseCrewReferences(string udiString)
+    private List<CrewListItem> ParseCrewReferences(string? udiString)
     {
         var crews = new List<CrewListItem>();
         if (string.IsNullOrWhiteSpace(udiString))
