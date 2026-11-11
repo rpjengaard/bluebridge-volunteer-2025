@@ -32,6 +32,34 @@ public class CrewMessageSchema
 
     [Column("CreatedUtc")]
     public DateTime CreatedUtc { get; set; }
+
+    // [CHANGE: crew message replies] Related: Code/Services/ICrewMessageService.cs, Code/Services/CrewMessageService.cs, Code/Services/IMemberEmailService.cs, Code/Services/MemberEmailService.cs, Web/Controllers/CrewSurfaceController.cs, Web/Views/Crew.cshtml
+    [Column("RepliesClosed")]
+    public bool RepliesClosed { get; set; }
+}
+
+[TableName("BbvCrewMessageReply")]
+[PrimaryKey("Id", AutoIncrement = true)]
+[ExplicitColumns]
+public class CrewMessageReplySchema
+{
+    [Column("Id")]
+    public int Id { get; set; }
+
+    [Column("MessageId")]
+    public int MessageId { get; set; }
+
+    [Column("AuthorEmail")]
+    public string AuthorEmail { get; set; } = string.Empty;
+
+    [Column("AuthorName")]
+    public string AuthorName { get; set; } = string.Empty;
+
+    [Column("ReplyText")]
+    public string ReplyText { get; set; } = string.Empty;
+
+    [Column("CreatedUtc")]
+    public DateTime CreatedUtc { get; set; }
 }
 
 public class AddCrewMessageTableMigration : MigrationBase
@@ -100,6 +128,38 @@ public class RecreateCrewMessageTableRawSqlMigration : MigrationBase
     }
 }
 
+// [CHANGE: crew message replies] Adds RepliesClosed flag + reply table (replies cascade-delete with their message)
+public class AddCrewMessageRepliesMigration : MigrationBase
+{
+    public AddCrewMessageRepliesMigration(IMigrationContext context) : base(context)
+    {
+    }
+
+    protected override void Migrate()
+    {
+        Execute.Sql(@"
+            IF COL_LENGTH('dbo.BbvCrewMessage', 'RepliesClosed') IS NULL
+                ALTER TABLE dbo.BbvCrewMessage ADD RepliesClosed BIT NOT NULL CONSTRAINT DF_BbvCrewMessage_RepliesClosed DEFAULT 0").Do();
+
+        Execute.Sql(@"
+            IF OBJECT_ID('dbo.BbvCrewMessageReply', 'U') IS NULL
+            BEGIN
+                CREATE TABLE dbo.BbvCrewMessageReply (
+                    Id INT NOT NULL IDENTITY(1,1) PRIMARY KEY,
+                    MessageId INT NOT NULL,
+                    AuthorEmail NVARCHAR(255) NOT NULL,
+                    AuthorName NVARCHAR(255) NOT NULL,
+                    ReplyText NVARCHAR(1000) NOT NULL,
+                    CreatedUtc DATETIME NOT NULL,
+                    CONSTRAINT FK_BbvCrewMessageReply_BbvCrewMessage FOREIGN KEY (MessageId)
+                        REFERENCES dbo.BbvCrewMessage (Id) ON DELETE CASCADE
+                );
+                CREATE NONCLUSTERED INDEX IX_BbvCrewMessageReply_MessageId_CreatedUtc
+                    ON dbo.BbvCrewMessageReply (MessageId ASC, CreatedUtc ASC);
+            END").Do();
+    }
+}
+
 public class CrewMessageMigrationComposer : IComposer
 {
     public void Compose(IUmbracoBuilder builder)
@@ -137,7 +197,8 @@ public class CrewMessageMigrationComponent : IComponent
         migrationPlan.From(string.Empty)
             .To<AddCrewMessageTableMigration>("bbv-crew-message-001")
             .To<RecreateCrewMessageTableMigration>("bbv-crew-message-002")
-            .To<RecreateCrewMessageTableRawSqlMigration>("bbv-crew-message-003");
+            .To<RecreateCrewMessageTableRawSqlMigration>("bbv-crew-message-003")
+            .To<AddCrewMessageRepliesMigration>("bbv-crew-message-004");
 
         var upgrader = new Upgrader(migrationPlan);
         upgrader.Execute(_migrationPlanExecutor, _coreScopeProvider, _keyValueService);

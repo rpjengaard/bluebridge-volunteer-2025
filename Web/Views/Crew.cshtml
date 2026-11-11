@@ -87,6 +87,11 @@
         ? await CrewMessageService.GetMessagesAsync(Model.Id)
         : new List<CrewMessageData>();
 
+    @* [CHANGE: crew message replies] Related: Code/Migrations/AddCrewMessageTableMigration.cs, Code/Services/ICrewMessageService.cs, Code/Services/CrewMessageService.cs, Code/Services/IMemberEmailService.cs, Code/Services/MemberEmailService.cs, Web/Controllers/CrewSurfaceController.cs *@
+    // Leaders may always reply; Frivillige only when assigned to this crew
+    var canReply = canEdit || (currentMember != null
+        && await CrewMessageService.IsMemberAssignedToCrewAsync(currentMember.Email!, Model.Id));
+
     @* [CHANGE: perf – rejected members now computed in CrewService's single member scan instead of a GetAllMembers loop here] Related: Code/Services/CrewService.cs, Code/Services/ICrewService.cs *@
     var rejectedMembers = crewData?.RejectedMembers ?? new List<RejectedMemberInfo>();
 }
@@ -112,6 +117,9 @@
         .prose p { margin-bottom: 1rem; }
         .prose ul { list-style: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
         .prose ol { list-style: decimal; margin-left: 1.5rem; margin-bottom: 1rem; }
+        /* Reply thread toggle label: "vis" when collapsed, "skjul" when expanded */
+        details.crew-replies[open] .when-closed,
+        details.crew-replies:not([open]) .when-open { display: none; }
         .message-content p { margin-bottom: 0.5rem; }
         .message-content p:last-child { margin-bottom: 0; }
         .message-content ul { list-style: disc; margin-left: 1.5rem; margin-bottom: 0.5rem; }
@@ -627,11 +635,21 @@ else
                                               placeholder="Skriv en besked til dit crew..."></textarea>
                                 </div>
                                 <div class="flex items-center justify-between">
+                                    <div class="flex flex-col gap-1">
+                                    @* Hidden "false" after each checkbox: an unchecked box posts nothing, and the action defaults are true *@
                                     <label class="inline-flex items-center text-sm text-gray-600 cursor-pointer">
                                         <input type="checkbox" name="notifyByEmail" value="true" checked
                                                class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500 mr-2" />
+                                        <input type="hidden" name="notifyByEmail" value="false" />
                                         Send email-notifikation til crew-medlemmer
                                     </label>
+                                    <label class="inline-flex items-center text-sm text-gray-600 cursor-pointer">
+                                        <input type="checkbox" name="allowReplies" value="true" checked
+                                               class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500 mr-2" />
+                                        <input type="hidden" name="allowReplies" value="false" />
+                                        Tillad svar
+                                    </label>
+                                    </div>
                                     <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-bridge hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                                         <svg class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
@@ -647,7 +665,7 @@ else
                             <div class="space-y-4">
                                 @foreach (var msg in messages)
                                 {
-                                    <div class="border border-gray-200 rounded-lg p-4">
+                                    <div id="message-@msg.Id" class="border border-gray-200 rounded-lg p-4 scroll-mt-4">
                                         <div class="flex items-start justify-between mb-2">
                                             <div class="flex items-center">
                                                 <div class="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-bridge text-sm font-bold mr-3">
@@ -658,6 +676,20 @@ else
                                                     <p class="text-xs text-gray-500">@msg.CreatedUtc.ToLocalTime().ToString("d. MMM yyyy HH:mm")</p>
                                                 </div>
                                             </div>
+                                            <div class="flex items-center gap-3">
+                                            @if (canEdit)
+                                            {
+                                                <form method="post" action="/umbraco/surface/CrewSurface/SetRepliesClosed" class="inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="messageId" value="@msg.Id" />
+                                                    <input type="hidden" name="crewId" value="@Model.Id" />
+                                                    <input type="hidden" name="closed" value="@(msg.RepliesClosed ? "false" : "true")" />
+                                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                                    <button type="submit" class="text-xs text-gray-500 hover:text-blue-bridge underline">
+                                                        @(msg.RepliesClosed ? "Åbn for svar" : "Luk for svar")
+                                                    </button>
+                                                </form>
+                                            }
                                             @if (canEdit || string.Equals(msg.AuthorEmail, currentMember?.Email, StringComparison.OrdinalIgnoreCase))
                                             {
                                                 <form method="post" action="/umbraco/surface/CrewSurface/DeleteMessage" class="inline"
@@ -673,10 +705,89 @@ else
                                                     </button>
                                                 </form>
                                             }
+                                            </div>
                                         </div>
                                         <div class="message-content text-sm text-gray-700">
                                             @Html.Raw(msg.MessageHtml)
                                         </div>
+
+                                        @* Svar: one level, collapsed by default, oldest first *@
+                                        @if (msg.Replies.Any() || !msg.RepliesClosed)
+                                        {
+                                            <details class="crew-replies mt-3 border-t border-gray-100 pt-3" data-message-id="@msg.Id">
+                                                <summary class="text-sm font-medium text-blue-bridge cursor-pointer select-none">
+                                                    @if (msg.Replies.Count == 0)
+                                                    {
+                                                        <text>Svar</text>
+                                                    }
+                                                    else
+                                                    {
+                                                        @* Count in a soft filled circle (light tint of the page's #23297A blue) so it stands out *@
+                                                        <span class="inline-flex items-center justify-center h-6 min-w-6 px-1.5 mr-1 rounded-full bg-indigo-100 text-blue-bridge text-xs font-bold">@msg.Replies.Count</span>
+                                                        <text>svar – </text><span class="when-closed">vis</span><span class="when-open">skjul</span>
+                                                    }
+                                                </summary>
+                                                <div class="mt-3 pl-4 border-l-2 border-gray-100 space-y-3">
+                                                    @foreach (var reply in msg.Replies)
+                                                    {
+                                                        @* Every 2nd Svar gets a light background so replies are easier to tell apart *@
+                                                        <div class="rounded-md px-3 py-2 even:bg-slate-100">
+                                                            <div class="flex items-start justify-between">
+                                                                <p class="text-xs text-gray-500">
+                                                                    <span class="font-semibold text-gray-900">@reply.AuthorName</span>
+                                                                    · @reply.CreatedUtc.ToLocalTime().ToString("d. MMM yyyy HH:mm")
+                                                                </p>
+                                                                @if (canEdit || string.Equals(reply.AuthorEmail, currentMember?.Email, StringComparison.OrdinalIgnoreCase))
+                                                                {
+                                                                    <form method="post" action="/umbraco/surface/CrewSurface/DeleteReply" class="inline"
+                                                                          onsubmit="return confirm('Er du sikker på, at du vil slette dette svar?');">
+                                                                        @Html.AntiForgeryToken()
+                                                                        <input type="hidden" name="replyId" value="@reply.Id" />
+                                                                        <input type="hidden" name="messageId" value="@msg.Id" />
+                                                                        <input type="hidden" name="crewId" value="@Model.Id" />
+                                                                        <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                                                        <button type="submit" class="text-gray-400 hover:text-red-500" title="Slet svar">
+                                                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                                                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                                                            </svg>
+                                                                        </button>
+                                                                    </form>
+                                                                }
+                                                            </div>
+                                                            <div class="message-content text-sm text-gray-700 mt-1">
+                                                                @Html.Raw(reply.ReplyHtml)
+                                                            </div>
+                                                        </div>
+                                                    }
+
+                                                    @if (msg.RepliesClosed)
+                                                    {
+                                                        <p class="text-xs italic text-gray-500">Lukket for svar</p>
+                                                    }
+                                                    else if (canReply)
+                                                    {
+                                                        <form method="post" action="/umbraco/surface/CrewSurface/PostReply">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="messageId" value="@msg.Id" />
+                                                            <input type="hidden" name="crewId" value="@Model.Id" />
+                                                            <input type="hidden" name="returnUrl" value="@Context.Request.Path" />
+                                                            <textarea name="replyText" rows="2" maxlength="@(Code.Services.CrewMessageService.MaxReplyLength)"
+                                                                      class="reply-text block w-full rounded-md border-gray-300 shadow-sm sm:text-sm py-2 px-3 border"
+                                                                      placeholder="Skriv et svar..."></textarea>
+                                                            <div class="flex justify-end mt-2">
+                                                                <button type="submit" class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-blue-bridge hover:opacity-90">
+                                                                    Send svar
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    }
+                                                </div>
+                                            </details>
+                                        }
+                                        else
+                                        {
+                                            <p class="mt-3 text-xs italic text-gray-500">Lukket for svar</p>
+                                        }
                                     </div>
                                 }
                             </div>
@@ -1061,6 +1172,29 @@ else
                     minHeight: '100px',
                     placeholder: 'Skriv en besked til dit crew...'
                 });
+            }
+
+            // [CHANGE: crew message replies] Lazy-init reply editors when a thread opens; open the thread named in the URL hash
+            function initReplyEditors(details) {
+                details.querySelectorAll('textarea.reply-text:not([data-mde])').forEach(function (el) {
+                    el.setAttribute('data-mde', '1');
+                    new EasyMDE({
+                        element: el,
+                        toolbar: ['bold', 'italic', 'link', 'unordered-list', '|', 'preview'],
+                        spellChecker: false,
+                        status: false,
+                        minHeight: '60px',
+                        placeholder: 'Skriv et svar...'
+                    });
+                });
+            }
+            document.querySelectorAll('details.crew-replies').forEach(function (details) {
+                details.addEventListener('toggle', function () { if (details.open) initReplyEditors(details); });
+            });
+            var hashMatch = location.hash.match(/^#message-(\d+)$/);
+            if (hashMatch) {
+                var thread = document.querySelector('details.crew-replies[data-message-id="' + hashMatch[1] + '"]');
+                if (thread) { thread.open = true; initReplyEditors(thread); }
             }
         </script>
 
