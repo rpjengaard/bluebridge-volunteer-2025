@@ -103,7 +103,8 @@
     <title>@Model.Name - Blue Bridge - Frivillig</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
-    @if (canEdit)
+    @* EasyMDE is needed for the reply editor too (canReply includes canEdit) *@
+    @if (canReply)
     {
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
     }
@@ -712,7 +713,8 @@ else
                                         </div>
 
                                         @* Svar: one level, collapsed by default, oldest first *@
-                                        @if (msg.Replies.Any() || !msg.RepliesClosed)
+                                        @* Only show an empty open thread to someone who can actually reply *@
+                                        @if (msg.Replies.Any() || (!msg.RepliesClosed && canReply))
                                         {
                                             <details class="crew-replies mt-3 border-t border-gray-100 pt-3" data-message-id="@msg.Id">
                                                 <summary class="text-sm font-medium text-blue-bridge cursor-pointer select-none">
@@ -784,7 +786,7 @@ else
                                                 </div>
                                             </details>
                                         }
-                                        else
+                                        else if (msg.RepliesClosed)
                                         {
                                             <p class="mt-3 text-xs italic text-gray-500">Lukket for svar</p>
                                         }
@@ -1159,11 +1161,16 @@ else
                 }
             });
         </script>
+    }
 
+    @* [CHANGE: review fix – reply scripts lived inside @if (canEdit), so Frivillige never got the reply editor or the #message-N thread auto-open] Related: Web/Controllers/CrewSurfaceController.cs, Code/Services/MemberEmailService.cs *@
+    @if (canReply)
+    {
         <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+    }
         <script>
             var messageTextEl = document.getElementById('messageText');
-            if (messageTextEl) {
+            if (messageTextEl && typeof EasyMDE !== 'undefined') {
                 new EasyMDE({
                     element: messageTextEl,
                     toolbar: ['bold', 'italic', 'link', 'unordered-list', '|', 'preview'],
@@ -1176,6 +1183,7 @@ else
 
             // [CHANGE: crew message replies] Lazy-init reply editors when a thread opens; open the thread named in the URL hash
             function initReplyEditors(details) {
+                if (typeof EasyMDE === 'undefined') return;
                 details.querySelectorAll('textarea.reply-text:not([data-mde])').forEach(function (el) {
                     el.setAttribute('data-mde', '1');
                     new EasyMDE({
@@ -1197,8 +1205,6 @@ else
                 if (thread) { thread.open = true; initReplyEditors(thread); }
             }
         </script>
-
-    }
 
     @await Html.PartialAsync("Partials/_MemberModal")
 }

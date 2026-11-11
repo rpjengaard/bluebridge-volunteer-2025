@@ -221,14 +221,14 @@ public class CrewSurfaceController : SurfaceController
         if (currentMember == null)
         {
             TempData["CrewError"] = "Du skal være logget ind for at sende beskeder.";
-            return Redirect(returnUrl ?? "/");
+            return Redirect(SafeLocalPath(returnUrl));
         }
 
         var viewMode = await _crewService.GetMemberCrewViewModeAsync(currentMember.Email!, crewId);
         if (viewMode == CrewViewMode.Volunteer)
         {
             TempData["CrewError"] = "Du har ikke tilladelse til at sende beskeder.";
-            return Redirect(returnUrl ?? "/");
+            return Redirect(SafeLocalPath(returnUrl));
         }
 
         try
@@ -240,7 +240,7 @@ public class CrewSurfaceController : SurfaceController
             if (notifyByEmail)
             {
                 // Capture request values before the HTTP context is disposed
-                var crewUrl = $"{Request.Scheme}://{Request.Host}{returnUrl}";
+                var crewUrl = $"{Request.Scheme}://{Request.Host}{SafeLocalPath(returnUrl)}";
                 var authorEmail = currentMember.Email!;
 
                 _ = Task.Run(async () =>
@@ -288,7 +288,7 @@ public class CrewSurfaceController : SurfaceController
             TempData["CrewError"] = ex.Message;
         }
 
-        return Redirect(returnUrl ?? "/");
+        return Redirect(SafeLocalPath(returnUrl));
     }
 
     [HttpPost]
@@ -372,7 +372,7 @@ public class CrewSurfaceController : SurfaceController
         if (currentMember == null)
         {
             TempData["CrewError"] = "Du skal være logget ind.";
-            return Redirect(returnUrl ?? "/");
+            return Redirect(SafeLocalPath(returnUrl));
         }
 
         var viewMode = await _crewService.GetMemberCrewViewModeAsync(currentMember.Email!, crewId);
@@ -388,7 +388,7 @@ public class CrewSurfaceController : SurfaceController
             TempData["CrewError"] = "Kunne ikke slette beskeden.";
         }
 
-        return Redirect(returnUrl ?? "/");
+        return Redirect(SafeLocalPath(returnUrl));
     }
 
     // [CHANGE: crew message replies] Related: Code/Migrations/AddCrewMessageTableMigration.cs, Code/Services/ICrewMessageService.cs, Code/Services/CrewMessageService.cs, Code/Services/IMemberEmailService.cs, Code/Services/MemberEmailService.cs, Web/Views/Crew.cshtml
@@ -507,6 +507,7 @@ public class CrewSurfaceController : SurfaceController
         return RedirectToThread(returnUrl, messageId);
     }
 
+    // [CHANGE: review fix – PostMessage/DeleteMessage now also use SafeLocalPath (open redirect + crewUrl in notification emails)] Related: Web/Views/Crew.cshtml, Code/Services/MemberEmailService.cs
     private string SafeLocalPath(string? returnUrl) =>
         !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : "/";
 
