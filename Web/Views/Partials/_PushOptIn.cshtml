@@ -1,0 +1,70 @@
+@* [CHANGE: web push notifications] Opt-in card for push notifications on the member dashboard.
+   The visible state is picked client-side by /js/push.js (support, permission, existing subscription).
+   Related: Web/Controllers/PushApiController.cs, Code/Services/PushNotificationService.cs *@
+@using Code.Services
+@using Microsoft.AspNetCore.Antiforgery
+@inject IPushNotificationService PushService
+@inject IMemberImpersonationService ImpersonationService
+@inject IAntiforgery Antiforgery
+@if (PushService.IsConfigured)
+{
+    var token = Antiforgery.GetAndStoreTokens(Context).RequestToken;
+    var btnPrimary = "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-bridge hover:opacity-90";
+    var btnSecondary = "inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50";
+
+    <div id="push-optin" class="bg-white shadow rounded-lg overflow-hidden mt-8"
+         data-public-key="@PushService.PublicKey"
+         data-token="@token"
+         data-impersonating="@(ImpersonationService.IsImpersonating() ? "true" : "false")">
+        <div class="bg-blue-bridge px-6 py-4">
+            <h2 class="text-xl font-bold text-white">Notifikationer</h2>
+        </div>
+        <div class="p-6 text-sm text-gray-700">
+            <div data-push-state="loading">
+                <p class="text-gray-500">Tjekker notifikationer…</p>
+            </div>
+
+            <div data-push-state="off" hidden>
+                <p class="mb-4">Få besked direkte på din telefon eller computer, når dit crew sender en besked eller nogen svarer dig.</p>
+                <button type="button" data-push-action="enable" class="@btnPrimary">Slå notifikationer til</button>
+            </div>
+
+            <div data-push-state="on" hidden>
+                <p class="mb-4 flex items-center text-green-700 font-medium">
+                    <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    Slået til på denne enhed
+                </p>
+                <p class="mb-4 text-gray-500">Vil du også have besked på en anden enhed, så log ind dér og slå det til.</p>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" data-push-action="test" class="@btnSecondary">Send testbesked</button>
+                    <button type="button" data-push-action="disable" class="@btnSecondary">Slå fra</button>
+                </div>
+            </div>
+
+            <div data-push-state="ios-install" hidden>
+                <p class="mb-3">På iPhone og iPad skal portalen føjes til hjemmeskærmen, før du kan få notifikationer:</p>
+                <ol class="list-decimal list-inside space-y-1 mb-3">
+                    <li>Tryk på <strong>Del</strong>-knappen <span aria-hidden="true">(firkant med pil op)</span> nederst i Safari</li>
+                    <li>Vælg <strong>Føj til hjemmeskærm</strong></li>
+                    <li>Åbn <strong>Blue Bridge</strong> fra hjemmeskærmen og log ind</li>
+                    <li>Slå notifikationer til her på siden</li>
+                </ol>
+                <p class="text-gray-500">Kræver iOS 16.4 eller nyere.</p>
+            </div>
+
+            <div data-push-state="denied" hidden>
+                <p>Notifikationer er blokeret for denne side. Slå dem til i browserens indstillinger (eller under Indstillinger → Notifikationer → Blue Bridge på iPhone), og genindlæs siden.</p>
+            </div>
+
+            <div data-push-state="unsupported" hidden>
+                <p class="text-gray-500">Din browser understøtter ikke push-notifikationer. Prøv en opdateret udgave af Chrome, Edge, Firefox eller Safari.</p>
+            </div>
+
+            <div data-push-state="impersonating" hidden>
+                <p class="text-gray-500">Push-notifikationer kan ikke slås til under impersonation.</p>
+            </div>
+
+            <p data-push-message hidden></p>
+        </div>
+    </div>
+}

@@ -26,6 +26,8 @@ public class CrewSurfaceController : SurfaceController
     private readonly IPublishedContentQuery _publishedContentQuery;
     private readonly ILogger<CrewSurfaceController> _logger;
     private readonly AppCaches _appCaches;
+    // [CHANGE: web push notifications] Related: Code/Services/PushNotificationQueue.cs, Web/Views/Crew.cshtml
+    private readonly IPushNotificationQueue _pushQueue;
 
     public CrewSurfaceController(
         IUmbracoContextAccessor umbracoContextAccessor,
@@ -42,7 +44,8 @@ public class CrewSurfaceController : SurfaceController
         ICrewMessageService crewMessageService,
         IMemberEmailService memberEmailService,
         IPublishedContentQuery publishedContentQuery,
-        ILogger<CrewSurfaceController> logger)
+        ILogger<CrewSurfaceController> logger,
+        IPushNotificationQueue pushQueue)
         : base(umbracoContextAccessor, databaseFactory, services, appCaches, profilingLogger, publishedUrlProvider)
     {
         _contentService = contentService;
@@ -55,6 +58,7 @@ public class CrewSurfaceController : SurfaceController
         _publishedContentQuery = publishedContentQuery;
         _logger = logger;
         _appCaches = appCaches;
+        _pushQueue = pushQueue;
     }
 
     [HttpPost]
@@ -215,7 +219,8 @@ public class CrewSurfaceController : SurfaceController
     [HttpPost]
     [ValidateAntiForgeryToken]
     // [CHANGE: crew message replies – allowReplies flag] Related: Code/Services/ICrewMessageService.cs, Code/Services/CrewMessageService.cs, Code/Services/MemberEmailService.cs, Web/Views/Crew.cshtml
-    public async Task<IActionResult> PostMessage(int crewId, string messageText, string returnUrl, bool notifyByEmail = true, bool allowReplies = true)
+    // [CHANGE: web push notifications – notifyByPush flag] Related: Code/Services/PushNotificationQueue.cs, Web/Views/Crew.cshtml
+    public async Task<IActionResult> PostMessage(int crewId, string messageText, string returnUrl, bool notifyByEmail = true, bool allowReplies = true, bool notifyByPush = true)
     {
         var currentMember = await _memberManager.GetCurrentMemberAsync();
         if (currentMember == null)
@@ -236,6 +241,22 @@ public class CrewSurfaceController : SurfaceController
             var memberName = currentMember.Name ?? currentMember.Email ?? "Ukendt";
             var postedMessage = await _crewMessageService.PostMessageAsync(crewId, currentMember.Email!, memberName, messageText, allowReplies);
             TempData["CrewSuccess"] = "Beskeden er blevet sendt.";
+
+            if (notifyByPush)
+            {
+                var pushCrewName = _contentService.GetById(crewId)?.Name ?? "dit crew";
+                // Recipients are resolved by the background worker; the author is skipped like in the email loop
+                _pushQueue.Enqueue(new PushJob(
+                    new PushPayload
+                    {
+                        Title = $"{pushCrewName}: ny besked fra {memberName}",
+                        Body = PushNotificationService.ToPlainSnippet(postedMessage.MessageHtml),
+                        Url = $"{SafeLocalPath(returnUrl)}#message-{postedMessage.Id}",
+                        Tag = $"crew-message-{postedMessage.Id}"
+                    },
+                    CrewId: crewId,
+                    ExcludeMemberKey: currentMember.Key));
+            }
 
             if (notifyByEmail)
             {
@@ -421,6 +442,22 @@ public class CrewSurfaceController : SurfaceController
             // Notify the message author only – not when they reply themselves
             if (!string.Equals(result.MessageAuthorEmail, currentMember.Email, StringComparison.OrdinalIgnoreCase))
             {
+                // [CHANGE: web push notifications] Push to the message author's devices as well
+                var messageAuthor = _memberService.GetByEmail(result.MessageAuthorEmail);
+                if (messageAuthor != null)
+                {
+                    var crewNameForPush = _contentService.GetById(crewId)?.Name ?? "dit crew";
+                    _pushQueue.Enqueue(new PushJob(
+                        new PushPayload
+                        {
+                            Title = $"{crewNameForPush}: {authorName} svarede på din besked",
+                            Body = PushNotificationService.ToPlainSnippet(result.Reply.ReplyHtml),
+                            Url = $"{SafeLocalPath(returnUrl)}#message-{messageId}",
+                            Tag = $"crew-reply-{result.Reply.Id}"
+                        },
+                        MemberKeys: new[] { messageAuthor.Key }));
+                }
+
                 // Capture request values before the HTTP context is disposed
                 var messageUrl = $"{Request.Scheme}://{Request.Host}{SafeLocalPath(returnUrl)}#message-{messageId}";
                 var messageAuthorEmail = result.MessageAuthorEmail;

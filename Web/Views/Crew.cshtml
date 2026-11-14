@@ -9,6 +9,8 @@
 @inject ICrewMessageService CrewMessageService
 @* [CHANGE: crew invitation feature] Related: Web/Controllers/CrewInvitationSurfaceController.cs, Code/Services/CrewInvitationService.cs *@
 @inject ICrewInvitationService CrewInvitationService
+@* [CHANGE: web push notifications] Related: Code/Services/PushNotificationService.cs, Web/Controllers/CrewSurfaceController.cs *@
+@inject IPushNotificationService PushService
 @functions {
     string HtmlToPlainText(string? html)
     {
@@ -94,6 +96,12 @@
 
     @* [CHANGE: perf – rejected members now computed in CrewService's single member scan instead of a GetAllMembers loop here] Related: Code/Services/CrewService.cs, Code/Services/ICrewService.cs *@
     var rejectedMembers = crewData?.RejectedMembers ?? new List<RejectedMemberInfo>();
+
+    @* [CHANGE: web push notifications] Leaders see how many of the crew get push; volunteers without push get a hint *@
+    var pushConfigured = PushService.IsConfigured && currentMember != null;
+    var crewPushStats = pushConfigured && canEdit ? await PushService.GetCrewStatsAsync(Model.Id) : null;
+    var showPushHint = pushConfigured && !canEdit && canReply
+        && await PushService.GetDeviceCountAsync(currentMember!.Key) == 0;
 }
 <!DOCTYPE html>
 <html lang="da" class="h-full bg-slate-50">
@@ -130,6 +138,7 @@
         .message-content strong, .message-content b { font-weight: 600; }
         .message-content em, .message-content i { font-style: italic; }
     </style>
+    @await Html.PartialAsync("Partials/_PwaHead")
 </head>
 <body class="h-full">
 
@@ -623,6 +632,20 @@ else
                         <h2 class="text-xl font-bold text-white">Beskeder</h2>
                     </div>
                     <div class="p-6">
+                        @if (showPushHint)
+                        {
+                            <div class="mb-6 rounded-md bg-blue-50 border border-blue-100 p-3 text-sm text-blue-900">
+                                Vil du have besked på telefonen, når der kommer nye beskeder?
+                                <a href="/" class="font-semibold underline">Slå notifikationer til på Min side</a>.
+                            </div>
+                        }
+                        @if (crewPushStats != null)
+                        {
+                            <p class="mb-4 text-sm text-gray-600">
+                                <strong>@crewPushStats.SubscribedMemberCount</strong> af @crewPushStats.MemberCount crew-medlemmer har push-notifikationer slået til
+                                (@crewPushStats.DeviceCount @(crewPushStats.DeviceCount == 1 ? "enhed" : "enheder")).
+                            </p>
+                        }
                         @if (canEdit)
                         {
                             <form method="post" action="/umbraco/surface/CrewSurface/PostMessage" class="mb-6">
@@ -644,6 +667,15 @@ else
                                         <input type="hidden" name="notifyByEmail" value="false" />
                                         Send email-notifikation til crew-medlemmer
                                     </label>
+                                    @if (crewPushStats != null)
+                                    {
+                                        <label class="inline-flex items-center text-sm text-gray-600 cursor-pointer">
+                                            <input type="checkbox" name="notifyByPush" value="true" checked
+                                                   class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500 mr-2" />
+                                            <input type="hidden" name="notifyByPush" value="false" />
+                                            Send push-notifikation (@crewPushStats.SubscribedMemberCount @(crewPushStats.SubscribedMemberCount == 1 ? "modtager" : "modtagere"))
+                                        </label>
+                                    }
                                     <label class="inline-flex items-center text-sm text-gray-600 cursor-pointer">
                                         <input type="checkbox" name="allowReplies" value="true" checked
                                                class="rounded border-gray-300 text-blue-600 shadow-sm focus:ring-blue-500 mr-2" />

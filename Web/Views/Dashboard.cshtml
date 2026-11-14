@@ -76,6 +76,7 @@
         .bg-accent-yellow { background-color: #FFF000; }
         .border-blue-bridge { border-color: #23297A; }
     </style>
+    @await Html.PartialAsync("Partials/_PwaHead")
 </head>
 <body class="h-full">
 
@@ -180,6 +181,9 @@ else
                         </div>
                     </div>
                 </div>
+
+                @* [CHANGE: web push notifications] Related: Web/Views/Partials/_PushOptIn.cshtml *@
+                @await Html.PartialAsync("Partials/_PushOptIn")
             </div>
 
             <!-- Crews & Shifts Section -->

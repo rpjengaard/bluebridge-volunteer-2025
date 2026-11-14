@@ -29,6 +29,7 @@
         .btn-login { background-color: #EE746D; }
         .btn-login:focus, .btn-login:focus-visible { background-color: #3EC58D !important; outline: none; }
     </style>
+    @await Html.PartialAsync("Partials/_PwaHead")
 </head>
 <body class="h-full">
 @await Html.PartialAsync("Partials/_Navigation")

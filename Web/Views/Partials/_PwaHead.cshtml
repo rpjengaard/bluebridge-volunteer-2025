@@ -1,0 +1,11 @@
+@* [CHANGE: web push notifications] PWA head tags — makes the portal installable ("Føj til hjemmeskærm"),
+   which iOS requires before a web app may receive push. Included in the <head> of every page view.
+   Related: Web/wwwroot/manifest.json, Web/wwwroot/sw.js, Web/wwwroot/js/push.js *@
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#23297A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Blue Bridge">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="/img/pwa/apple-touch-icon.png">
+<script src="/js/push.js" defer></script>

@@ -239,4 +239,32 @@ A frontend page (doctype `bbvTicketSales`, view `Web/Views/TicketSales.cshtml`) 
 
 **Doctype setup:** the document type `bbvTicketSales` (single `title` text property, template alias `ticketSales` → `Views/TicketSales.cshtml`), its template, the `bbvFrontpage` allowed-child entry and the NavigationPicker filter are all captured in uSync (`Web/uSync/v17/ContentTypes/bbvticketsales.config`, `Templates/ticketsales.config`, plus edits to `bbvfrontpage.config` and `DataTypes/NavigationPicker.config`). On environments that don't import automatically (production has uSync `ImportAtStartup: "None"`; dev has `"Once"`), run a uSync import from the backoffice — do NOT hand-create the doctype: a hand-created doctype gets a different GUID than `9034237b-c9fa-48ed-84f1-7e6cb71ac9df`, which the picker filter and allowed-child entry reference, so the node would be neither creatable under the frontpage nor pickable in Navigation. Manual steps after import: create one node (e.g. `/billetsalg`), add it to site settings Navigation, assign members to the SuperAdmin group.
 
+### Web Push Notifications
+
+Volunteers can opt in to push notifications (desktop, Android, and iOS/iPadOS 16.4+ when the portal is added to the home screen). Standard Web Push with VAPID — no Firebase/OneSignal account needed.
+
+**Server:**
+- Code/Services/PushNotificationService.cs — subscription storage, crew stats, sending (NuGet `Lib.Net.Http.WebPush`), VAPID key generation, prunes subscriptions on 404/410
+- Code/Services/PushNotificationQueue.cs — in-memory queue + `PushNotificationWorker` (hosted service); sends happen in the background, never on the request thread
+- Code/Notifications/PushNotificationComposer.cs — DI registration, config binding, member-deleted cleanup
+- Code/Migrations/AddPushSubscriptionTableMigration.cs — table `BbvPushSubscription` (one row per device, unique endpoint)
+- Web/Controllers/PushApiController.cs — member JSON API: POST `/umbraco/surface/push/subscribe`, `/unsubscribe`, `/test` (antiforgery header `RequestVerificationToken`; subscribe/test blocked during impersonation; endpoints restricted to known push services to prevent SSRF)
+- Web/Controllers/PushStatsController.cs — backoffice API: GET `/umbraco/management/api/v1/pushstats/summary`, POST `.../generate-keys` (admin only, only when not configured)
+
+**Frontend:**
+- Web/wwwroot/manifest.json, Web/wwwroot/sw.js (service worker at root scope), Web/wwwroot/js/push.js, icons in Web/wwwroot/img/pwa/
+- Views/Partials/_PwaHead.cshtml — included in the `<head>` of every page view (views use `Layout = null`, so new views must include it too)
+- Views/Partials/_PushOptIn.cshtml — opt-in card on the dashboard (Min side); shows "Føj til hjemmeskærm" guide on iOS Safari
+- Crew page (Views/Crew.cshtml): leaders (Admin/Vagtplanlægger) see "X af Y crew-medlemmer har push slået til" and a "Send push-notifikation" checkbox when posting; volunteers without push get a hint linking to Min side
+
+**Triggers:** new crew message → all crew members except the author (`CrewSurfaceController.PostMessage`, `notifyByPush`); reply → the message author (`PostReply`). Crew recipients = members with the crew in `crews`, excluding `rejected`/`cancelation`.
+
+**Backoffice dashboard:** "Push" tab in the Content section (Web/App_Plugins/PushStats/) — per-crew subscribed members/devices, platform split. Visible to all backoffice users with Content access (aggregated counts only).
+
+**Configuration** (`Web/appsettings.json`) — push is disabled (UI hidden, nothing sent) until all three are set:
+```json
+"WebPush": { "Subject": "mailto:...", "PublicKey": "...", "PrivateKey": "..." }
+```
+Generate keys with the "Generér nøglepar" button on the Push dashboard. Keep `PrivateKey` out of git (environment variable `WebPush__PrivateKey`). Changing keys invalidates all subscriptions — members must opt in again.
+
 Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
