@@ -7,6 +7,7 @@ using Umbraco.Cms.Infrastructure.Scoping;
 
 namespace Code.Services;
 
+// [CHANGE: crew message replies] Related: Code/Migrations/AddCrewMessageTableMigration.cs, Code/Services/ICrewMessageService.cs, Code/Services/IMemberEmailService.cs, Code/Services/MemberEmailService.cs, Web/Controllers/CrewSurfaceController.cs, Web/Views/Crew.cshtml
 public class CrewMessageService : ICrewMessageService
 {
     private readonly IScopeProvider _scopeProvider;
@@ -14,6 +15,8 @@ public class CrewMessageService : ICrewMessageService
     private readonly IContentService _contentService;
     private readonly ILogger<CrewMessageService> _logger;
     private readonly MarkdownPipeline _markdownPipeline;
+
+    public const int MaxReplyLength = 1000;
 
     // Allowed HTML tags for sanitization
     private static readonly HashSet<string> AllowedTags = new(StringComparer.OrdinalIgnoreCase)
@@ -48,13 +51,33 @@ public class CrewMessageService : ICrewMessageService
             AuthorName = r.AuthorName,
             MessageText = r.MessageText,
             MessageHtml = RenderMarkdown(r.MessageText),
-            CreatedUtc = r.CreatedUtc
+            CreatedUtc = r.CreatedUtc,
+            RepliesClosed = r.RepliesClosed
         }).ToList();
+
+        if (messages.Count > 0)
+        {
+            var replyRows = db.Fetch<CrewMessageReplySchema>(
+                @"SELECT r.* FROM BbvCrewMessageReply r
+                  INNER JOIN BbvCrewMessage m ON m.Id = r.MessageId
+                  WHERE m.CrewId = @0
+                  ORDER BY r.CreatedUtc ASC", crewId);
+
+            var repliesByMessage = replyRows
+                .GroupBy(r => r.MessageId)
+                .ToDictionary(g => g.Key, g => g.Select(ToReplyData).ToList());
+
+            foreach (var message in messages)
+            {
+                if (repliesByMessage.TryGetValue(message.Id, out var replies))
+                    message.Replies = replies;
+            }
+        }
 
         return Task.FromResult(messages);
     }
 
-    public Task<CrewMessageData> PostMessageAsync(int crewId, string authorEmail, string authorName, string messageText)
+    public Task<CrewMessageData> PostMessageAsync(int crewId, string authorEmail, string authorName, string messageText, bool allowReplies = true)
     {
         if (string.IsNullOrWhiteSpace(messageText))
             throw new ArgumentException("Beskedtekst må ikke være tom.");
@@ -71,7 +94,8 @@ public class CrewMessageService : ICrewMessageService
             AuthorEmail = authorEmail,
             AuthorName = authorName,
             MessageText = messageText,
-            CreatedUtc = DateTime.UtcNow
+            CreatedUtc = DateTime.UtcNow,
+            RepliesClosed = !allowReplies
         };
 
         db.Insert(row);
@@ -84,19 +108,21 @@ public class CrewMessageService : ICrewMessageService
             AuthorName = row.AuthorName,
             MessageText = row.MessageText,
             MessageHtml = RenderMarkdown(row.MessageText),
-            CreatedUtc = row.CreatedUtc
+            CreatedUtc = row.CreatedUtc,
+            RepliesClosed = row.RepliesClosed
         };
 
         return Task.FromResult(result);
     }
 
-    public Task<bool> DeleteMessageAsync(int messageId, string requestingEmail, bool isAdminOrScheduler)
+    public Task<bool> DeleteMessageAsync(int messageId, int crewId, string requestingEmail, bool isAdminOrScheduler)
     {
         using var scope = _scopeProvider.CreateScope(autoComplete: true);
         var db = scope.Database;
 
         var message = db.SingleOrDefaultById<CrewMessageSchema>(messageId);
-        if (message == null)
+        // Crew check: permissions are evaluated per crew, so the message must belong to that crew
+        if (message == null || message.CrewId != crewId)
             return Task.FromResult(false);
 
         // Only allow deletion by author or admin/scheduler
@@ -106,8 +132,147 @@ public class CrewMessageService : ICrewMessageService
             return Task.FromResult(false);
         }
 
+        // Replies are removed by the FK's ON DELETE CASCADE
         db.Delete<CrewMessageSchema>(messageId);
         return Task.FromResult(true);
+    }
+
+    public Task<CrewMessageReplyResult> PostReplyAsync(int messageId, int crewId, string authorEmail, string authorName, string replyText)
+    {
+        if (string.IsNullOrWhiteSpace(replyText))
+            throw new ArgumentException("Svaret må ikke være tomt.");
+
+        if (replyText.Length > MaxReplyLength)
+            throw new ArgumentException($"Svaret er for langt (max {MaxReplyLength} tegn).");
+
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
+
+        var message = db.SingleOrDefaultById<CrewMessageSchema>(messageId);
+        if (message == null || message.CrewId != crewId)
+            throw new InvalidOperationException("Beskeden findes ikke.");
+
+        if (message.RepliesClosed)
+            throw new InvalidOperationException("Beskeden er lukket for svar.");
+
+        var row = new CrewMessageReplySchema
+        {
+            MessageId = messageId,
+            AuthorEmail = authorEmail,
+            AuthorName = authorName,
+            ReplyText = replyText,
+            CreatedUtc = DateTime.UtcNow
+        };
+
+        db.Insert(row);
+
+        return Task.FromResult(new CrewMessageReplyResult
+        {
+            Reply = ToReplyData(row),
+            MessageAuthorEmail = message.AuthorEmail
+        });
+    }
+
+    public Task<bool> DeleteReplyAsync(int replyId, int crewId, string requestingEmail, bool isAdminOrScheduler)
+    {
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
+
+        var reply = db.SingleOrDefaultById<CrewMessageReplySchema>(replyId);
+        if (reply == null)
+            return Task.FromResult(false);
+
+        var message = db.SingleOrDefaultById<CrewMessageSchema>(reply.MessageId);
+        if (message == null || message.CrewId != crewId)
+            return Task.FromResult(false);
+
+        if (!isAdminOrScheduler &&
+            !string.Equals(reply.AuthorEmail, requestingEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(false);
+        }
+
+        db.Delete<CrewMessageReplySchema>(replyId);
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> SetRepliesClosedAsync(int messageId, int crewId, bool closed)
+    {
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
+
+        var updated = db.Execute(
+            "UPDATE BbvCrewMessage SET RepliesClosed = @0 WHERE Id = @1 AND CrewId = @2",
+            closed, messageId, crewId);
+
+        return Task.FromResult(updated > 0);
+    }
+
+    public Task<bool> IsMemberAssignedToCrewAsync(string memberEmail, int crewId)
+    {
+        var member = _memberService.GetByEmail(memberEmail);
+        if (member == null)
+            return Task.FromResult(false);
+
+        if (member.GetValue<bool>("rejected") || member.GetValue<bool>("cancelation"))
+            return Task.FromResult(false);
+
+        var crewContent = _contentService.GetById(crewId);
+        if (crewContent == null)
+            return Task.FromResult(false);
+
+        return Task.FromResult(IsCrewInUdiList(member.GetValue<string>("crews"), crewContent.Key));
+    }
+
+    public Task<CrewMessageRecipient?> GetRecipientByEmailAsync(string email)
+    {
+        var member = _memberService.GetByEmail(email);
+        if (member == null || string.IsNullOrEmpty(member.Email))
+            return Task.FromResult<CrewMessageRecipient?>(null);
+
+        return Task.FromResult<CrewMessageRecipient?>(new CrewMessageRecipient
+        {
+            Email = member.Email,
+            FullName = GetFullName(member)
+        });
+    }
+
+    private CrewMessageReplyData ToReplyData(CrewMessageReplySchema r) => new()
+    {
+        Id = r.Id,
+        MessageId = r.MessageId,
+        AuthorEmail = r.AuthorEmail,
+        AuthorName = r.AuthorName,
+        ReplyText = r.ReplyText,
+        ReplyHtml = RenderMarkdown(r.ReplyText),
+        CreatedUtc = r.CreatedUtc
+    };
+
+    private static bool IsCrewInUdiList(string? crewsValue, Guid crewGuid)
+    {
+        if (string.IsNullOrWhiteSpace(crewsValue))
+            return false;
+
+        foreach (var udiPart in crewsValue.Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = udiPart.Trim();
+            if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase)
+                && Guid.TryParse(trimmed["umb://document/".Length..], out var contentGuid)
+                && contentGuid == crewGuid)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string GetFullName(Umbraco.Cms.Core.Models.IMember member)
+    {
+        var firstName = member.GetValue<string>("firstName") ?? string.Empty;
+        var lastName = member.GetValue<string>("lastName") ?? string.Empty;
+        var fullName = $"{firstName} {lastName}".Trim();
+        return string.IsNullOrEmpty(fullName) ? member.Name ?? member.Email ?? "Unknown" : fullName;
     }
 
     public Task<List<CrewMessageRecipient>> GetCrewMemberRecipientsAsync(int crewId)
@@ -123,35 +288,11 @@ public class CrewMessageService : ICrewMessageService
 
         foreach (var member in allMembers)
         {
-            var crewsValue = member.GetValue<string>("crews");
-            if (string.IsNullOrWhiteSpace(crewsValue))
-                continue;
-
             // Check if this member is assigned to the crew by matching the GUID in UDI references
-            var udiParts = crewsValue.Split(',', StringSplitOptions.RemoveEmptyEntries);
-            var isAssigned = false;
-            foreach (var udiPart in udiParts)
-            {
-                var trimmed = udiPart.Trim();
-                if (trimmed.StartsWith("umb://document/", StringComparison.OrdinalIgnoreCase))
-                {
-                    var guidPart = trimmed["umb://document/".Length..];
-                    if (Guid.TryParse(guidPart, out var contentGuid) && contentGuid == crewGuid)
-                    {
-                        isAssigned = true;
-                        break;
-                    }
-                }
-            }
-
-            if (!isAssigned)
+            if (!IsCrewInUdiList(member.GetValue<string>("crews"), crewGuid))
                 continue;
 
-            var firstName = member.GetValue<string>("firstName") ?? string.Empty;
-            var lastName = member.GetValue<string>("lastName") ?? string.Empty;
-            var fullName = $"{firstName} {lastName}".Trim();
-            if (string.IsNullOrEmpty(fullName))
-                fullName = member.Name ?? member.Email ?? "Unknown";
+            var fullName = GetFullName(member);
 
             if (!string.IsNullOrEmpty(member.Email))
             {

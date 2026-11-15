@@ -26,6 +26,8 @@ public class CrewSurfaceController : SurfaceController
     private readonly IPublishedContentQuery _publishedContentQuery;
     private readonly ILogger<CrewSurfaceController> _logger;
     private readonly AppCaches _appCaches;
+    // [CHANGE: web push notifications] Related: Code/Services/PushNotificationQueue.cs, Web/Views/Crew.cshtml
+    private readonly IPushNotificationQueue _pushQueue;
 
     public CrewSurfaceController(
         IUmbracoContextAccessor umbracoContextAccessor,
@@ -42,7 +44,8 @@ public class CrewSurfaceController : SurfaceController
         ICrewMessageService crewMessageService,
         IMemberEmailService memberEmailService,
         IPublishedContentQuery publishedContentQuery,
-        ILogger<CrewSurfaceController> logger)
+        ILogger<CrewSurfaceController> logger,
+        IPushNotificationQueue pushQueue)
         : base(umbracoContextAccessor, databaseFactory, services, appCaches, profilingLogger, publishedUrlProvider)
     {
         _contentService = contentService;
@@ -55,6 +58,7 @@ public class CrewSurfaceController : SurfaceController
         _publishedContentQuery = publishedContentQuery;
         _logger = logger;
         _appCaches = appCaches;
+        _pushQueue = pushQueue;
     }
 
     [HttpPost]
@@ -214,32 +218,50 @@ public class CrewSurfaceController : SurfaceController
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> PostMessage(int crewId, string messageText, string returnUrl, bool notifyByEmail = true)
+    // [CHANGE: crew message replies – allowReplies flag] Related: Code/Services/ICrewMessageService.cs, Code/Services/CrewMessageService.cs, Code/Services/MemberEmailService.cs, Web/Views/Crew.cshtml
+    // [CHANGE: web push notifications – notifyByPush flag] Related: Code/Services/PushNotificationQueue.cs, Web/Views/Crew.cshtml
+    public async Task<IActionResult> PostMessage(int crewId, string messageText, string returnUrl, bool notifyByEmail = true, bool allowReplies = true, bool notifyByPush = true)
     {
         var currentMember = await _memberManager.GetCurrentMemberAsync();
         if (currentMember == null)
         {
             TempData["CrewError"] = "Du skal være logget ind for at sende beskeder.";
-            return Redirect(returnUrl ?? "/");
+            return Redirect(SafeLocalPath(returnUrl));
         }
 
         var viewMode = await _crewService.GetMemberCrewViewModeAsync(currentMember.Email!, crewId);
         if (viewMode == CrewViewMode.Volunteer)
         {
             TempData["CrewError"] = "Du har ikke tilladelse til at sende beskeder.";
-            return Redirect(returnUrl ?? "/");
+            return Redirect(SafeLocalPath(returnUrl));
         }
 
         try
         {
             var memberName = currentMember.Name ?? currentMember.Email ?? "Ukendt";
-            var postedMessage = await _crewMessageService.PostMessageAsync(crewId, currentMember.Email!, memberName, messageText);
+            var postedMessage = await _crewMessageService.PostMessageAsync(crewId, currentMember.Email!, memberName, messageText, allowReplies);
             TempData["CrewSuccess"] = "Beskeden er blevet sendt.";
+
+            if (notifyByPush)
+            {
+                var pushCrewName = _contentService.GetById(crewId)?.Name ?? "dit crew";
+                // Recipients are resolved by the background worker; the author is skipped like in the email loop
+                _pushQueue.Enqueue(new PushJob(
+                    new PushPayload
+                    {
+                        Title = $"{pushCrewName}: ny besked fra {memberName}",
+                        Body = PushNotificationService.ToPlainSnippet(postedMessage.MessageHtml),
+                        Url = $"{SafeLocalPath(returnUrl)}#message-{postedMessage.Id}",
+                        Tag = $"crew-message-{postedMessage.Id}"
+                    },
+                    CrewId: crewId,
+                    ExcludeMemberKey: currentMember.Key));
+            }
 
             if (notifyByEmail)
             {
                 // Capture request values before the HTTP context is disposed
-                var crewUrl = $"{Request.Scheme}://{Request.Host}{returnUrl}";
+                var crewUrl = $"{Request.Scheme}://{Request.Host}{SafeLocalPath(returnUrl)}";
                 var authorEmail = currentMember.Email!;
 
                 _ = Task.Run(async () =>
@@ -287,7 +309,7 @@ public class CrewSurfaceController : SurfaceController
             TempData["CrewError"] = ex.Message;
         }
 
-        return Redirect(returnUrl ?? "/");
+        return Redirect(SafeLocalPath(returnUrl));
     }
 
     [HttpPost]
@@ -371,13 +393,13 @@ public class CrewSurfaceController : SurfaceController
         if (currentMember == null)
         {
             TempData["CrewError"] = "Du skal være logget ind.";
-            return Redirect(returnUrl ?? "/");
+            return Redirect(SafeLocalPath(returnUrl));
         }
 
         var viewMode = await _crewService.GetMemberCrewViewModeAsync(currentMember.Email!, crewId);
         var isAdminOrScheduler = viewMode == CrewViewMode.Admin || viewMode == CrewViewMode.Scheduler;
 
-        var deleted = await _crewMessageService.DeleteMessageAsync(messageId, currentMember.Email!, isAdminOrScheduler);
+        var deleted = await _crewMessageService.DeleteMessageAsync(messageId, crewId, currentMember.Email!, isAdminOrScheduler);
         if (deleted)
         {
             TempData["CrewSuccess"] = "Beskeden er blevet slettet.";
@@ -387,6 +409,145 @@ public class CrewSurfaceController : SurfaceController
             TempData["CrewError"] = "Kunne ikke slette beskeden.";
         }
 
-        return Redirect(returnUrl ?? "/");
+        return Redirect(SafeLocalPath(returnUrl));
     }
+
+    // [CHANGE: crew message replies] Related: Code/Migrations/AddCrewMessageTableMigration.cs, Code/Services/ICrewMessageService.cs, Code/Services/CrewMessageService.cs, Code/Services/IMemberEmailService.cs, Code/Services/MemberEmailService.cs, Web/Views/Crew.cshtml
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> PostReply(int messageId, int crewId, string replyText, string returnUrl)
+    {
+        var currentMember = await _memberManager.GetCurrentMemberAsync();
+        if (currentMember == null)
+        {
+            TempData["CrewError"] = "Du skal være logget ind for at svare.";
+            return RedirectToThread(returnUrl, messageId);
+        }
+
+        // Leaders (Administrator/Vagtplanlægger) may always reply; Frivillige only when assigned to the crew
+        var viewMode = await _crewService.GetMemberCrewViewModeAsync(currentMember.Email!, crewId);
+        if (viewMode == CrewViewMode.Volunteer
+            && !await _crewMessageService.IsMemberAssignedToCrewAsync(currentMember.Email!, crewId))
+        {
+            TempData["CrewError"] = "Du har ikke tilladelse til at svare på beskeder i dette crew.";
+            return RedirectToThread(returnUrl, messageId);
+        }
+
+        try
+        {
+            var authorName = currentMember.Name ?? currentMember.Email ?? "Ukendt";
+            var result = await _crewMessageService.PostReplyAsync(messageId, crewId, currentMember.Email!, authorName, replyText);
+            TempData["CrewSuccess"] = "Dit svar er sendt.";
+
+            // Notify the message author only – not when they reply themselves
+            if (!string.Equals(result.MessageAuthorEmail, currentMember.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                // [CHANGE: web push notifications] Push to the message author's devices as well
+                var messageAuthor = _memberService.GetByEmail(result.MessageAuthorEmail);
+                if (messageAuthor != null)
+                {
+                    var crewNameForPush = _contentService.GetById(crewId)?.Name ?? "dit crew";
+                    _pushQueue.Enqueue(new PushJob(
+                        new PushPayload
+                        {
+                            Title = $"{crewNameForPush}: {authorName} svarede på din besked",
+                            Body = PushNotificationService.ToPlainSnippet(result.Reply.ReplyHtml),
+                            Url = $"{SafeLocalPath(returnUrl)}#message-{messageId}",
+                            Tag = $"crew-reply-{result.Reply.Id}"
+                        },
+                        MemberKeys: new[] { messageAuthor.Key }));
+                }
+
+                // Capture request values before the HTTP context is disposed
+                var messageUrl = $"{Request.Scheme}://{Request.Host}{SafeLocalPath(returnUrl)}#message-{messageId}";
+                var messageAuthorEmail = result.MessageAuthorEmail;
+                var replyHtml = result.Reply.ReplyHtml;
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var recipient = await _crewMessageService.GetRecipientByEmailAsync(messageAuthorEmail);
+                        if (recipient == null)
+                            return; // author no longer a member
+
+                        var crewName = _contentService.GetById(crewId)?.Name ?? "Ukendt crew";
+                        await _memberEmailService.SendCrewMessageReplyNotificationAsync(
+                            recipient.Email, recipient.FullName, authorName, crewName, replyHtml, messageUrl);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Failed to send reply notification for message {MessageId}", messageId);
+                    }
+                });
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            TempData["CrewError"] = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["CrewError"] = ex.Message;
+        }
+
+        return RedirectToThread(returnUrl, messageId);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteReply(int replyId, int messageId, int crewId, string returnUrl)
+    {
+        var currentMember = await _memberManager.GetCurrentMemberAsync();
+        if (currentMember == null)
+        {
+            TempData["CrewError"] = "Du skal være logget ind.";
+            return RedirectToThread(returnUrl, messageId);
+        }
+
+        var viewMode = await _crewService.GetMemberCrewViewModeAsync(currentMember.Email!, crewId);
+        var isAdminOrScheduler = viewMode == CrewViewMode.Admin || viewMode == CrewViewMode.Scheduler;
+
+        var deleted = await _crewMessageService.DeleteReplyAsync(replyId, crewId, currentMember.Email!, isAdminOrScheduler);
+        if (deleted)
+            TempData["CrewSuccess"] = "Svaret er blevet slettet.";
+        else
+            TempData["CrewError"] = "Kunne ikke slette svaret.";
+
+        return RedirectToThread(returnUrl, messageId);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetRepliesClosed(int messageId, int crewId, bool closed, string returnUrl)
+    {
+        var currentMember = await _memberManager.GetCurrentMemberAsync();
+        if (currentMember == null)
+        {
+            TempData["CrewError"] = "Du skal være logget ind.";
+            return RedirectToThread(returnUrl, messageId);
+        }
+
+        var viewMode = await _crewService.GetMemberCrewViewModeAsync(currentMember.Email!, crewId);
+        if (viewMode == CrewViewMode.Volunteer)
+        {
+            TempData["CrewError"] = "Du har ikke tilladelse til at ændre dette.";
+            return RedirectToThread(returnUrl, messageId);
+        }
+
+        var updated = await _crewMessageService.SetRepliesClosedAsync(messageId, crewId, closed);
+        if (updated)
+            TempData["CrewSuccess"] = closed ? "Beskeden er lukket for svar." : "Beskeden er åbnet for svar.";
+        else
+            TempData["CrewError"] = "Kunne ikke opdatere beskeden.";
+
+        return RedirectToThread(returnUrl, messageId);
+    }
+
+    // [CHANGE: review fix – PostMessage/DeleteMessage now also use SafeLocalPath (open redirect + crewUrl in notification emails)] Related: Web/Views/Crew.cshtml, Code/Services/MemberEmailService.cs
+    private string SafeLocalPath(string? returnUrl) =>
+        !string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl) ? returnUrl : "/";
+
+    private IActionResult RedirectToThread(string? returnUrl, int messageId) =>
+        Redirect($"{SafeLocalPath(returnUrl)}#message-{messageId}");
 }

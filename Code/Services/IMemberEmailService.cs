@@ -11,6 +11,8 @@ public interface IMemberEmailService
     Task SendAcceptanceConfirmationEmailAsync(string email, MemberEmailData memberData, IEnumerable<string> selectedCrewNames, string subjectTemplate, string bodyTemplate);
     Task SendSupervisorNotificationEmailAsync(string supervisorEmail, string supervisorName, MemberEmailData memberData, string crewName, string subjectTemplate, string bodyTemplate);
     Task SendCrewMessageNotificationAsync(string toEmail, string recipientName, string authorName, string crewName, string messageHtml, string crewUrl);
+    // [CHANGE: crew message replies] Related: Code/Services/MemberEmailService.cs, Code/Services/CrewMessageService.cs, Web/Controllers/CrewSurfaceController.cs, Web/Views/Crew.cshtml
+    Task SendCrewMessageReplyNotificationAsync(string toEmail, string recipientName, string replyAuthorName, string crewName, string replyHtml, string messageUrl);
     Task SendCustomEmailAsync(string email, string subject, string htmlBody, MemberEmailData memberData);
     Task SendCrewAssignmentEmailAsync(string email, MemberEmailData memberData, string crewName, string subjectTemplate, string bodyTemplate);
     Task SendCancelationNotificationAsync(string toEmail, string crewName, string memberFullName, string memberEmail, IEnumerable<string> removedShiftDescriptions);

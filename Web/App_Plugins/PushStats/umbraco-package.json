@@ -1,0 +1,25 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "PushStats",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "dashboard",
+      "alias": "My.PushStats.Dashboard",
+      "name": "Push Stats Dashboard",
+      "element": "/App_Plugins/PushStats/push-stats-dashboard.js",
+      "elementName": "push-stats-dashboard",
+      "weight": 400,
+      "meta": {
+        "label": "Push",
+        "pathname": "push-stats"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Content"
+        }
+      ]
+    }
+  ]
+}
